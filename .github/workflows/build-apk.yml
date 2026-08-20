@@ -38,7 +38,7 @@ jobs:
       - name: Complete Android platform if needed
         run: flutter create . --project-name mport_test_speed --org id.haansiro --platforms=android
 
-      - name: Pin Gradle 8.14.3 and AGP
+      - name: Pin Gradle 9.3.1 + AGP 9.1.0 + Kotlin 2.4.0
         run: |
           mkdir -p android/gradle/wrapper
           cat > android/gradle/wrapper/gradle-wrapper.properties << 'PROPS'
@@ -46,24 +46,33 @@ jobs:
           distributionPath=wrapper/dists
           zipStoreBase=GRADLE_USER_HOME
           zipStorePath=wrapper/dists
-          distributionUrl=https\://services.gradle.org/distributions/gradle-8.14.3-all.zip
+          distributionUrl=https\://services.gradle.org/distributions/gradle-9.3.1-all.zip
           PROPS
           sed -i 's/^          //' android/gradle/wrapper/gradle-wrapper.properties
 
-          # Keep AGP below 9 to avoid newDsl conflict with Flutter plugin
+          # AGP 9.1.0 + Kotlin 2.4.0 (matrix yang sukses di MPorT ISP Portal / Flutter 3.47)
           if [ -f android/settings.gradle.kts ]; then
-            sed -i 's/id("com.android.application") version "[^"]*"/id("com.android.application") version "8.9.1"/' android/settings.gradle.kts
+            sed -i 's/id("com.android.application") version "[^"]*"/id("com.android.application") version "9.1.0"/' android/settings.gradle.kts
+            sed -i 's/id("org.jetbrains.kotlin.android") version "[^"]*"/id("org.jetbrains.kotlin.android") version "2.4.0"/' android/settings.gradle.kts
           fi
           if [ -f android/settings.gradle ]; then
-            sed -i "s/id \"com.android.application\" version \"[^\"]*\"/id \"com.android.application\" version \"8.9.1\"/" android/settings.gradle
+            sed -i "s/id \"com.android.application\" version \"[^\"]*\"/id \"com.android.application\" version \"9.1.0\"/" android/settings.gradle
+            sed -i "s/id \"org.jetbrains.kotlin.android\" version \"[^\"]*\"/id \"org.jetbrains.kotlin.android\" version \"2.4.0\"/" android/settings.gradle
           fi
 
+          # Wajib untuk Flutter + AGP 9
+          touch android/gradle.properties
           grep -q 'android.newDsl=false' android/gradle.properties 2>/dev/null || echo 'android.newDsl=false' >> android/gradle.properties
+          grep -q 'android.builtInKotlin=false' android/gradle.properties 2>/dev/null || echo 'android.builtInKotlin=false' >> android/gradle.properties
+          grep -q 'org.gradle.jvmargs' android/gradle.properties 2>/dev/null || echo 'org.gradle.jvmargs=-Xmx4G -XX:MaxMetaspaceSize=1G -XX:+HeapDumpOnOutOfMemoryError' >> android/gradle.properties
+          grep -q 'android.useAndroidX=true' android/gradle.properties 2>/dev/null || echo 'android.useAndroidX=true' >> android/gradle.properties
 
-          echo "Gradle wrapper:"
+          echo "===== Gradle wrapper ====="
           cat android/gradle/wrapper/gradle-wrapper.properties
-          echo "AGP pin:"
-          grep -n "com.android.application" android/settings.gradle.kts android/settings.gradle 2>/dev/null || true
+          echo "===== AGP / Kotlin pin ====="
+          grep -n "com.android.application\|kotlin.android" android/settings.gradle.kts android/settings.gradle 2>/dev/null || true
+          echo "===== gradle.properties ====="
+          cat android/gradle.properties
 
       - name: Force-safe Android styles
         run: |
