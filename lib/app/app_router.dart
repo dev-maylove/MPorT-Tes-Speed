@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../features/speed_test/screens/speed_test_screen.dart';
 import '../features/speed_test/screens/history_screen.dart';
 import '../features/speed_test/screens/main_screen.dart';
 import '../features/server/screens/server_screen.dart';

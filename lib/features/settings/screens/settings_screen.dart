@@ -21,7 +21,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       body: ListView(
         children: [
           const SizedBox(height: 8),
-          _SectionHeader(title: 'Umum'),
+          const _SectionHeader(title: 'Umum'),
           SettingsTile(
             icon: Icons.speed_rounded,
             title: 'Satuan Kecepatan',
@@ -56,7 +56,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
           const Divider(),
-          _SectionHeader(title: 'Lainnya'),
+          const _SectionHeader(title: 'Lainnya'),
           SettingsTile(
             icon: Icons.info_outline_rounded,
             title: 'Tentang Aplikasi',

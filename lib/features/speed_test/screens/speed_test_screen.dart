@@ -416,7 +416,7 @@ class _SpeedTestScreenState extends State<SpeedTestScreen> {
           borderRadius: BorderRadius.circular(18),
           gradient: LinearGradient(
             colors: running
-                ? [Color(0xFF333333), Color(0xFF444444)]
+                ? const [Color(0xFF333333), Color(0xFF444444)]
                 : [goldLight, gold],
           ),
           boxShadow: running

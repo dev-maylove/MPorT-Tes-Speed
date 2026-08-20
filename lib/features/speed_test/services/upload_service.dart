@@ -46,7 +46,7 @@ class UploadService {
   }) async {
     final payload = _payload(payloadMegabytes);
     final stopwatch = Stopwatch()..start();
-    final grace = const Duration(seconds: ServerConfig.gracePeriodSeconds);
+    const grace = Duration(seconds: ServerConfig.gracePeriodSeconds);
 
     var totalBytes = 0;
     var graceBytes = 0;

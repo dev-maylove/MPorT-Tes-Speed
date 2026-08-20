@@ -51,12 +51,11 @@ class PingService {
       throw Exception('Ping gagal — server tidak merespons');
     }
 
-    final chronological = List<double>.from(values);
-    final sorted = List<double>.from(values)..sort();
+    values.sort();
 
     // Trim outlier (buang terendah & tertinggi)
-    var working = sorted;
-    final trim = ServerConfig.pingTrimCount;
+    var working = values;
+    const trim = ServerConfig.pingTrimCount;
     if (values.length > trim * 2 + 1) {
       working = values.sublist(trim, values.length - trim);
     }
@@ -69,8 +68,8 @@ class PingService {
 
     // Jitter = rata-rata selisih absolut antar sampel berurutan
     final diffs = <double>[];
-    for (var i = 1; i < chronological.length; i++) {
-      diffs.add((chronological[i] - chronological[i - 1]).abs());
+    for (var i = 1; i < values.length; i++) {
+      diffs.add((values[i] - values[i - 1]).abs());
     }
     final jitter = diffs.isEmpty
         ? 0.0

@@ -37,6 +37,8 @@ class NetworkInfo {
         return 'Tidak ada koneksi';
       case ConnectivityResult.bluetooth:
         return 'Bluetooth';
+      case ConnectivityResult.satellite:
+        return 'Satellite';
     }
   }
 }

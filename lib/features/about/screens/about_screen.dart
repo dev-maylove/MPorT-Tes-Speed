@@ -36,19 +36,19 @@ class AboutScreen extends StatelessWidget {
             ),
             const SizedBox(height: 32),
             const Divider(),
-            ListTile(
-              leading: const Icon(Icons.dns_outlined),
-              title: const Text('Server'),
+            const ListTile(
+              leading: Icon(Icons.dns_outlined),
+              title: Text('Server'),
               subtitle: Text(ServerConfig.baseUrl),
             ),
-            ListTile(
-              leading: const Icon(Icons.download_outlined),
-              title: const Text('Download endpoint'),
+            const ListTile(
+              leading: Icon(Icons.download_outlined),
+              title: Text('Download endpoint'),
               subtitle: Text(ServerConfig.downloadPath),
             ),
-            ListTile(
-              leading: const Icon(Icons.upload_outlined),
-              title: const Text('Upload endpoint'),
+            const ListTile(
+              leading: Icon(Icons.upload_outlined),
+              title: Text('Upload endpoint'),
               subtitle: Text(ServerConfig.uploadPath),
             ),
             const Spacer(),

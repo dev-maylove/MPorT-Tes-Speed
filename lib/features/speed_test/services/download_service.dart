@@ -30,7 +30,7 @@ class DownloadService {
     var graceEnded = false;
 
     final stopwatch = Stopwatch()..start();
-    final grace = const Duration(seconds: ServerConfig.gracePeriodSeconds);
+    const grace = Duration(seconds: ServerConfig.gracePeriodSeconds);
     var lastProgressMs = 0;
 
     void endGraceIfNeeded() {
