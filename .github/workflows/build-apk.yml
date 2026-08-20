@@ -38,7 +38,7 @@ jobs:
       - name: Complete Android platform if needed
         run: flutter create . --project-name mport_test_speed --org id.haansiro --platforms=android
 
-      - name: Pin Gradle 9.3.1 + AGP 9.1.0 + Kotlin 2.4.0 + fix DSL
+      - name: Pin Gradle 9.3.1 + AGP 9.1.0 + Built-in Kotlin
         run: |
           set -e
 
@@ -53,77 +53,109 @@ jobs:
           EOF
           sed -i 's/^          //' android/gradle/wrapper/gradle-wrapper.properties
 
-          # ── 2. settings.gradle.kts → AGP 9.1.0 + Kotlin 2.4.0 ─────────
+          # ── 2. settings.gradle.kts → AGP 9.1.0, HAPUS Kotlin plugin ───
+          #    AGP 9 pakai Built-in Kotlin, jangan apply org.jetbrains.kotlin.android
           if [ -f android/settings.gradle.kts ]; then
             sed -i 's/id("com.android.application") version "[^"]*"/id("com.android.application") version "9.1.0"/' android/settings.gradle.kts
-            sed -i 's/id("org.jetbrains.kotlin.android") version "[^"]*"/id("org.jetbrains.kotlin.android") version "2.4.0"/' android/settings.gradle.kts
+            # Hapus baris Kotlin plugin (built-in di AGP 9)
+            sed -i '/org.jetbrains.kotlin.android/d' android/settings.gradle.kts
           fi
           if [ -f android/settings.gradle ]; then
             sed -i "s/id \"com.android.application\" version \"[^\"]*\"/id \"com.android.application\" version \"9.1.0\"/" android/settings.gradle
-            sed -i "s/id \"org.jetbrains.kotlin.android\" version \"[^\"]*\"/id \"org.jetbrains.kotlin.android\" version \"2.4.0\"/" android/settings.gradle
+            sed -i '/org.jetbrains.kotlin.android/d' android/settings.gradle
           fi
 
-          # ── 3. gradle.properties (overwrite, wajib untuk AGP 9) ────────
+          # ── 3. gradle.properties ───────────────────────────────────────
           cat > android/gradle.properties << 'EOF'
           org.gradle.jvmargs=-Xmx4G -XX:MaxMetaspaceSize=1G -XX:+HeapDumpOnOutOfMemoryError
           android.useAndroidX=true
           android.enableJetifier=true
           kotlin.code.style=official
           android.newDsl=false
-          android.builtInKotlin=false
           EOF
           sed -i 's/^          //' android/gradle.properties
 
-          # ── 4. Fix app/build.gradle.kts (hapus kotlinOptions deprecated) ─
-          #    Ganti kotlinOptions { jvmTarget = ... } → compilerOptions DSL
-          if [ -f android/app/build.gradle.kts ]; then
-            # Hapus blok kotlinOptions lama (multi-line)
-            python3 - << 'PY'
+          # ── 4. Fix app/build.gradle.kts ────────────────────────────────
+          #    - Hapus plugin kotlin-android / org.jetbrains.kotlin.android
+          #    - Hapus kotlinOptions / compilerOptions (tidak perlu di built-in)
+          python3 - << 'PY'
           from pathlib import Path
           import re
+
           p = Path("android/app/build.gradle.kts")
+          if not p.exists():
+              print("app/build.gradle.kts not found, skip")
+              raise SystemExit(0)
+
           text = p.read_text()
 
-          # Pastikan import JvmTarget ada
-          if "import org.jetbrains.kotlin.gradle.dsl.JvmTarget" not in text:
-              text = "import org.jetbrains.kotlin.gradle.dsl.JvmTarget\n" + text
+          # Hapus baris plugin Kotlin
+          text = re.sub(
+              r'^\s*id\(["\']org\.jetbrains\.kotlin\.android["\']\)\s*\n',
+              '',
+              text,
+              flags=re.MULTILINE,
+          )
+          text = re.sub(
+              r'^\s*id\(["\']kotlin-android["\']\)\s*\n',
+              '',
+              text,
+              flags=re.MULTILINE,
+          )
+
+          # Hapus import JvmTarget jika ada
+          text = re.sub(
+              r'^import org\.jetbrains\.kotlin\.gradle\.dsl\.JvmTarget\s*\n',
+              '',
+              text,
+              flags=re.MULTILINE,
+          )
 
           # Hapus blok kotlinOptions { ... }
           text = re.sub(
-              r"\s*kotlinOptions\s*\{[^}]*\}",
-              "",
+              r'\n\s*kotlinOptions\s*\{[^}]*\}',
+              '',
               text,
               flags=re.DOTALL,
           )
 
-          # Tambah blok kotlin { compilerOptions } jika belum ada
-          if "compilerOptions" not in text:
-              kotlin_block = """
-          kotlin {
-              compilerOptions {
-                  jvmTarget.set(JvmTarget.JVM_17)
-              }
-          }
+          # Hapus blok kotlin { compilerOptions { ... } }
+          text = re.sub(
+              r'\n\s*kotlin\s*\{\s*compilerOptions\s*\{[^}]*\}\s*\}',
+              '',
+              text,
+              flags=re.DOTALL,
+          )
+
+          # Pastikan compileOptions Java 17 ada
+          if "sourceCompatibility" not in text:
+              compile_opts = """
+      compileOptions {
+          sourceCompatibility = JavaVersion.VERSION_17
+          targetCompatibility = JavaVersion.VERSION_17
+      }
           """
-              # Sisipkan sebelum flutter { atau di akhir file
-              if "flutter {" in text:
-                  text = text.replace("flutter {", kotlin_block + "\nflutter {")
-              else:
-                  text = text.rstrip() + "\n" + kotlin_block
+              text = text.replace(
+                  "android {",
+                  "android {" + compile_opts,
+                  1,
+              )
 
           p.write_text(text)
-          print("app/build.gradle.kts patched OK")
+          print("app/build.gradle.kts patched for Built-in Kotlin")
+          print("--- plugins section ---")
+          for i, line in enumerate(text.splitlines()[:20], 1):
+              print(f"{i}: {line}")
           PY
-          fi
 
           echo "===== Gradle wrapper ====="
           cat android/gradle/wrapper/gradle-wrapper.properties
-          echo "===== settings (AGP/Kotlin) ====="
-          grep -n "com.android.application\|kotlin.android" android/settings.gradle.kts android/settings.gradle 2>/dev/null || true
+          echo "===== settings ====="
+          cat android/settings.gradle.kts 2>/dev/null || cat android/settings.gradle
           echo "===== gradle.properties ====="
           cat android/gradle.properties
-          echo "===== app/build.gradle.kts (kotlin section) ====="
-          grep -n -A6 "kotlin\|compilerOptions\|jvmTarget\|kotlinOptions" android/app/build.gradle.kts 2>/dev/null || true
+          echo "===== app/build.gradle.kts (head) ====="
+          head -40 android/app/build.gradle.kts
 
       - name: Force-safe Android styles
         run: |
@@ -188,14 +220,21 @@ jobs:
         run: flutter test
 
       - name: Build APK (release)
-        run: flutter build apk --release --no-tree-shake-icons
+        run: |
+          flutter build apk --release --no-tree-shake-icons --verbose 2>&1 | tee build.log
+          echo "===== Last 80 lines of build log ====="
+          tail -80 build.log || true
 
       - name: List APK outputs
         if: always()
         run: |
-          find build -name "*.apk" -type f 2>/dev/null || true
+          echo "===== Searching for APK ====="
+          find . -name "*.apk" -type f 2>/dev/null || true
+          echo "===== build/ tree ====="
+          find build -type f 2>/dev/null | head -50 || true
           ls -la build/app/outputs/flutter-apk/ 2>/dev/null || true
           ls -la build/app/outputs/apk/release/ 2>/dev/null || true
+          ls -la android/app/build/outputs/apk/ 2>/dev/null || true
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
@@ -204,5 +243,6 @@ jobs:
           path: |
             build/app/outputs/flutter-apk/*.apk
             build/app/outputs/apk/release/*.apk
+            **/app-release.apk
           if-no-files-found: error
           retention-days: 14
