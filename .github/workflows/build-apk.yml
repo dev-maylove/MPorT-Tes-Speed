@@ -77,7 +77,9 @@ jobs:
           android.enableJetifier=true
           kotlin.code.style=official
           android.newDsl=false
-          android.builtInKotlin=false
+          android.builtInKotlin=true
+          org.gradle.parallel=false
+          org.gradle.workers.max=2
           PROPS
           sed -i 's/^          //' android/gradle.properties
 
@@ -165,6 +167,11 @@ jobs:
 
       - name: Test
         run: flutter test
+
+      - name: Clean build directory
+        run: |
+          flutter clean
+          rm -rf build/
 
       - name: Build APK (release)
         run: flutter build apk --release --no-tree-shake-icons
