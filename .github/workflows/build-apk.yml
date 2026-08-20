@@ -38,6 +38,33 @@ jobs:
       - name: Complete Android platform if needed
         run: flutter create . --project-name mport_test_speed --org id.haansiro --platforms=android
 
+      - name: Pin Gradle 8.14.3 and AGP
+        run: |
+          mkdir -p android/gradle/wrapper
+          cat > android/gradle/wrapper/gradle-wrapper.properties << 'PROPS'
+          distributionBase=GRADLE_USER_HOME
+          distributionPath=wrapper/dists
+          zipStoreBase=GRADLE_USER_HOME
+          zipStorePath=wrapper/dists
+          distributionUrl=https\://services.gradle.org/distributions/gradle-8.14.3-all.zip
+          PROPS
+          sed -i 's/^          //' android/gradle/wrapper/gradle-wrapper.properties
+
+          # Keep AGP below 9 to avoid newDsl conflict with Flutter plugin
+          if [ -f android/settings.gradle.kts ]; then
+            sed -i 's/id("com.android.application") version "[^"]*"/id("com.android.application") version "8.9.1"/' android/settings.gradle.kts
+          fi
+          if [ -f android/settings.gradle ]; then
+            sed -i "s/id \"com.android.application\" version \"[^\"]*\"/id \"com.android.application\" version \"8.9.1\"/" android/settings.gradle
+          fi
+
+          grep -q 'android.newDsl=false' android/gradle.properties 2>/dev/null || echo 'android.newDsl=false' >> android/gradle.properties
+
+          echo "Gradle wrapper:"
+          cat android/gradle/wrapper/gradle-wrapper.properties
+          echo "AGP pin:"
+          grep -n "com.android.application" android/settings.gradle.kts android/settings.gradle 2>/dev/null || true
+
       - name: Force-safe Android styles
         run: |
           mkdir -p android/app/src/main/res/values
@@ -60,7 +87,6 @@ jobs:
               </style>
           </resources>
           XML
-          # strip leading spaces from heredoc indentation
           sed -i 's/^          //' android/app/src/main/res/values/styles.xml
           cp android/app/src/main/res/values/styles.xml android/app/src/main/res/values-night/styles.xml
           cat > android/app/src/main/res/drawable/launch_background.xml << 'XML'
