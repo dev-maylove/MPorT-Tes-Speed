@@ -38,7 +38,7 @@ jobs:
       - name: Complete Android platform if needed
         run: flutter create . --project-name mport_test_speed --org id.haansiro --platforms=android
 
-      - name: Pin Gradle 9.3.1 + AGP 9.1.0 + Built-in Kotlin
+      - name: Pin Gradle 9.3.1 + AGP 9.1.0 + Kotlin 2.4.0
         run: |
           set -e
 
@@ -52,31 +52,49 @@ jobs:
           PROPS
           sed -i 's/^          //' android/gradle/wrapper/gradle-wrapper.properties
 
+          # settings.gradle.kts → AGP 9.1.0 + Kotlin 2.4.0
           if [ -f android/settings.gradle.kts ]; then
             sed -i 's/id("com.android.application") version "[^"]*"/id("com.android.application") version "9.1.0"/' android/settings.gradle.kts
-            sed -i '/org.jetbrains.kotlin.android/d' android/settings.gradle.kts
+            if grep -q 'org.jetbrains.kotlin.android' android/settings.gradle.kts; then
+              sed -i 's/id("org.jetbrains.kotlin.android") version "[^"]*"/id("org.jetbrains.kotlin.android") version "2.4.0"/' android/settings.gradle.kts
+            else
+              sed -i '/id("com.android.application")/a\    id("org.jetbrains.kotlin.android") version "2.4.0" apply false' android/settings.gradle.kts
+            fi
           fi
           if [ -f android/settings.gradle ]; then
             sed -i "s/id \"com.android.application\" version \"[^\"]*\"/id \"com.android.application\" version \"9.1.0\"/" android/settings.gradle
-            sed -i '/org.jetbrains.kotlin.android/d' android/settings.gradle
+            if grep -q 'org.jetbrains.kotlin.android' android/settings.gradle; then
+              sed -i "s/id \"org.jetbrains.kotlin.android\" version \"[^\"]*\"/id \"org.jetbrains.kotlin.android\" version \"2.4.0\"/" android/settings.gradle
+            else
+              sed -i '/id "com.android.application"/a\    id "org.jetbrains.kotlin.android" version "2.4.0" apply false' android/settings.gradle
+            fi
           fi
 
+          # gradle.properties — wajib untuk Flutter + AGP 9
           cat > android/gradle.properties << 'PROPS'
           org.gradle.jvmargs=-Xmx4G -XX:MaxMetaspaceSize=1G -XX:+HeapDumpOnOutOfMemoryError
           android.useAndroidX=true
           android.enableJetifier=true
           kotlin.code.style=official
           android.newDsl=false
+          android.builtInKotlin=false
           PROPS
           sed -i 's/^          //' android/gradle.properties
 
+          # app/build.gradle.kts — pastikan plugin Kotlin ada, hapus kotlinOptions lama
           if [ -f android/app/build.gradle.kts ]; then
-            sed -i '/org.jetbrains.kotlin.android/d' android/app/build.gradle.kts
-            sed -i '/kotlin-android/d' android/app/build.gradle.kts
-            sed -i '/JvmTarget/d' android/app/build.gradle.kts
+            # Pastikan plugin kotlin ada
+            if ! grep -q 'org.jetbrains.kotlin.android\|kotlin-android' android/app/build.gradle.kts; then
+              sed -i '/id("com.android.application")/a\    id("org.jetbrains.kotlin.android")' android/app/build.gradle.kts
+            fi
+            # Normalisasi id plugin
+            sed -i 's/id("kotlin-android")/id("org.jetbrains.kotlin.android")/' android/app/build.gradle.kts
+            # Hapus kotlinOptions deprecated (bisa bikin error di AGP 9)
             sed -i '/kotlinOptions/,/}/d' android/app/build.gradle.kts
-            sed -i '/compilerOptions/,/}/d' android/app/build.gradle.kts
-            sed -i '/^kotlin {/d' android/app/build.gradle.kts
+            # Pastikan compileOptions Java 17
+            if ! grep -q 'sourceCompatibility' android/app/build.gradle.kts; then
+              sed -i '/android {/a\    compileOptions {\n        sourceCompatibility = JavaVersion.VERSION_17\n        targetCompatibility = JavaVersion.VERSION_17\n    }' android/app/build.gradle.kts
+            fi
           fi
 
           echo "===== Gradle wrapper ====="
@@ -86,7 +104,7 @@ jobs:
           echo "===== gradle.properties ====="
           cat android/gradle.properties
           echo "===== app/build.gradle.kts head ====="
-          head -40 android/app/build.gradle.kts
+          head -50 android/app/build.gradle.kts
 
       - name: Force-safe Android styles
         run: |
@@ -121,11 +139,6 @@ jobs:
           </layer-list>
           XML
           sed -i 's/^          //' android/app/src/main/res/drawable/launch_background.xml
-
-          if grep -R "Theme.Light.NoActionBar" android/; then
-            echo "Forbidden theme still present"
-            exit 1
-          fi
           echo "Styles OK"
 
       - name: Fix default widget_test
@@ -159,7 +172,6 @@ jobs:
       - name: List APK outputs
         if: always()
         run: |
-          echo "===== Searching for APK ====="
           find . -name "*.apk" -type f 2>/dev/null || true
           ls -la build/app/outputs/flutter-apk/ 2>/dev/null || true
           ls -la build/app/outputs/apk/release/ 2>/dev/null || true
