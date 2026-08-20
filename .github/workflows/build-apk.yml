@@ -42,22 +42,18 @@ jobs:
         run: |
           set -e
 
-          # ── 1. Gradle wrapper ──────────────────────────────────────────
           mkdir -p android/gradle/wrapper
-          cat > android/gradle/wrapper/gradle-wrapper.properties << 'EOF'
+          cat > android/gradle/wrapper/gradle-wrapper.properties << 'PROPS'
           distributionBase=GRADLE_USER_HOME
           distributionPath=wrapper/dists
           zipStoreBase=GRADLE_USER_HOME
           zipStorePath=wrapper/dists
           distributionUrl=https\://services.gradle.org/distributions/gradle-9.3.1-all.zip
-          EOF
+          PROPS
           sed -i 's/^          //' android/gradle/wrapper/gradle-wrapper.properties
 
-          # ── 2. settings.gradle.kts → AGP 9.1.0, HAPUS Kotlin plugin ───
-          #    AGP 9 pakai Built-in Kotlin, jangan apply org.jetbrains.kotlin.android
           if [ -f android/settings.gradle.kts ]; then
             sed -i 's/id("com.android.application") version "[^"]*"/id("com.android.application") version "9.1.0"/' android/settings.gradle.kts
-            # Hapus baris Kotlin plugin (built-in di AGP 9)
             sed -i '/org.jetbrains.kotlin.android/d' android/settings.gradle.kts
           fi
           if [ -f android/settings.gradle ]; then
@@ -65,96 +61,31 @@ jobs:
             sed -i '/org.jetbrains.kotlin.android/d' android/settings.gradle
           fi
 
-          # ── 3. gradle.properties ───────────────────────────────────────
-          cat > android/gradle.properties << 'EOF'
+          cat > android/gradle.properties << 'PROPS'
           org.gradle.jvmargs=-Xmx4G -XX:MaxMetaspaceSize=1G -XX:+HeapDumpOnOutOfMemoryError
           android.useAndroidX=true
           android.enableJetifier=true
           kotlin.code.style=official
           android.newDsl=false
-          EOF
+          PROPS
           sed -i 's/^          //' android/gradle.properties
 
-          # ── 4. Fix app/build.gradle.kts ────────────────────────────────
-          #    - Hapus plugin kotlin-android / org.jetbrains.kotlin.android
-          #    - Hapus kotlinOptions / compilerOptions (tidak perlu di built-in)
-          python3 - << 'PY'
-          from pathlib import Path
-          import re
-
-          p = Path("android/app/build.gradle.kts")
-          if not p.exists():
-              print("app/build.gradle.kts not found, skip")
-              raise SystemExit(0)
-
-          text = p.read_text()
-
-          # Hapus baris plugin Kotlin
-          text = re.sub(
-              r'^\s*id\(["\']org\.jetbrains\.kotlin\.android["\']\)\s*\n',
-              '',
-              text,
-              flags=re.MULTILINE,
-          )
-          text = re.sub(
-              r'^\s*id\(["\']kotlin-android["\']\)\s*\n',
-              '',
-              text,
-              flags=re.MULTILINE,
-          )
-
-          # Hapus import JvmTarget jika ada
-          text = re.sub(
-              r'^import org\.jetbrains\.kotlin\.gradle\.dsl\.JvmTarget\s*\n',
-              '',
-              text,
-              flags=re.MULTILINE,
-          )
-
-          # Hapus blok kotlinOptions { ... }
-          text = re.sub(
-              r'\n\s*kotlinOptions\s*\{[^}]*\}',
-              '',
-              text,
-              flags=re.DOTALL,
-          )
-
-          # Hapus blok kotlin { compilerOptions { ... } }
-          text = re.sub(
-              r'\n\s*kotlin\s*\{\s*compilerOptions\s*\{[^}]*\}\s*\}',
-              '',
-              text,
-              flags=re.DOTALL,
-          )
-
-          # Pastikan compileOptions Java 17 ada
-          if "sourceCompatibility" not in text:
-              compile_opts = """
-      compileOptions {
-          sourceCompatibility = JavaVersion.VERSION_17
-          targetCompatibility = JavaVersion.VERSION_17
-      }
-          """
-              text = text.replace(
-                  "android {",
-                  "android {" + compile_opts,
-                  1,
-              )
-
-          p.write_text(text)
-          print("app/build.gradle.kts patched for Built-in Kotlin")
-          print("--- plugins section ---")
-          for i, line in enumerate(text.splitlines()[:20], 1):
-              print(f"{i}: {line}")
-          PY
+          if [ -f android/app/build.gradle.kts ]; then
+            sed -i '/org.jetbrains.kotlin.android/d' android/app/build.gradle.kts
+            sed -i '/kotlin-android/d' android/app/build.gradle.kts
+            sed -i '/JvmTarget/d' android/app/build.gradle.kts
+            sed -i '/kotlinOptions/,/}/d' android/app/build.gradle.kts
+            sed -i '/compilerOptions/,/}/d' android/app/build.gradle.kts
+            sed -i '/^kotlin {/d' android/app/build.gradle.kts
+          fi
 
           echo "===== Gradle wrapper ====="
           cat android/gradle/wrapper/gradle-wrapper.properties
           echo "===== settings ====="
-          cat android/settings.gradle.kts 2>/dev/null || cat android/settings.gradle
+          cat android/settings.gradle.kts 2>/dev/null || true
           echo "===== gradle.properties ====="
           cat android/gradle.properties
-          echo "===== app/build.gradle.kts (head) ====="
+          echo "===== app/build.gradle.kts head ====="
           head -40 android/app/build.gradle.kts
 
       - name: Force-safe Android styles
@@ -162,6 +93,7 @@ jobs:
           mkdir -p android/app/src/main/res/values
           mkdir -p android/app/src/main/res/values-night
           mkdir -p android/app/src/main/res/drawable
+
           cat > android/app/src/main/res/values/styles.xml << 'XML'
           <?xml version="1.0" encoding="utf-8"?>
           <resources>
@@ -181,6 +113,7 @@ jobs:
           XML
           sed -i 's/^          //' android/app/src/main/res/values/styles.xml
           cp android/app/src/main/res/values/styles.xml android/app/src/main/res/values-night/styles.xml
+
           cat > android/app/src/main/res/drawable/launch_background.xml << 'XML'
           <?xml version="1.0" encoding="utf-8"?>
           <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
@@ -188,6 +121,7 @@ jobs:
           </layer-list>
           XML
           sed -i 's/^          //' android/app/src/main/res/drawable/launch_background.xml
+
           if grep -R "Theme.Light.NoActionBar" android/; then
             echo "Forbidden theme still present"
             exit 1
@@ -220,21 +154,15 @@ jobs:
         run: flutter test
 
       - name: Build APK (release)
-        run: |
-          flutter build apk --release --no-tree-shake-icons --verbose 2>&1 | tee build.log
-          echo "===== Last 80 lines of build log ====="
-          tail -80 build.log || true
+        run: flutter build apk --release --no-tree-shake-icons
 
       - name: List APK outputs
         if: always()
         run: |
           echo "===== Searching for APK ====="
           find . -name "*.apk" -type f 2>/dev/null || true
-          echo "===== build/ tree ====="
-          find build -type f 2>/dev/null | head -50 || true
           ls -la build/app/outputs/flutter-apk/ 2>/dev/null || true
           ls -la build/app/outputs/apk/release/ 2>/dev/null || true
-          ls -la android/app/build/outputs/apk/ 2>/dev/null || true
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
@@ -243,6 +171,5 @@ jobs:
           path: |
             build/app/outputs/flutter-apk/*.apk
             build/app/outputs/apk/release/*.apk
-            **/app-release.apk
           if-no-files-found: error
           retention-days: 14
