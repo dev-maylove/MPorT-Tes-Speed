@@ -38,19 +38,22 @@ jobs:
       - name: Complete Android platform if needed
         run: flutter create . --project-name mport_test_speed --org id.haansiro --platforms=android
 
-      - name: Pin Gradle 9.3.1 + AGP 9.1.0 + Kotlin 2.4.0
+      - name: Pin Gradle 9.3.1 + AGP 9.1.0 + Kotlin 2.4.0 + fix DSL
         run: |
+          set -e
+
+          # ── 1. Gradle wrapper ──────────────────────────────────────────
           mkdir -p android/gradle/wrapper
-          cat > android/gradle/wrapper/gradle-wrapper.properties << 'PROPS'
+          cat > android/gradle/wrapper/gradle-wrapper.properties << 'EOF'
           distributionBase=GRADLE_USER_HOME
           distributionPath=wrapper/dists
           zipStoreBase=GRADLE_USER_HOME
           zipStorePath=wrapper/dists
           distributionUrl=https\://services.gradle.org/distributions/gradle-9.3.1-all.zip
-          PROPS
+          EOF
           sed -i 's/^          //' android/gradle/wrapper/gradle-wrapper.properties
 
-          # AGP 9.1.0 + Kotlin 2.4.0 (matrix yang sukses di MPorT ISP Portal / Flutter 3.47)
+          # ── 2. settings.gradle.kts → AGP 9.1.0 + Kotlin 2.4.0 ─────────
           if [ -f android/settings.gradle.kts ]; then
             sed -i 's/id("com.android.application") version "[^"]*"/id("com.android.application") version "9.1.0"/' android/settings.gradle.kts
             sed -i 's/id("org.jetbrains.kotlin.android") version "[^"]*"/id("org.jetbrains.kotlin.android") version "2.4.0"/' android/settings.gradle.kts
@@ -60,19 +63,67 @@ jobs:
             sed -i "s/id \"org.jetbrains.kotlin.android\" version \"[^\"]*\"/id \"org.jetbrains.kotlin.android\" version \"2.4.0\"/" android/settings.gradle
           fi
 
-          # Wajib untuk Flutter + AGP 9
-          touch android/gradle.properties
-          grep -q 'android.newDsl=false' android/gradle.properties 2>/dev/null || echo 'android.newDsl=false' >> android/gradle.properties
-          grep -q 'android.builtInKotlin=false' android/gradle.properties 2>/dev/null || echo 'android.builtInKotlin=false' >> android/gradle.properties
-          grep -q 'org.gradle.jvmargs' android/gradle.properties 2>/dev/null || echo 'org.gradle.jvmargs=-Xmx4G -XX:MaxMetaspaceSize=1G -XX:+HeapDumpOnOutOfMemoryError' >> android/gradle.properties
-          grep -q 'android.useAndroidX=true' android/gradle.properties 2>/dev/null || echo 'android.useAndroidX=true' >> android/gradle.properties
+          # ── 3. gradle.properties (overwrite, wajib untuk AGP 9) ────────
+          cat > android/gradle.properties << 'EOF'
+          org.gradle.jvmargs=-Xmx4G -XX:MaxMetaspaceSize=1G -XX:+HeapDumpOnOutOfMemoryError
+          android.useAndroidX=true
+          android.enableJetifier=true
+          kotlin.code.style=official
+          android.newDsl=false
+          android.builtInKotlin=false
+          EOF
+          sed -i 's/^          //' android/gradle.properties
+
+          # ── 4. Fix app/build.gradle.kts (hapus kotlinOptions deprecated) ─
+          #    Ganti kotlinOptions { jvmTarget = ... } → compilerOptions DSL
+          if [ -f android/app/build.gradle.kts ]; then
+            # Hapus blok kotlinOptions lama (multi-line)
+            python3 - << 'PY'
+          from pathlib import Path
+          import re
+          p = Path("android/app/build.gradle.kts")
+          text = p.read_text()
+
+          # Pastikan import JvmTarget ada
+          if "import org.jetbrains.kotlin.gradle.dsl.JvmTarget" not in text:
+              text = "import org.jetbrains.kotlin.gradle.dsl.JvmTarget\n" + text
+
+          # Hapus blok kotlinOptions { ... }
+          text = re.sub(
+              r"\s*kotlinOptions\s*\{[^}]*\}",
+              "",
+              text,
+              flags=re.DOTALL,
+          )
+
+          # Tambah blok kotlin { compilerOptions } jika belum ada
+          if "compilerOptions" not in text:
+              kotlin_block = """
+          kotlin {
+              compilerOptions {
+                  jvmTarget.set(JvmTarget.JVM_17)
+              }
+          }
+          """
+              # Sisipkan sebelum flutter { atau di akhir file
+              if "flutter {" in text:
+                  text = text.replace("flutter {", kotlin_block + "\nflutter {")
+              else:
+                  text = text.rstrip() + "\n" + kotlin_block
+
+          p.write_text(text)
+          print("app/build.gradle.kts patched OK")
+          PY
+          fi
 
           echo "===== Gradle wrapper ====="
           cat android/gradle/wrapper/gradle-wrapper.properties
-          echo "===== AGP / Kotlin pin ====="
+          echo "===== settings (AGP/Kotlin) ====="
           grep -n "com.android.application\|kotlin.android" android/settings.gradle.kts android/settings.gradle 2>/dev/null || true
           echo "===== gradle.properties ====="
           cat android/gradle.properties
+          echo "===== app/build.gradle.kts (kotlin section) ====="
+          grep -n -A6 "kotlin\|compilerOptions\|jvmTarget\|kotlinOptions" android/app/build.gradle.kts 2>/dev/null || true
 
       - name: Force-safe Android styles
         run: |
