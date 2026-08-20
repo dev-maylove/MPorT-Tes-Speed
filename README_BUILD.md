@@ -6,19 +6,19 @@ Endpoints:
 - Download: `/downloading`
 - Upload: `/upload`
 
-## Gradle / AGP (sudah diperbaiki)
+## Android Build Matrix (Flutter 3.47 verified — same as MPorT ISP Portal)
 
-| Komponen | Versi |
-|----------|-------|
-| Android Gradle Plugin (AGP) | **8.11.1** |
-| Gradle | **8.13** |
-| Kotlin | **2.1.20** |
-| Java | 17 |
+| Component | Version |
+|-----------|---------|
+| **Gradle** | **9.3.1** |
+| **AGP** | **9.1.0** |
+| **Kotlin (KGP)** | **2.4.0** |
+| **Java** | **17** |
 
 File penting:
-- `android/settings.gradle.kts` → mendefinisikan AGP 8.11.1
-- `android/gradle/wrapper/gradle-wrapper.properties` → Gradle 8.13
-- `android/gradle.properties` → `android.newDsl=false` + `android.builtInKotlin=false`
+- `android/settings.gradle.kts` → AGP 9.1.0 + Kotlin 2.4.0
+- `android/gradle/wrapper/gradle-wrapper.properties` → Gradle 9.3.1
+- `android/gradle.properties` → `android.newDsl=false` + `android.builtInKotlin=false` (wajib untuk Flutter + AGP 9)
 
 ## Build
 
@@ -34,7 +34,7 @@ APK output: `build/app/outputs/flutter-apk/app-release.apk`
 
 ## Signing (Release Keystore)
 
-Lihat file **KEYSTORE.md** untuk detail lengkap.
+Lihat **KEYSTORE.md**.
 
 - Keystore: `android/app/mport-release-key.jks`
 - Config: `android/key.properties`
@@ -43,5 +43,6 @@ Release build otomatis memakai keystore ini jika `key.properties` ada.
 
 ## Catatan
 
+- Matrix ini sama dengan yang sukses di aplikasi MPorT ISP Portal (Laravel v2.0.1).
 - Untuk Play Store, **wajib** ganti keystore & password.
 - Jangan commit `key.properties` / `*.jks` ke repo publik.
