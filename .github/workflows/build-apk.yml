@@ -36,59 +36,61 @@ jobs:
         run: flutter --version
 
       - name: Complete Android platform if needed
-        run: |
-          # Generates missing gradle wrapper etc. without deleting existing sources
-          flutter create . --project-name mport_test_speed --org id.haansiro --platforms=android
+        run: flutter create . --project-name mport_test_speed --org id.haansiro --platforms=android
 
-      - name: Force-safe styles (prevent Theme.Light.NoActionBar)
+      - name: Force-safe Android styles
         run: |
-          mkdir -p android/app/src/main/res/values android/app/src/main/res/values-night android/app/src/main/res/drawable
-          printf '%s\n' \
-            '<?xml version="1.0" encoding="utf-8"?>' \
-            '<resources>' \
-            '    <style name="LaunchTheme" parent="@android:style/Theme.Black.NoTitleBar">' \
-            '        <item name="android:windowBackground">@drawable/launch_background</item>' \
-            '        <item name="android:statusBarColor">@android:color/transparent</item>' \
-            '        <item name="android:navigationBarColor">#080808</item>' \
-            '        <item name="android:windowLightStatusBar">false</item>' \
-            '    </style>' \
-            '    <style name="NormalTheme" parent="@android:style/Theme.Black.NoTitleBar">' \
-            '        <item name="android:windowBackground">#080808</item>' \
-            '        <item name="android:statusBarColor">@android:color/transparent</item>' \
-            '        <item name="android:navigationBarColor">#080808</item>' \
-            '        <item name="android:windowLightStatusBar">false</item>' \
-            '    </style>' \
-            '</resources>' \
-            > android/app/src/main/res/values/styles.xml
+          mkdir -p android/app/src/main/res/values
+          mkdir -p android/app/src/main/res/values-night
+          mkdir -p android/app/src/main/res/drawable
+          cat > android/app/src/main/res/values/styles.xml << 'XML'
+          <?xml version="1.0" encoding="utf-8"?>
+          <resources>
+              <style name="LaunchTheme" parent="@android:style/Theme.Black.NoTitleBar">
+                  <item name="android:windowBackground">@drawable/launch_background</item>
+                  <item name="android:statusBarColor">@android:color/transparent</item>
+                  <item name="android:navigationBarColor">#080808</item>
+                  <item name="android:windowLightStatusBar">false</item>
+              </style>
+              <style name="NormalTheme" parent="@android:style/Theme.Black.NoTitleBar">
+                  <item name="android:windowBackground">#080808</item>
+                  <item name="android:statusBarColor">@android:color/transparent</item>
+                  <item name="android:navigationBarColor">#080808</item>
+                  <item name="android:windowLightStatusBar">false</item>
+              </style>
+          </resources>
+          XML
+          # strip leading spaces from heredoc indentation
+          sed -i 's/^          //' android/app/src/main/res/values/styles.xml
           cp android/app/src/main/res/values/styles.xml android/app/src/main/res/values-night/styles.xml
-          printf '%s\n' \
-            '<?xml version="1.0" encoding="utf-8"?>' \
-            '<layer-list xmlns:android="http://schemas.android.com/apk/res/android">' \
-            '    <item android:drawable="@android:color/black"/>' \
-            '</layer-list>' \
-            > android/app/src/main/res/drawable/launch_background.xml
-          # Ensure no forbidden theme remains
+          cat > android/app/src/main/res/drawable/launch_background.xml << 'XML'
+          <?xml version="1.0" encoding="utf-8"?>
+          <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+              <item android:drawable="@android:color/black"/>
+          </layer-list>
+          XML
+          sed -i 's/^          //' android/app/src/main/res/drawable/launch_background.xml
           if grep -R "Theme.Light.NoActionBar" android/; then
-            echo "Forbidden theme still present" && exit 1
+            echo "Forbidden theme still present"
+            exit 1
           fi
           echo "Styles OK"
 
-      - name: Fix default widget_test from flutter create
+      - name: Fix default widget_test
         run: |
-          printf '%s
-' \
-            "import 'package:flutter_test/flutter_test.dart';" \
-            "import 'package:mport_test_speed/main.dart';" \
-            "" \
-            "void main() {" \
-            "  testWidgets('MporTApp loads smoke test', (WidgetTester tester) async {" \
-            "    await tester.pumpWidget(const MporTApp());" \
-            "    await tester.pump();" \
-            "    expect(find.textContaining('MPorT'), findsWidgets);" \
-            "  });" \
-            "}" \
-            > test/widget_test.dart
+          cat > test/widget_test.dart << 'DART'
+          import 'package:flutter_test/flutter_test.dart';
+          import 'package:mport_test_speed/main.dart';
 
+          void main() {
+            testWidgets('MporTApp loads smoke test', (WidgetTester tester) async {
+              await tester.pumpWidget(const MporTApp());
+              await tester.pump();
+              expect(find.textContaining('MPorT'), findsWidgets);
+            });
+          }
+          DART
+          sed -i 's/^          //' test/widget_test.dart
 
       - name: Get dependencies
         run: flutter pub get
