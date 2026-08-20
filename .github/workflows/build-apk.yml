@@ -75,8 +75,8 @@ jobs:
 
       - name: Fix default widget_test from flutter create
         run: |
-          printf '%s\n' \
-            "import 'package:flutter/material.dart';" \
+          printf '%s
+' \
             "import 'package:flutter_test/flutter_test.dart';" \
             "import 'package:mport_test_speed/main.dart';" \
             "" \
@@ -88,6 +88,7 @@ jobs:
             "  });" \
             "}" \
             > test/widget_test.dart
+
 
       - name: Get dependencies
         run: flutter pub get
