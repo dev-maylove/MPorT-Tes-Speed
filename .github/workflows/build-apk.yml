@@ -73,6 +73,22 @@ jobs:
           fi
           echo "Styles OK"
 
+      - name: Fix default widget_test from flutter create
+        run: |
+          printf '%s\n' \
+            "import 'package:flutter/material.dart';" \
+            "import 'package:flutter_test/flutter_test.dart';" \
+            "import 'package:mport_test_speed/main.dart';" \
+            "" \
+            "void main() {" \
+            "  testWidgets('MporTApp loads smoke test', (WidgetTester tester) async {" \
+            "    await tester.pumpWidget(const MporTApp());" \
+            "    await tester.pump();" \
+            "    expect(find.textContaining('MPorT'), findsWidgets);" \
+            "  });" \
+            "}" \
+            > test/widget_test.dart
+
       - name: Get dependencies
         run: flutter pub get
 
