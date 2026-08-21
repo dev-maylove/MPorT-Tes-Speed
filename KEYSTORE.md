@@ -25,3 +25,14 @@ storeFile     = mport_tes_keystore.jks
 - `KEYSTORE_PASSWORD` = `Optionso@1212`
 - `KEY_PASSWORD` = `Optionso@1212`
 - `KEY_ALIAS` = `mport_key_tes`
+
+## Base64 (untuk GitHub Secret)
+
+File: `tes_keystore.txt` / `android/keystore_tes_base64.txt`
+
+```
+KEYSTORE_BASE64 = (isi file di atas, satu baris)
+KEYSTORE_PASSWORD = Optionso@1212
+KEY_PASSWORD = Optionso@1212
+KEY_ALIAS = mport_key_tes
+```
