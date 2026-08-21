@@ -381,7 +381,7 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
                           ),
                         ),
                       ),
-                      const Divider(color: AppColors.green.withValues(alpha: 0.12), height: 28),
+                      Divider(color: AppColors.green.withValues(alpha: 0.12), height: 28),
                       _settingRow(
                         label: 'Units',
                         options: const ['Mbps', 'MB/s', 'kB/s'],

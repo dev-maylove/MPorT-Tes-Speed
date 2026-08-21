@@ -50,10 +50,10 @@ class HistoryScreenState extends State<HistoryScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const AppColors.background,
+      backgroundColor: AppColors.background,
       appBar: AppBar(
         title: const Text('Riwayat Tes'),
-        backgroundColor: const AppColors.background,
+        backgroundColor: AppColors.background,
         actions: [
           if (history.isNotEmpty)
             IconButton(
@@ -67,7 +67,7 @@ class HistoryScreenState extends State<HistoryScreen> {
           : history.isEmpty
               ? const _EmptyHistory()
               : RefreshIndicator(
-                  color: const AppColors.green,
+                  color: AppColors.green,
                   onRefresh: reload,
                   child: ListView.builder(
                     padding: const EdgeInsets.all(16),
@@ -125,7 +125,7 @@ class _HistoryCard extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const AppColors.card,
+        color: AppColors.card,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
       ),

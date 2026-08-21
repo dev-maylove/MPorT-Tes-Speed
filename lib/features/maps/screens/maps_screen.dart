@@ -141,14 +141,14 @@ L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{
   updateWhenIdle:true,
   keepBuffer:1
 }).addTo(map);
-$mapMarkers
+__MAP_MARKERS__
 window.panTo=function(lat,lon,z){
   map.setView([lat,lon],z||12,{animate:true,duration:0.35});
 };
 </script>
 </body>
 </html>
-'''.replaceFirst('\$mapMarkers', buf.toString());
+'''.replaceFirst('__MAP_MARKERS__', buf.toString());
   }
 
   Future<void> _focusServer(TestServer s) async {
@@ -204,8 +204,8 @@ window.panTo=function(lat,lon,z){
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               scrollDirection: Axis.horizontal,
               itemCount: _servers.length,
-              // cacheExtent kecil agar list ringan
-              cacheExtent: 200,
+              // scrollCacheExtent kecil agar list ringan
+              scrollCacheExtent: 200,
               separatorBuilder: (_, __) => const SizedBox(width: 10),
               itemBuilder: (context, i) {
                 final s = _servers[i];

@@ -64,7 +64,7 @@ class _ServerScreenState extends State<ServerScreen> {
           : Column(
               children: [
                 if (_service.isProbing)
-                  const LinearProgressIndicator(
+                  LinearProgressIndicator(
                     color: accent,
                     backgroundColor: AppColors.green.withValues(alpha: 0.1),
                   ),
