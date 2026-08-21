@@ -59,10 +59,11 @@ class ServerConfig {
   // ── Payload upload ──────────────────────────────────────
   static const int uploadPayloadMegabytes = 4;
 
-  // ── Ping ────────────────────────────────────────────────
-  static const int pingSamples = 6;
-  static const int pingIntervalMs = 25;
-  static const int pingTrimCount = 1;
+  // ── Ping (ringan, hasil serendah mungkin) ───────────────
+  static const int pingSamples = 10;
+  static const int pingWarmup = 2;
+  static const int pingIntervalMs = 15;
+  static const int pingTrimCount = 2;
 
   // ── Koreksi overhead ────────────────────────────────────
   static const double overheadAdjustment = 1.06;

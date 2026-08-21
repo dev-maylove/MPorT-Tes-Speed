@@ -38,8 +38,12 @@ android {
             if (keystorePropertiesFile.exists()) {
                 keyAlias = keystoreProperties["keyAlias"] as String
                 keyPassword = keystoreProperties["keyPassword"] as String
-                storeFile = file(keystoreProperties["storeFile"] as String)
                 storePassword = keystoreProperties["storePassword"] as String
+                val storePath = keystoreProperties["storeFile"] as String
+                // Cari di modul app dulu, lalu android/
+                val candidate = file(storePath)
+                storeFile = if (candidate.exists()) candidate
+                    else rootProject.file(storePath)
             }
         }
     }

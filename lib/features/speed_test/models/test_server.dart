@@ -1,5 +1,3 @@
-enum TestEngine { mport, cbnSpeedtestCustom }
-
 class TestServer {
   final String id;
   final String name;
@@ -16,8 +14,6 @@ class TestServer {
   final String pingPath;
   final double? latencyMs;
   final String network;
-  final TestEngine engine;
-  final String? externalUrl;
 
   const TestServer({
     required this.id,
@@ -35,8 +31,6 @@ class TestServer {
     this.pingPath = '/',
     this.latencyMs,
     this.network = 'HaaNSirO',
-    this.engine = TestEngine.mport,
-    this.externalUrl,
   });
 
   factory TestServer.haansiro() => const TestServer(
@@ -45,7 +39,6 @@ class TestServer {
         host: 'speed2.haansiro.id',
         location: 'Indonesia',
         country: 'ID',
-        // Perkiraan koordinat ID (Jakarta) untuk ikon peta
         latitude: -6.2088,
         longitude: 106.8456,
         isDefault: true,
@@ -54,10 +47,8 @@ class TestServer {
         uploadPath: '/upload',
         pingPath: '/',
         network: 'HaaNSirO',
-        engine: TestEngine.mport,
       );
 
-  /// Hanya server HaaNSirO.
   static List<TestServer> catalog() => [TestServer.haansiro()];
 
   TestServer copyWith({double? latencyMs, int? distanceKm}) => TestServer(
@@ -76,8 +67,6 @@ class TestServer {
         pingPath: pingPath,
         latencyMs: latencyMs ?? this.latencyMs,
         network: network,
-        engine: engine,
-        externalUrl: externalUrl,
       );
 
   @override
