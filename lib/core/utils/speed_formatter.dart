@@ -1,20 +1,41 @@
 import 'package:intl/intl.dart';
 
 class SpeedFormatter {
-  static String format(double mbps, {int decimals = 2, String unit = 'Mbps'}) {
+  /// Formats speed with automatic unit (Mbps / Gbps).
+  /// Values >= 1000 Mbps are shown as Gbps.
+  static String format(double mbps, {int decimals = 2, String? unit}) {
     if (mbps < 0) return '--';
+
+    String u;
+    double value;
+
+    if (unit != null) {
+      // Explicit unit requested – no auto scaling
+      u = unit;
+      value = mbps;
+      if (unit.toLowerCase() == 'gbps') {
+        value = mbps / 1000;
+      }
+    } else if (mbps >= 1000) {
+      u = 'Gbps';
+      value = mbps / 1000;
+    } else {
+      u = 'Mbps';
+      value = mbps;
+    }
+
     final fmt = NumberFormat('#,##0.${'0' * decimals}');
-    return '${fmt.format(mbps)} $unit';
+    return '${fmt.format(value)} $u';
   }
 
-  static String formatMbps(double? value, {int decimals = 2, String unit = 'Mbps'}) {
+  static String formatMbps(double? value, {int decimals = 2, String? unit}) {
     if (value == null) return '--';
     return format(value, decimals: decimals, unit: unit);
   }
 
-  /// Alias used by UI cards. Accepts optional [unit] for flexibility.
-  /// Default 2 decimal places so "42.80 Mbps" matches unit tests.
-  static String formatSpeed(double? value, {int decimals = 2, String unit = 'Mbps'}) {
+  /// Alias used by UI cards & tests.
+  /// Auto-converts to Gbps when value >= 1000 Mbps.
+  static String formatSpeed(double? value, {int decimals = 2, String? unit}) {
     if (value == null) return '--';
     return format(value, decimals: decimals, unit: unit);
   }
@@ -32,7 +53,6 @@ class SpeedFormatter {
   /// Convert bytes transferred over durationSeconds to Mbps
   static double bytesToMbps(int bytes, double durationSeconds) {
     if (durationSeconds <= 0) return 0;
-    // bytes * 8 / 1_000_000 = megabits, then / seconds
     return (bytes * 8) / (durationSeconds * 1000000);
   }
 
