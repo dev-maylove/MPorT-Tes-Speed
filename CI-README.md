@@ -60,8 +60,8 @@ Jika `android/key.properties` + `android/app/mport-release-key.jks` sudah ada di
 
 | Component | Version |
 |-----------|---------|
-| Gradle | **8.12** |
-| AGP | **8.9.1** |
+| Gradle | **8.14.3** |
+| AGP | **8.11.1** |
 | Kotlin | **2.1.0** |
 | Java | **17** |
 | Flutter | **stable** (3.47.x) |
