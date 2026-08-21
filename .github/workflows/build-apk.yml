@@ -48,26 +48,34 @@ jobs:
       - name: Test
         run: flutter test
 
-      # ── Signing (opsional via Secrets) ─────────────────────────────
-      # Jika Secrets diisi → pakai keystore dari Secrets (aman untuk public repo).
-      # Jika tidak → pakai keystore yang sudah ada di repo (internal/testing).
-      - name: Decode keystore from Secrets (jika ada)
-        if: ${{ secrets.KEYSTORE_BASE64 != '' }}
+      # ── Signing ────────────────────────────────────────────────────
+      # Prioritas:
+      # 1. GitHub Secrets (KEYSTORE_BASE64, KEYSTORE_PASSWORD, KEY_PASSWORD, KEY_ALIAS)
+      # 2. File keystore + key.properties yang sudah ada di repo
+      - name: Setup release signing
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
         run: |
-          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > android/app/mport-release-key.jks
-          cat > android/key.properties << EOF
-          storePassword=${{ secrets.KEYSTORE_PASSWORD }}
-          keyPassword=${{ secrets.KEY_PASSWORD }}
-          keyAlias=${{ secrets.KEY_ALIAS }}
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            echo "→ Menggunakan keystore dari GitHub Secrets"
+            echo "$KEYSTORE_BASE64" | base64 -d > android/app/mport-release-key.jks
+            cat > android/key.properties << EOF
+          storePassword=$KEYSTORE_PASSWORD
+          keyPassword=$KEY_PASSWORD
+          keyAlias=$KEY_ALIAS
           storeFile=mport-release-key.jks
           EOF
-
-      - name: Verify keystore / key.properties
-        run: |
-          if [ -f android/key.properties ] && [ -f android/app/mport-release-key.jks ]; then
-            echo "✓ Keystore & key.properties ditemukan — build akan di-sign release"
           else
-            echo "⚠ Keystore tidak lengkap — build release akan jatuh ke debug signing"
+            echo "→ Secrets kosong — cek keystore di repo"
+          fi
+
+          if [ -f android/key.properties ] && [ -f android/app/mport-release-key.jks ]; then
+            echo "✓ Keystore & key.properties siap — APK akan di-sign release"
+          else
+            echo "⚠ Keystore tidak lengkap — build release akan pakai debug signing"
           fi
 
       - name: Build APK (release)
@@ -114,16 +122,31 @@ jobs:
       - name: Pub get
         run: flutter pub get
 
-      - name: Decode keystore from Secrets (jika ada)
-        if: ${{ secrets.KEYSTORE_BASE64 != '' }}
+      - name: Setup release signing
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
         run: |
-          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > android/app/mport-release-key.jks
-          cat > android/key.properties << EOF
-          storePassword=${{ secrets.KEYSTORE_PASSWORD }}
-          keyPassword=${{ secrets.KEY_PASSWORD }}
-          keyAlias=${{ secrets.KEY_ALIAS }}
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            echo "→ Menggunakan keystore dari GitHub Secrets"
+            echo "$KEYSTORE_BASE64" | base64 -d > android/app/mport-release-key.jks
+            cat > android/key.properties << EOF
+          storePassword=$KEYSTORE_PASSWORD
+          keyPassword=$KEY_PASSWORD
+          keyAlias=$KEY_ALIAS
           storeFile=mport-release-key.jks
           EOF
+          else
+            echo "→ Secrets kosong — cek keystore di repo"
+          fi
+
+          if [ -f android/key.properties ] && [ -f android/app/mport-release-key.jks ]; then
+            echo "✓ Keystore & key.properties siap — AAB akan di-sign release"
+          else
+            echo "⚠ Keystore tidak lengkap — build release akan pakai debug signing"
+          fi
 
       - name: Build App Bundle
         run: flutter build appbundle --release
