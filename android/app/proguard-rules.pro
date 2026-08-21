@@ -28,3 +28,12 @@
 -dontwarn org.bouncycastle.**
 -dontwarn org.conscrypt.**
 -dontwarn org.openjsse.**
+
+# Google Play Core — dipakai Flutter deferred components (opsional, tidak di-bundle)
+-dontwarn com.google.android.play.core.**
+-dontwarn com.google.android.play.core.splitcompat.**
+-dontwarn com.google.android.play.core.splitinstall.**
+-dontwarn com.google.android.play.core.tasks.**
+
+# Flutter embedding references to Play Core
+-keep class io.flutter.embedding.engine.deferredcomponents.** { *; }
