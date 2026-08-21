@@ -60,10 +60,10 @@ Jika `android/key.properties` + `android/app/mport-release-key.jks` sudah ada di
 
 | Component | Version |
 |-----------|---------|
-| Gradle | **8.14.3** |
-| AGP | **8.11.1** |
-| Kotlin | **2.1.0** |
+| Gradle | **9.1.0** |
+| AGP | **9.0.1** |
+| Kotlin | **2.2.20** |
 | Java | **17** |
 | Flutter | **stable** (3.47.x) |
 
-> AGP 9.x sengaja **tidak** dipakai — Flutter belum merekomendasikan untuk production (plugin ecosystem).
+> AGP 9 + `android.newDsl=false` + `android.builtInKotlin=false` (opt-out breaking changes).

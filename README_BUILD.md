@@ -6,22 +6,23 @@ Endpoints:
 - Download: `/downloading`
 - Upload: `/upload`
 
-## Android Build Matrix (Flutter 3.47 stable)
+## Android Build Matrix (Flutter 3.47.x)
 
-| Component | Version |
-|-----------|---------|
-| **Gradle** | **8.14.3** (min Flutter 3.47 = 8.14) |
-| **AGP** | **8.11.1** |
-| **Kotlin (KGP)** | **2.1.0** |
-| **Java** | **17** |
+| Component | Version | Catatan |
+|-----------|---------|---------|
+| **Gradle** | **9.1.0** | Min Flutter 3.47 ≈ 8.14; recommended ≥ 9.1 |
+| **AGP** | **9.0.1** | + `android.newDsl=false` |
+| **Kotlin** | **2.2.20** | Min Flutter 3.47 |
+| **Java** | **17** | |
 
-> AGP 9.x belum direkomendasikan Flutter untuk production.  
-> Gradle harus ≥ 8.14 karena validasi Flutter Gradle plugin.
+### `android/gradle.properties` (penting)
 
-File penting:
-- `android/settings.gradle.kts` → AGP 8.11.1 + Kotlin 2.1.0
-- `android/gradle/wrapper/gradle-wrapper.properties` → Gradle 8.14.3
-- `android/build.gradle.kts` → buildDir `../../build`
+```
+android.newDsl=false
+android.builtInKotlin=false
+```
+
+Tanpa dua flag ini, AGP 9 memaksa new DSL / built-in Kotlin dan Flutter Gradle plugin bisa gagal.
 
 ## Build
 
@@ -33,16 +34,8 @@ flutter test
 flutter build apk --release
 ```
 
-APK output: `build/app/outputs/flutter-apk/app-release.apk`
+APK: `build/app/outputs/flutter-apk/app-release.apk`
 
-## Signing (Release Keystore)
+## Signing
 
 Lihat **KEYSTORE.md**.
-
-- Keystore: `android/app/mport-release-key.jks`
-- Config: `android/key.properties`
-
-## Catatan
-
-- Untuk Play Store, **wajib** ganti keystore & password.
-- Jangan commit `key.properties` / `*.jks` ke repo publik.
