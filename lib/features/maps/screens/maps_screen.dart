@@ -204,8 +204,6 @@ window.panTo=function(lat,lon,z){
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               scrollDirection: Axis.horizontal,
               itemCount: _servers.length,
-              // cache kecil agar list ringan
-              scrollCacheExtent: const ScrollCacheExtent.pixels(200),
               separatorBuilder: (_, __) => const SizedBox(width: 10),
               itemBuilder: (context, i) {
                 final s = _servers[i];
