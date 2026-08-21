@@ -15,6 +15,26 @@ if (keystorePropertiesFile.exists()) {
     keystoreProperties.load(FileInputStream(keystorePropertiesFile))
 }
 
+fun resolveKeystoreFile(storePath: String): File? {
+    // Relative to app module
+    val inApp = file(storePath)
+    if (inApp.exists()) return inApp
+    // Relative to android/
+    val inRoot = rootProject.file(storePath)
+    if (inRoot.exists()) return inRoot
+    // Explicit android/app/
+    val inAppExplicit = rootProject.file("app/$storePath")
+    if (inAppExplicit.exists()) return inAppExplicit
+    return null
+}
+
+val storePathFromProps = if (keystorePropertiesFile.exists()) {
+    keystoreProperties["storeFile"] as? String
+} else null
+
+val resolvedStoreFile: File? = storePathFromProps?.let { resolveKeystoreFile(it) }
+val hasValidKeystore = resolvedStoreFile != null
+
 android {
     namespace = "id.haansiro.mporttestspeed"
     compileSdk = flutter.compileSdkVersion
@@ -34,25 +54,23 @@ android {
     }
 
     signingConfigs {
-        create("release") {
-            if (keystorePropertiesFile.exists()) {
+        // Only create release config when keystore file really exists
+        if (hasValidKeystore) {
+            create("release") {
                 keyAlias = keystoreProperties["keyAlias"] as String
                 keyPassword = keystoreProperties["keyPassword"] as String
                 storePassword = keystoreProperties["storePassword"] as String
-                val storePath = keystoreProperties["storeFile"] as String
-                // Cari di modul app dulu, lalu android/
-                val candidate = file(storePath)
-                storeFile = if (candidate.exists()) candidate
-                    else rootProject.file(storePath)
+                storeFile = resolvedStoreFile
             }
         }
     }
 
     buildTypes {
         release {
-            signingConfig = if (keystorePropertiesFile.exists()) {
+            signingConfig = if (hasValidKeystore) {
                 signingConfigs.getByName("release")
             } else {
+                // Fallback: unsigned/debug signing — avoids validateSigningRelease failure
                 signingConfigs.getByName("debug")
             }
             isMinifyEnabled = false
