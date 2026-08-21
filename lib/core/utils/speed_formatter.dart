@@ -1,19 +1,20 @@
 import 'package:intl/intl.dart';
 
 class SpeedFormatter {
-  static String format(double mbps, {int decimals = 1, String unit = 'Mbps'}) {
+  static String format(double mbps, {int decimals = 2, String unit = 'Mbps'}) {
     if (mbps < 0) return '--';
     final fmt = NumberFormat('#,##0.${'0' * decimals}');
     return '${fmt.format(mbps)} $unit';
   }
 
-  static String formatMbps(double? value, {int decimals = 1, String unit = 'Mbps'}) {
+  static String formatMbps(double? value, {int decimals = 2, String unit = 'Mbps'}) {
     if (value == null) return '--';
     return format(value, decimals: decimals, unit: unit);
   }
 
   /// Alias used by UI cards. Accepts optional [unit] for flexibility.
-  static String formatSpeed(double? value, {int decimals = 1, String unit = 'Mbps'}) {
+  /// Default 2 decimal places so "42.80 Mbps" matches unit tests.
+  static String formatSpeed(double? value, {int decimals = 2, String unit = 'Mbps'}) {
     if (value == null) return '--';
     return format(value, decimals: decimals, unit: unit);
   }
