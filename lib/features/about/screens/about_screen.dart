@@ -202,10 +202,6 @@ class AboutScreen extends StatelessWidget {
             value: 'Android',
           ),
           _infoRow(
-            title: 'Engine',
-            value: 'Flutter',
-          ),
-          _infoRow(
             title: 'Kategori',
             value: 'Internet / Speed Test',
           ),
@@ -248,7 +244,7 @@ class AboutScreen extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'MPorT',
+                      'DeV_MaYLoVe',
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: 16,
@@ -300,7 +296,7 @@ class AboutScreen extends StatelessWidget {
         ),
         const SizedBox(height: 5),
         const Text(
-          'Made with Flutter',
+          'Made with ❤ in Kincir Tengah',
           style: TextStyle(
             color: Color(0xFF777783),
             fontSize: 11,
