@@ -7,10 +7,10 @@
 /// Server aktif bisa diganti lewat [useServer] (multi-server / terdekat).
 class ServerConfig {
   // ── Server aktif (bisa diubah runtime) ──────────────────
-  static String baseUrl = 'https://speed2.haansiro.id';
-  static String downloadPath = '/downloading';
-  static String uploadPath = '/upload';
-  static String pingPath = '/';
+  static String baseUrl = 'http://ookla.haansiro.net:8080';
+  static String downloadPath = '/speedtest/download';
+  static String uploadPath = '/speedtest/upload.php';
+  static String pingPath = '/speedtest/latency.txt';
   static String serverName = 'HaaNSirO';
 
   static String get downloadUrl => '$baseUrl$downloadPath';
@@ -24,11 +24,20 @@ class ServerConfig {
     return '$base$wsPath';
   }
 
-  static String downloadUrlBusted() =>
-      '$downloadUrl?ckSize=100&n=${DateTime.now().microsecondsSinceEpoch}';
+  static String downloadUrlBusted() {
+    final n = DateTime.now().microsecondsSinceEpoch;
+    // Ookla-style vs OpenSpeedTest
+    if (downloadPath.contains('speedtest')) {
+      return '$downloadUrl?size=25000000&n=$n';
+    }
+    return '$downloadUrl?ckSize=100&n=$n';
+  }
 
-  static String uploadUrlBusted() =>
-      '$uploadUrl?n=${DateTime.now().microsecondsSinceEpoch}';
+  static String uploadUrlBusted() {
+    final n = DateTime.now().microsecondsSinceEpoch;
+    final sep = uploadUrl.contains('?') ? '&' : '?';
+    return '$uploadUrl${sep}n=$n';
+  }
 
   /// Ganti server aktif (dipanggil saat pilih / auto-nearest).
   static void useServer({

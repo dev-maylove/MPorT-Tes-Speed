@@ -38,9 +38,9 @@ class _ServerScreenState extends State<ServerScreen> {
     const accent = Color(0xFF00E5A0);
 
     return Scaffold(
-      backgroundColor: const Color(0xFF080808),
+      backgroundColor: const Color(0xFF0A0E17),
       appBar: AppBar(
-        backgroundColor: const Color(0xFF080808),
+        backgroundColor: const Color(0xFF0A0E17),
         title: const Text('Pilih Server'),
         actions: [
           IconButton(
@@ -73,7 +73,7 @@ class _ServerScreenState extends State<ServerScreen> {
                     children: [
                       const Expanded(
                         child: Text(
-                          'Hanya server HaaNSirO (Indonesia)',
+                          'Server terdekat (Pati, Kudus, Jepara, …)',
                           style: TextStyle(color: Colors.white38, fontSize: 12),
                         ),
                       ),

@@ -24,9 +24,9 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
   // MPorT palette (dipertahankan)
   static const gold = Color(0xFF00E5A0);
   static const goldLight = Color(0xFF5CFFC9);
-  static const background = Color(0xFF0A0E17);
-  static const sheetColor = Color(0xFF151B2B);
-  static const cardColor = Color(0xFF1A2235);
+  static const background = Color(0xFF06080F);
+  static const sheetColor = Color(0xFF0F1420);
+  static const cardColor = Color(0xFF151B2B);
 
   final SpeedTestService _service = SpeedTestService();
   final HistoryService _historyService = HistoryService();

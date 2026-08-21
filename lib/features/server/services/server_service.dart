@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:math' as math;
+
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
@@ -35,9 +38,8 @@ class ServerService extends ChangeNotifier {
   }
 
   Future<void> ensureLoaded() async {
-    _servers = TestServer.catalog();
-    if (_selected.id != 'haansiro') {
-      _selected = TestServer.haansiro();
+    if (_servers.isEmpty) {
+      _servers = TestServer.catalog();
     }
     _applySelected();
   }
@@ -47,13 +49,24 @@ class ServerService extends ChangeNotifier {
     _error = null;
     notifyListeners();
     _servers = TestServer.catalog();
-    _selected = TestServer.haansiro();
+    final match = _servers.where((s) => s.id == _selected.id);
+    if (match.isNotEmpty) {
+      _selected = match.first;
+    } else {
+      _selected = TestServer.haansiro();
+    }
     _applySelected();
     _loading = false;
     notifyListeners();
     if (autoNearest) await selectNearest(force: true);
   }
 
+  /// Pilih server latency terendah.
+  /// Strategi cepat:
+  /// 1) Urutkan by jarak
+  /// 2) Probe paralel batch kecil (4 sekaligus)
+  /// 3) 2 sampel per server, ambil minimum
+  /// 4) Early-stop jika latensi < 12 ms
   Future<TestServer> selectNearest({bool force = false}) async {
     if (_autoDone && !force && _selected.latencyMs != null) return _selected;
 
@@ -62,16 +75,78 @@ class ServerService extends ChangeNotifier {
     notifyListeners();
 
     await ensureLoaded();
-    final client = http.Client();
+
     try {
-      final latency = await _probeLatency(client, _selected);
-      final updated = _selected.copyWith(latencyMs: latency);
-      _servers = [updated];
-      _selected = updated;
-      _applySelected();
-      if (latency == null) {
-        _error = 'Server HaaNSirO tidak merespons';
+      final ordered = List<TestServer>.from(_servers)
+        ..sort((a, b) {
+          final d = (a.distanceKm ?? 999).compareTo(b.distanceKm ?? 999);
+          if (d != 0) return d;
+          // Prioritas HaanSirO di jarak sama
+          if (a.isDefault) return -1;
+          if (b.isDefault) return 1;
+          return 0;
+        });
+
+      // Cukup probe 10 terdekat — lebih cepat, hasil tetap akurat
+      final toProbe = ordered.take(10).toList();
+
+      TestServer? best;
+      double bestLat = double.infinity;
+
+      // Batch paralel 4 server
+      const batchSize = 4;
+      for (var i = 0; i < toProbe.length; i += batchSize) {
+        final batch = toProbe.skip(i).take(batchSize).toList();
+        final results = await Future.wait(
+          batch.map((s) async {
+            final lat = await _probeLatencyFast(s);
+            return MapEntry(s, lat);
+          }),
+        );
+
+        for (final e in results) {
+          final s = e.key;
+          final lat = e.value;
+          if (lat == null) continue;
+
+          final idx = _servers.indexWhere((x) => x.id == s.id);
+          if (idx >= 0) {
+            _servers[idx] = s.copyWith(latencyMs: lat);
+          }
+
+          if (lat < bestLat) {
+            bestLat = lat;
+            best = s.copyWith(latencyMs: lat);
+            // Update UI segera agar user lihat server terpilih
+            _selected = best!;
+            _applySelected();
+            notifyListeners();
+          }
+        }
+
+        // Early stop: latency sangat baik → tidak perlu probe sisa
+        if (bestLat < 12) break;
       }
+
+      _servers = List<TestServer>.from(_servers)
+        ..sort((a, b) {
+          final la = a.latencyMs ?? 99999.0;
+          final lb = b.latencyMs ?? 99999.0;
+          final c = la.compareTo(lb);
+          if (c != 0) return c;
+          return (a.distanceKm ?? 999).compareTo(b.distanceKm ?? 999);
+        });
+
+      if (best != null) {
+        _selected = best!;
+        _applySelected();
+      } else {
+        // Fallback default
+        _selected = TestServer.haansiro();
+        _applySelected();
+        _error = 'Probe gagal — memakai server default';
+      }
+
       _autoDone = true;
       return _selected;
     } catch (e) {
@@ -79,7 +154,6 @@ class ServerService extends ChangeNotifier {
       _autoDone = false;
       return _selected;
     } finally {
-      client.close();
       _probing = false;
       notifyListeners();
     }
@@ -91,32 +165,72 @@ class ServerService extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<double?> _probeLatency(http.Client client, TestServer server) async {
+  /// Probe cepat: HEAD dulu, fallback GET latency.txt
+  /// 2 sampel → ambil minimum (abaikan cold-start TLS/TCP)
+  Future<double?> _probeLatencyFast(TestServer server) async {
+    final base = '${server.scheme}://${server.host}';
+    final paths = <String>[
+      if (server.pingPath.isNotEmpty) server.pingPath,
+      '/speedtest/latency.txt',
+      '/',
+    ];
+
+    final samples = <double>[];
+
+    for (var attempt = 0; attempt < 2; attempt++) {
+      for (final path in paths) {
+        final ms = await _oneShot(base, path);
+        if (ms != null) {
+          samples.add(ms);
+          break; // path ini OK, lanjut sampel berikutnya
+        }
+      }
+      if (attempt == 0 && samples.isNotEmpty) {
+        // jeda sangat singkat antar sampel
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+      }
+    }
+
+    if (samples.isEmpty) return null;
+    return samples.reduce(math.min);
+  }
+
+  Future<double?> _oneShot(String base, String path) async {
+    final url = '$base$path';
     final uri = Uri.parse(
-      '${server.scheme}://${server.host}/?mport_ping=${DateTime.now().microsecondsSinceEpoch}',
+      '$url${url.contains('?') ? '&' : '?'}n=${DateTime.now().microsecondsSinceEpoch}',
     );
+
+    // HEAD lebih ringan
     try {
       final sw = Stopwatch()..start();
-      final r = await client
-          .head(uri, headers: ServerConfig.defaultHeaders)
-          .timeout(const Duration(seconds: 4));
+      final r = await http
+          .head(uri, headers: {
+            ...ServerConfig.defaultHeaders,
+            'Connection': 'close',
+          })
+          .timeout(const Duration(milliseconds: 1500));
       sw.stop();
-      if (r.statusCode < 500) return sw.elapsedMicroseconds / 1000.0;
+      if (r.statusCode < 500) {
+        return sw.elapsedMicroseconds / 1000.0;
+      }
     } catch (_) {}
+
+    // Fallback GET (latency.txt biasanya 1 baris)
     try {
       final sw = Stopwatch()..start();
-      final r = await client
-          .get(
-            uri,
-            headers: {
-              ...ServerConfig.defaultHeaders,
-              'Range': 'bytes=0-0',
-            },
-          )
-          .timeout(const Duration(seconds: 4));
+      final r = await http
+          .get(uri, headers: {
+            ...ServerConfig.defaultHeaders,
+            'Connection': 'close',
+          })
+          .timeout(const Duration(milliseconds: 1500));
       sw.stop();
-      if (r.statusCode < 500) return sw.elapsedMicroseconds / 1000.0;
+      if (r.statusCode < 500) {
+        return sw.elapsedMicroseconds / 1000.0;
+      }
     } catch (_) {}
+
     return null;
   }
 }
