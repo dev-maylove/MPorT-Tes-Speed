@@ -41,19 +41,22 @@ class _CbnSpeedtestScreenState extends State<CbnSpeedtestScreen> {
             if (mounted) setState(() => _progress = 100);
           },
           onWebResourceError: (error) {
-            if (!error.isForMainFrame) return;
-            if (mounted) {
-              setState(() {
-                _error = error.description.isEmpty
-                    ? 'Gagal memuat mesin CBN.'
-                    : error.description;
-              });
-            }
+            // isForMainFrame bertipe bool? — jangan pakai !value sebagai kondisi
+            final isMainFrame = error.isForMainFrame;
+            if (isMainFrame == false) return;
+            if (!mounted) return;
+            setState(() {
+              _error = error.description.isEmpty
+                  ? 'Gagal memuat mesin CBN.'
+                  : error.description;
+            });
           },
         ),
       )
       ..loadRequest(
-        Uri.parse(widget.server.externalUrl ?? 'https://cbn.speedtestcustom.com'),
+        Uri.parse(
+          widget.server.externalUrl ?? 'https://cbn.speedtestcustom.com',
+        ),
       );
   }
 
@@ -101,14 +104,34 @@ class _CbnSpeedtestScreenState extends State<CbnSpeedtestScreen> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.error_outline, color: Colors.orangeAccent, size: 42),
+                      const Icon(
+                        Icons.error_outline,
+                        color: Colors.orangeAccent,
+                        size: 42,
+                      ),
                       const SizedBox(height: 12),
-                      const Text('Mesin CBN gagal dimuat', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+                      const Text(
+                        'Mesin CBN gagal dimuat',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
                       const SizedBox(height: 8),
-                      SizedBox(width: 280, child: Text(_error!, textAlign: TextAlign.center, style: const TextStyle(color: Colors.white60))),
+                      SizedBox(
+                        width: 280,
+                        child: Text(
+                          _error!,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(color: Colors.white60),
+                        ),
+                      ),
                       const SizedBox(height: 14),
                       FilledButton.icon(
-                        onPressed: () => _controller.reload(),
+                        onPressed: () {
+                          setState(() => _error = null);
+                          _controller.reload();
+                        },
                         icon: const Icon(Icons.refresh),
                         label: const Text('Coba lagi'),
                       ),
