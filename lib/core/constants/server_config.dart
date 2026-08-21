@@ -10,7 +10,7 @@ class ServerConfig {
   static String baseUrl = 'https://speed2.haansiro.id';
   static String downloadPath = '/downloading';
   static String uploadPath = '/upload';
-  static String pingPath = '/';
+  static String pingPath = '/ping';
   static String serverName = 'HaaNSirO';
 
   static String get downloadUrl => '$baseUrl$downloadPath';
@@ -30,7 +30,7 @@ class ServerConfig {
     String scheme = 'https',
     String download = '/downloading',
     String upload = '/upload',
-    String ping = '/',
+    String ping = '/ping',
   }) {
     final h = host.replaceFirst(RegExp(r'^https?://'), '');
     baseUrl = '$scheme://$h';

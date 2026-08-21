@@ -54,6 +54,7 @@ class ServerCard extends StatelessWidget {
           '${server.engine == TestEngine.cbnSpeedtestCustom ? 'Engine: CBN Speedtest Custom' : 'Engine: MPorT'}',
           style: const TextStyle(color: Colors.white54, fontSize: 12),
         ),
+        isThreeLine: true,
         trailing: latency == null
             ? const Text('—', style: TextStyle(color: Colors.white38))
             : Text(

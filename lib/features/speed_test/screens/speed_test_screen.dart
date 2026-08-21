@@ -302,11 +302,9 @@ class _SpeedTestScreenState extends State<SpeedTestScreen> {
                   ),
                   const SizedBox(height: 3),
                   Text(
-                    _serverService.selected.host.isNotEmpty
-                        ? _serverService.selected.host
-                        : ServerConfig.baseUrl
-                            .replaceFirst('https://', '')
-                            .replaceFirst('http://', ''),
+                    ServerConfig.baseUrl
+                        .replaceFirst('https://', '')
+                        .replaceFirst('http://', ''),
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 13,
@@ -314,9 +312,7 @@ class _SpeedTestScreenState extends State<SpeedTestScreen> {
                     ),
                   ),
                   Text(
-                    _serverService.selected.engine == TestEngine.cbnSpeedtestCustom
-                        ? '${_serverService.selected.name} · CBN'
-                        : _serverService.selected.name,
+                    ServerConfig.serverName,
                     style: TextStyle(
                       color: gold.withValues(alpha: 0.8),
                       fontSize: 10,
@@ -339,9 +335,7 @@ class _SpeedTestScreenState extends State<SpeedTestScreen> {
             Text(
               _selectingServer || _serverService.isProbing
                   ? 'AUTO...'
-                  : (_serverService.selected.engine == TestEngine.cbnSpeedtestCustom
-                      ? 'CBN'
-                      : 'AUTO'),
+                  : 'AUTO',
               style: TextStyle(
                 color: _selectingServer || _serverService.isProbing
                     ? Colors.amber
@@ -523,11 +517,7 @@ class _SpeedTestScreenState extends State<SpeedTestScreen> {
             ),
           ),
           child: Text(
-            running
-                ? 'SEDANG MENGUJI...'
-                : (_serverService.selected.engine == TestEngine.cbnSpeedtestCustom
-                    ? 'BUKA MESIN CBN'
-                    : 'MULAI TES'),
+            running ? 'SEDANG MENGUJI...' : 'MULAI TES',
             style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w800,
