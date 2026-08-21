@@ -68,8 +68,7 @@ jobs:
           # --obfuscate + --split-debug-info untuk shrink lebih lanjut
           flutter build apk --release --split-per-abi \
             --obfuscate \
-            --split-debug-info=build/debug-info \
-            --strip
+            --split-debug-info=build/debug-info
 
       - name: Locate APKs
         run: |
