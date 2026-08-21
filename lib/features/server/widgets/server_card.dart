@@ -49,10 +49,11 @@ class ServerCard extends StatelessWidget {
         subtitle: Text(
           '${server.network} · ${server.location}'
           '${server.country.isNotEmpty ? ' · ${server.country}' : ''}\n'
-          '${server.host}',
+          '${server.host}'
+          '${server.distanceKm != null ? ' · ${server.distanceKm} km' : ''}\n'
+          '${server.engine == TestEngine.cbnSpeedtestCustom ? 'Engine: CBN Speedtest Custom' : 'Engine: MPorT'}',
           style: const TextStyle(color: Colors.white54, fontSize: 12),
         ),
-        isThreeLine: true,
         trailing: latency == null
             ? const Text('—', style: TextStyle(color: Colors.white38))
             : Text(

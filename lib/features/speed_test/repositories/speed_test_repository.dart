@@ -1,3 +1,4 @@
+import '../../../core/constants/server_config.dart';
 import '../models/speed_result.dart';
 import '../models/test_server.dart';
 import '../services/speed_test_service.dart';
@@ -20,5 +21,13 @@ class SpeedTestRepository {
 
   void setServer(TestServer server) {
     _selected = server;
+    ServerConfig.useServer(
+      host: server.host,
+      name: server.name,
+      scheme: server.scheme,
+      download: server.downloadPath,
+      upload: server.uploadPath,
+      ping: server.pingPath,
+    );
   }
 }

@@ -1,6 +1,6 @@
 class AppConstants {
   static const String appName = 'MPorT Tes Speed';
-  static const String appVersion = '1.4.3';
+  static const String appVersion = '1.4.5';
   static const String appBuild = '1';
 
   static const String defaultSpeedUnit = 'Mbps';

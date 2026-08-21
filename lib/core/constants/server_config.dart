@@ -10,10 +10,12 @@ class ServerConfig {
   static String baseUrl = 'https://speed2.haansiro.id';
   static String downloadPath = '/downloading';
   static String uploadPath = '/upload';
+  static String pingPath = '/';
   static String serverName = 'HaaNSirO';
 
   static String get downloadUrl => '$baseUrl$downloadPath';
   static String get uploadUrl => '$baseUrl$uploadPath';
+  static String get pingUrl => '$baseUrl$pingPath';
 
   static String downloadUrlBusted() =>
       '$downloadUrl?ckSize=100&n=${DateTime.now().microsecondsSinceEpoch}';
@@ -28,12 +30,14 @@ class ServerConfig {
     String scheme = 'https',
     String download = '/downloading',
     String upload = '/upload',
+    String ping = '/',
   }) {
     final h = host.replaceFirst(RegExp(r'^https?://'), '');
     baseUrl = '$scheme://$h';
     serverName = name;
     downloadPath = download;
     uploadPath = upload;
+    pingPath = ping;
   }
 
   // ── Durasi tes (detik) ──────────────────────────────────

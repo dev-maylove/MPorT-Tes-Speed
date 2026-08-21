@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import '../models/speed_test_state.dart';
 import '../services/history_service.dart';
 import '../services/speed_test_service.dart';
+import '../models/test_server.dart';
+import 'cbn_speedtest_screen.dart';
 import '../../settings/screens/settings_screen.dart';
 import '../../server/screens/server_screen.dart';
 import '../../server/services/server_service.dart';
@@ -64,6 +66,16 @@ class _SpeedTestScreenState extends State<SpeedTestScreen> {
 
   Future<void> startTest() async {
     if (running) return;
+
+    if (_serverService.selected.engine == TestEngine.cbnSpeedtestCustom) {
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => CbnSpeedtestScreen(server: _serverService.selected),
+        ),
+      );
+      return;
+    }
 
     setState(() {
       running = true;
@@ -290,9 +302,11 @@ class _SpeedTestScreenState extends State<SpeedTestScreen> {
                   ),
                   const SizedBox(height: 3),
                   Text(
-                    ServerConfig.baseUrl
-                        .replaceFirst('https://', '')
-                        .replaceFirst('http://', ''),
+                    _serverService.selected.host.isNotEmpty
+                        ? _serverService.selected.host
+                        : ServerConfig.baseUrl
+                            .replaceFirst('https://', '')
+                            .replaceFirst('http://', ''),
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 13,
@@ -300,7 +314,9 @@ class _SpeedTestScreenState extends State<SpeedTestScreen> {
                     ),
                   ),
                   Text(
-                    ServerConfig.serverName,
+                    _serverService.selected.engine == TestEngine.cbnSpeedtestCustom
+                        ? '${_serverService.selected.name} · CBN'
+                        : _serverService.selected.name,
                     style: TextStyle(
                       color: gold.withValues(alpha: 0.8),
                       fontSize: 10,
@@ -323,7 +339,9 @@ class _SpeedTestScreenState extends State<SpeedTestScreen> {
             Text(
               _selectingServer || _serverService.isProbing
                   ? 'AUTO...'
-                  : 'AUTO',
+                  : (_serverService.selected.engine == TestEngine.cbnSpeedtestCustom
+                      ? 'CBN'
+                      : 'AUTO'),
               style: TextStyle(
                 color: _selectingServer || _serverService.isProbing
                     ? Colors.amber
@@ -505,7 +523,11 @@ class _SpeedTestScreenState extends State<SpeedTestScreen> {
             ),
           ),
           child: Text(
-            running ? 'SEDANG MENGUJI...' : 'MULAI TES',
+            running
+                ? 'SEDANG MENGUJI...'
+                : (_serverService.selected.engine == TestEngine.cbnSpeedtestCustom
+                    ? 'BUKA MESIN CBN'
+                    : 'MULAI TES'),
             style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w800,

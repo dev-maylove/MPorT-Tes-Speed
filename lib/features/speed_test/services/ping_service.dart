@@ -24,7 +24,7 @@ class PingService {
     try {
       for (var i = 0; i < samples; i++) {
         final uri = Uri.parse(
-          '${ServerConfig.baseUrl}/?ping=1&n=${DateTime.now().microsecondsSinceEpoch}',
+          '${ServerConfig.pingUrl}?n=${DateTime.now().microsecondsSinceEpoch}',
         );
 
         final ms = await _onePing(client, uri);

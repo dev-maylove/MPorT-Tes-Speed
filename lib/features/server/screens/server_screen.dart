@@ -73,7 +73,7 @@ class _ServerScreenState extends State<ServerScreen> {
                     children: [
                       const Expanded(
                         child: Text(
-                          'Otomatis = latency terendah (termasuk Arab Network)',
+                          'Otomatis = latency terendah dari server yang dikonfigurasi',
                           style: TextStyle(color: Colors.white38, fontSize: 12),
                         ),
                       ),
