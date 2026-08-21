@@ -29,6 +29,7 @@ jobs:
         with:
           distribution: temurin
           java-version: "17"
+          cache: gradle
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
@@ -38,6 +39,11 @@ jobs:
 
       - name: Flutter version
         run: flutter --version
+
+      - name: Accept Android licenses
+        run: |
+          yes | flutter doctor --android-licenses || true
+          flutter doctor -v
 
       - name: Pub get
         run: flutter pub get
@@ -112,12 +118,16 @@ jobs:
         with:
           distribution: temurin
           java-version: "17"
+          cache: gradle
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
           channel: stable
           cache: true
+
+      - name: Accept Android licenses
+        run: yes | flutter doctor --android-licenses || true
 
       - name: Pub get
         run: flutter pub get

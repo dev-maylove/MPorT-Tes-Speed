@@ -12,14 +12,15 @@ Workflow: `.github/workflows/build-apk.yml`
 ## Flow (APK)
 
 1. Checkout source  
-2. Java 17 (Temurin)  
+2. Java 17 (Temurin) + Gradle cache  
 3. Flutter stable (cached)  
-4. `flutter pub get`  
-5. `flutter analyze`  
-6. `flutter test`  
-7. Setup signing (Secrets **atau** keystore di repo)  
-8. `flutter build apk --release`  
-9. Upload artifact **MPorT-Tes-Speed-release**
+4. Accept Android licenses  
+5. `flutter pub get`  
+6. `flutter analyze`  
+7. `flutter test`  
+8. Setup signing (Secrets **atau** keystore di repo)  
+9. `flutter build apk --release`  
+10. Upload artifact **MPorT-Tes-Speed-release**
 
 ## Cara menjalankan
 
@@ -53,7 +54,8 @@ Buat GitHub Secrets:
 
 Jika `android/key.properties` + `android/app/mport-release-key.jks` sudah ada di repo, CI memakai itu otomatis.
 
-> **Peringatan:** Jangan commit keystore & password ke repository publik.
+> **Peringatan:** Jangan commit keystore & password ke repository publik.  
+> File `.gitignore` sudah meng-exclude `*.jks` dan `key.properties`.
 
 ## Matrix build (sesuai README_BUILD)
 
