@@ -1,31 +1,31 @@
 import 'package:intl/intl.dart';
 
 class SpeedFormatter {
-  static String format(double mbps, {int decimals = 1}) {
+  static String format(double mbps, {int decimals = 1, String unit = 'Mbps'}) {
     if (mbps < 0) return '--';
     final fmt = NumberFormat('#,##0.${'0' * decimals}');
-    return '${fmt.format(mbps)} Mbps';
+    return '${fmt.format(mbps)} $unit';
   }
 
-  static String formatMbps(double? value, {int decimals = 1}) {
+  static String formatMbps(double? value, {int decimals = 1, String unit = 'Mbps'}) {
     if (value == null) return '--';
-    return format(value, decimals: decimals);
+    return format(value, decimals: decimals, unit: unit);
   }
 
-  /// Alias used by UI cards
-  static String formatSpeed(double? value, {int decimals = 1}) {
+  /// Alias used by UI cards. Accepts optional [unit] for flexibility.
+  static String formatSpeed(double? value, {int decimals = 1, String unit = 'Mbps'}) {
     if (value == null) return '--';
-    return format(value, decimals: decimals);
+    return format(value, decimals: decimals, unit: unit);
   }
 
-  static String formatLatency(double? ms, {int decimals = 0}) {
+  static String formatLatency(double? ms, {int decimals = 0, String unit = 'ms'}) {
     if (ms == null) return '--';
     final fmt = NumberFormat(decimals == 0 ? '#,##0' : '#,##0.${'0' * decimals}');
-    return '${fmt.format(ms)} ms';
+    return '${fmt.format(ms)} $unit';
   }
 
-  static String formatJitter(double? ms, {int decimals = 0}) {
-    return formatLatency(ms, decimals: decimals);
+  static String formatJitter(double? ms, {int decimals = 0, String unit = 'ms'}) {
+    return formatLatency(ms, decimals: decimals, unit: unit);
   }
 
   /// Convert bytes transferred over durationSeconds to Mbps
