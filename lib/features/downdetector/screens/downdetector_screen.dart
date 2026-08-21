@@ -30,10 +30,9 @@ class _ServiceItem {
     required this.slug,
     this.probeHost,
     required this.series,
-    this.warning = false,
     this.starred = false,
-    this.lastMs,
-  });
+  })  : warning = false,
+        lastMs = null;
 }
 
 class _DowndetectorScreenState extends State<DowndetectorScreen> {
