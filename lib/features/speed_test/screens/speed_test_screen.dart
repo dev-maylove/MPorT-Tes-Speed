@@ -8,7 +8,6 @@ import '../models/speed_test_state.dart';
 import '../services/history_service.dart';
 import '../services/realtime_service.dart';
 import '../services/speed_test_service.dart';
-import '../../settings/screens/settings_screen.dart';
 import '../../server/screens/server_screen.dart';
 import '../../server/services/server_service.dart';
 import '../../../core/constants/server_config.dart';
