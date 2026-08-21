@@ -24,8 +24,9 @@ class UploadService {
 
   Uint8List _payload(int megabytes) {
     final size = megabytes * 1024 * 1024;
-    if (_cachedPayload != null && _cachedPayload!.length == size) {
-      return _cachedPayload!;
+    final cached = _cachedPayload;
+    if (cached != null && cached.length == size) {
+      return cached;
     }
     final data = Uint8List(size);
     for (var i = 0; i < size; i += 64) {

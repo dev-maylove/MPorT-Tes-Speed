@@ -71,12 +71,14 @@ class _MapsScreenState extends State<MapsScreen>
   List<Map<String, dynamic>> _clusteredPoints() {
     final map = <String, Map<String, dynamic>>{};
     for (final s in _servers) {
-      final key =
-          '${s.latitude!.toStringAsFixed(3)},${s.longitude!.toStringAsFixed(3)}';
+      final lat = s.latitude;
+      final lon = s.longitude;
+      if (lat == null || lon == null) continue;
+      final key = '${lat.toStringAsFixed(3)},${lon.toStringAsFixed(3)}';
       if (!map.containsKey(key)) {
         map[key] = {
-          'lat': s.latitude,
-          'lon': s.longitude,
+          'lat': lat,
+          'lon': lon,
           'names': <String>[s.name],
           'loc': s.location,
           'km': s.distanceKm,

@@ -68,7 +68,7 @@ class ServerCard extends StatelessWidget {
           '${server.network} · ${server.location}'
           '${server.country.isNotEmpty ? ' · ${server.country}' : ''}\n'
           '${server.host}'
-          '${server.latitude != null ? ' · ${server.latitude!.toStringAsFixed(2)}, ${server.longitude!.toStringAsFixed(2)}' : ''}',
+          '${(server.latitude != null && server.longitude != null) ? ' · ${server.latitude!.toStringAsFixed(2)}, ${server.longitude!.toStringAsFixed(2)}' : ''}',
           style: const TextStyle(color: Colors.white54, fontSize: 12),
         ),
         trailing: latency == null
