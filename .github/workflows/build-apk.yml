@@ -62,6 +62,18 @@ jobs:
             echo "No keystore — release will use debug signing"
           fi
 
+      - name: Remove duplicate launcher resources
+        run: |
+          # Hapus file lama yang bentrok (png+xml sama nama di drawable)
+          rm -f android/app/src/main/res/drawable/ic_launcher_foreground.png
+          rm -f android/app/src/main/res/drawable/ic_launcher_foreground.xml
+          rm -f android/app/src/main/res/drawable/ic_launcher.png
+          rm -f android/app/src/main/res/drawable/ic_launcher.xml
+          echo "drawable after cleanup:"
+          ls -la android/app/src/main/res/drawable/ || true
+          echo "mipmap foreground:"
+          ls android/app/src/main/res/mipmap-*/ic_launcher_foreground.png || true
+
       - name: Build APK (release, split per ABI)
         run: |
           # Split per ABI = APK jauh lebih kecil per arsitektur
