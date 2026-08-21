@@ -276,12 +276,7 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
   }
 
   String get _ispLabel {
-    final isp = _ispName ?? 'Jaringan';
-    final selected = _serverService.selected;
-    final code = selected.host.isNotEmpty
-        ? selected.host.split('.').first.toUpperCase()
-        : 'MPORT';
-    return isp;
+    return _ispName ?? 'Jaringan';
   }
 
   String get _ispCode {
@@ -672,7 +667,7 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
                                     ),
                                     Text(
                                       _unit,
-                                      style: TextStyle(
+                                      style: const TextStyle(
                                         color: goldLight,
                                         fontSize: 14,
                                         fontWeight: FontWeight.w600,
@@ -695,7 +690,7 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
                                         ),
                                         Text(
                                           _unit,
-                                          style: TextStyle(
+                                          style: const TextStyle(
                                             color: goldLight,
                                             fontSize: 14,
                                           ),
@@ -886,13 +881,13 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
             )
           else
             const SizedBox(width: 48),
-          Expanded(
+          const Expanded(
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Icon(Icons.speed_rounded, color: gold, size: 20),
-                const SizedBox(width: 6),
-                const Text(
+                SizedBox(width: 6),
+                Text(
                   'MPorT',
                   style: TextStyle(
                     color: Colors.white,
