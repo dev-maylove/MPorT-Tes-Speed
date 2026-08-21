@@ -1,7 +1,7 @@
 import 'package:connectivity_plus/connectivity_plus.dart';
 
 class NetworkInfo {
-  final Connectivity _connectivity = Connectivity();
+  final Connectivity _connectivity;
 
   NetworkInfo({Connectivity? connectivity})
       : _connectivity = connectivity ?? Connectivity();

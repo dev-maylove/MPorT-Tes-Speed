@@ -9,6 +9,10 @@ class DateFormatter {
     return DateFormat('dd/MM/yy HH:mm').format(dt);
   }
 
+  static String formatDateTime(DateTime dt) {
+    return DateFormat('dd MMM yyyy · HH:mm').format(dt);
+  }
+
   static String formatRelative(DateTime dt) {
     final now = DateTime.now();
     final diff = now.difference(dt);
