@@ -12,6 +12,7 @@ import '../../settings/screens/settings_screen.dart';
 import '../../server/screens/server_screen.dart';
 import '../../server/services/server_service.dart';
 import '../../../core/constants/server_config.dart';
+import '../../../core/widgets/app_drawer.dart';
 
 class SpeedTestScreen extends StatefulWidget {
   const SpeedTestScreen({super.key});
@@ -936,14 +937,7 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
               ],
             ),
           ),
-          IconButton(
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const SettingsScreen()),
-              );
-            },
-            icon: const Icon(Icons.menu, color: AppColors.textPrimary),
-          ),
+          appMenuButton(context),
         ],
       ),
     );

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/app_drawer.dart';
 import '../../server/services/server_service.dart';
 import '../../speed_test/models/test_server.dart';
 
@@ -103,13 +104,12 @@ class _MapsScreenState extends State<MapsScreen>
           : '';
       final loc = (p['loc'] as String).replaceAll("'", r"\'");
       buf.writeln(
-        "L.circleMarker([${p['lat']}, ${p['lon']}],{"
-        "radius:7,color:'#00E5A0',fillColor:'#5CFFC9',fillOpacity:0.85,weight:1"
-        "}).addTo(map).bindPopup('<b>$names$extra</b><br>$loc');",
+        "L.marker([${p['lat']}, ${p['lon']}],{icon:serverIcon})"
+        ".addTo(map).bindPopup('<b>$names$extra</b><br>$loc');",
       );
     }
 
-    // HTML ringkas: Leaflet dari CDN, preferCanvas, tanpa shadow marker
+    // Peta gaya original OSM + marker pin (lebih readable)
     return '''
 <!DOCTYPE html>
 <html>
@@ -119,9 +119,18 @@ class _MapsScreenState extends State<MapsScreen>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <style>
-html,body,#map{margin:0;padding:0;height:100%;background:#06080F}
-.leaflet-container{background:#0a0e17;font:12px sans-serif}
-.leaflet-control-attribution{font-size:9px;background:rgba(0,0,0,.5)!important;color:#5CFFC9!important}
+html,body,#map{margin:0;padding:0;height:100%;background:#e8eef5}
+.leaflet-container{background:#e8eef5;font:12px sans-serif}
+.leaflet-control-attribution{font-size:9px}
+.server-pin{background:transparent;border:none}
+.server-pin-inner{
+  width:28px;height:28px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);
+  background:#00E5A0;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.35);
+}
+.server-pin-inner:after{
+  content:'';position:absolute;width:10px;height:10px;background:#fff;border-radius:50%;
+  top:7px;left:7px;
+}
 </style>
 </head>
 <body>
@@ -129,18 +138,19 @@ html,body,#map{margin:0;padding:0;height:100%;background:#06080F}
 <script>
 var map=L.map('map',{
   zoomControl:true,
-  preferCanvas:true,
-  fadeAnimation:false,
-  zoomAnimation:true,
-  markerZoomAnimation:false
+  preferCanvas:true
 }).setView([$lat,$lon],10);
-L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{
-  attribution:'©OSM ©CARTO',
-  maxZoom:16,
-  maxNativeZoom:16,
-  updateWhenIdle:true,
-  keepBuffer:1
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+  attribution:'© OpenStreetMap',
+  maxZoom:18
 }).addTo(map);
+var serverIcon=L.divIcon({
+  className:'server-pin',
+  html:'<div class="server-pin-inner"></div>',
+  iconSize:[28,28],
+  iconAnchor:[14,28],
+  popupAnchor:[0,-28]
+});
 __MAP_MARKERS__
 window.panTo=function(lat,lon,z){
   map.setView([lat,lon],z||12,{animate:true,duration:0.35});
@@ -171,6 +181,7 @@ window.panTo=function(lat,lon,z){
       backgroundColor: AppColors.background,
       appBar: AppBar(
         backgroundColor: AppColors.background,
+        automaticallyImplyLeading: false,
         title: const Text(
           'Peta Server',
           style: TextStyle(
@@ -178,6 +189,7 @@ window.panTo=function(lat,lon,z){
             fontWeight: FontWeight.w700,
           ),
         ),
+        actions: [appMenuButton(context)],
         iconTheme: const IconThemeData(color: AppColors.greenLight),
       ),
       body: Column(

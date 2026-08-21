@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/app_drawer.dart';
 import '../services/history_service.dart';
 
 class HistoryScreen extends StatefulWidget {
@@ -52,14 +53,19 @@ class HistoryScreenState extends State<HistoryScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Riwayat Tes'),
+        title: const Text(
+          'Riwayat Tes',
+          style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w700),
+        ),
         backgroundColor: AppColors.background,
+        automaticallyImplyLeading: false,
         actions: [
           if (history.isNotEmpty)
             IconButton(
               onPressed: clearHistory,
-              icon: const Icon(Icons.delete_outline),
+              icon: const Icon(Icons.delete_outline, color: AppColors.textPrimary),
             ),
+          appMenuButton(context),
         ],
       ),
       body: loading

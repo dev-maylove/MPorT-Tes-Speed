@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../about/screens/about_screen.dart';
+import '../../downdetector/screens/downdetector_screen.dart';
 import '../widgets/settings_tile.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -56,6 +57,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 if (v != null) setState(() => _themeMode = v);
               },
             ),
+          ),
+          const Divider(),
+          const _SectionHeader(title: 'Jaringan'),
+          SettingsTile(
+            icon: Icons.report_problem_outlined,
+            title: 'Downdetector',
+            subtitle: 'Cek gangguan layanan',
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const DowndetectorScreen()),
+              );
+            },
           ),
           const Divider(),
           const _SectionHeader(title: 'Lainnya'),
