@@ -62,7 +62,7 @@ Jika `android/key.properties` + `android/app/mport-release-key.jks` sudah ada di
 |-----------|---------|
 | Gradle | **9.1.0** |
 | AGP | **9.0.1** |
-| Kotlin | **2.2.20** |
+| Kotlin | **2.3.20** |
 | Java | **17** |
 | Flutter | **stable** (3.47.x) |
 
