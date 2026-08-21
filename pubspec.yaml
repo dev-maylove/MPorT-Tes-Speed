@@ -1,7 +1,7 @@
 name: mport_test_speed
 description: MPorT Tes Speed - Aplikasi pengujian kecepatan internet akurat.
 publish_to: 'none'
-version: 1.8.1+15
+version: 1.8.2+16
 
 environment:
   sdk: '>=3.6.0 <4.0.0'

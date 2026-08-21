@@ -116,9 +116,10 @@ class ServerService extends ChangeNotifier {
 
           if (lat < bestLat) {
             bestLat = lat;
-            best = s.copyWith(latencyMs: lat);
+            final updated = s.copyWith(latencyMs: lat);
+            best = updated;
             // Update UI segera agar user lihat server terpilih
-            _selected = best!;
+            _selected = updated;
             _applySelected();
             notifyListeners();
           }
@@ -137,8 +138,9 @@ class ServerService extends ChangeNotifier {
           return (a.distanceKm ?? 999).compareTo(b.distanceKm ?? 999);
         });
 
-      if (best != null) {
-        _selected = best!;
+      final chosen = best;
+      if (chosen != null) {
+        _selected = chosen;
         _applySelected();
       } else {
         // Fallback default
