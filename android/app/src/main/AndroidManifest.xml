@@ -6,7 +6,7 @@
         android:label="MPorT Tes Speed"
         android:name="${applicationName}"
         android:icon="@drawable/ic_launcher"
-        android:usesCleartextTraffic="false"
+        android:usesCleartextTraffic="true"
         android:enableOnBackInvokedCallback="true">
         <activity
             android:name=".MainActivity"

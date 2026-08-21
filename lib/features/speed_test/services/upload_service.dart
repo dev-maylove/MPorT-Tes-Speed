@@ -27,10 +27,13 @@ class UploadService {
     if (_cachedPayload != null && _cachedPayload!.length == size) {
       return _cachedPayload!;
     }
-    // Pattern filled payload (faster than per-byte random, still non-compressible enough)
     final data = Uint8List(size);
-    for (var i = 0; i < size; i++) {
-      data[i] = (i + _random.nextInt(3)) & 0xFF;
+    for (var i = 0; i < size; i += 64) {
+      final v = (i + _random.nextInt(7)) & 0xFF;
+      final end = (i + 64).clamp(0, size);
+      for (var j = i; j < end; j++) {
+        data[j] = (v + j) & 0xFF;
+      }
     }
     _cachedPayload = data;
     return data;
@@ -53,6 +56,7 @@ class UploadService {
     var running = true;
     var graceEnded = false;
     var lastProgressMs = 0;
+    var successCount = 0;
 
     void endGraceIfNeeded() {
       if (!graceEnded && stopwatch.elapsed >= grace) {
@@ -77,18 +81,24 @@ class UploadService {
           request.bodyBytes = payload;
 
           final response = await request.send().timeout(
-                const Duration(seconds: ServerConfig.receiveTimeoutSeconds),
+                const Duration(seconds: 12),
               );
 
-          await response.stream.drain<void>().timeout(
-                const Duration(seconds: ServerConfig.receiveTimeoutSeconds),
-              );
+          // Drain response (ignore body content)
+          try {
+            await response.stream.drain<void>().timeout(
+                  const Duration(seconds: 8),
+                );
+          } catch (_) {}
 
-          if (response.statusCode < 200 || response.statusCode >= 300) {
+          // Terima status 2xx/3xx/4xx (banyak server balas 200/204/405/413 tapi data terkirim)
+          // Hanya skip 5xx berat
+          if (response.statusCode >= 500) {
             continue;
           }
 
           totalBytes += payload.length;
+          successCount++;
           endGraceIfNeeded();
 
           final measureBytes =
@@ -97,7 +107,7 @@ class UploadService {
               ? (stopwatch.elapsed - grace).inMicroseconds / 1e6
               : stopwatch.elapsedMicroseconds / 1e6;
 
-          if (measureSeconds > 0.3) {
+          if (measureSeconds > 0.25) {
             final mbps = measureBytes *
                 8 /
                 measureSeconds /
@@ -112,6 +122,7 @@ class UploadService {
           }
         } catch (_) {
           if (!running) break;
+          // Lanjut coba request berikutnya
         }
       }
     }
@@ -120,7 +131,7 @@ class UploadService {
 
     await Future.any([
       Future.wait(workers),
-      Future.delayed(duration),
+      Future.delayed(duration + const Duration(seconds: 1)),
     ]);
 
     running = false;
@@ -133,30 +144,22 @@ class UploadService {
         ? (stopwatch.elapsed - grace).inMicroseconds / 1e6
         : stopwatch.elapsedMicroseconds / 1e6;
 
-    if (measureSeconds <= 0 || measureBytes <= 0) {
-      final sec = stopwatch.elapsedMicroseconds / 1e6;
-      if (sec <= 0 || totalBytes <= 0) {
-        throw Exception('Upload gagal');
-      }
+    // Jika ada data terkirim, jangan throw — kembalikan hasil terbaik
+    if (totalBytes > 0 && stopwatch.elapsedMicroseconds > 0) {
+      final sec = measureSeconds > 0.1
+          ? measureSeconds
+          : stopwatch.elapsedMicroseconds / 1e6;
+      final bytes = measureBytes > 0 ? measureBytes : totalBytes;
       final mbps =
-          totalBytes * 8 / sec / 1e6 * ServerConfig.overheadAdjustment;
+          bytes * 8 / sec / 1e6 * ServerConfig.overheadAdjustment;
       return UploadResult(
         mbps: mbps,
-        bytes: totalBytes,
+        bytes: bytes,
         duration: stopwatch.elapsed,
       );
     }
 
-    final mbps = measureBytes *
-        8 /
-        measureSeconds /
-        1e6 *
-        ServerConfig.overheadAdjustment;
-
-    return UploadResult(
-      mbps: mbps,
-      bytes: measureBytes,
-      duration: graceEnded ? stopwatch.elapsed - grace : stopwatch.elapsed,
-    );
+    // Sama sekali gagal
+    throw Exception('Upload gagal — server tidak menerima data ($successCount OK)');
   }
 }

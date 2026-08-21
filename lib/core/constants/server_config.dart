@@ -54,16 +54,16 @@ class ServerConfig {
 
   // ── Parallelisme ────────────────────────────────────────
   static const int downloadThreads = 6;
-  static const int uploadThreads = 6;
+  static const int uploadThreads = 4;
 
   // ── Payload upload ──────────────────────────────────────
-  static const int uploadPayloadMegabytes = 4;
+  static const int uploadPayloadMegabytes = 1;
 
   // ── Ping (ringan, hasil serendah mungkin) ───────────────
-  static const int pingSamples = 10;
-  static const int pingWarmup = 2;
-  static const int pingIntervalMs = 15;
-  static const int pingTrimCount = 2;
+  static const int pingSamples = 16;
+  static const int pingWarmup = 3;
+  static const int pingIntervalMs = 10;
+  static const int pingTrimCount = 4;
 
   // ── Koreksi overhead ────────────────────────────────────
   static const double overheadAdjustment = 1.06;

@@ -80,28 +80,74 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
   }
 
   Future<void> _fetchIps() async {
-    // Client public IP
+    // ISP name dari IP publik (Telkom, XL, Indosat, dll.)
     try {
-      final r = await http.get(Uri.parse('https://api.ipify.org')).timeout(
-            const Duration(seconds: 5),
-          );
+      final r = await http
+          .get(Uri.parse('https://ipapi.co/json/'))
+          .timeout(const Duration(seconds: 6));
       if (r.statusCode == 200 && mounted) {
-        setState(() => _clientIp = r.body.trim());
+        final body = r.body;
+        // Parse sederhana tanpa package json ekstra (sudah ada dart:convert via other imports? gunakan RegExp fallback)
+        String isp = '';
+        final ispMatch = RegExp(r'"isp"\s*:\s*"([^"]*)"').firstMatch(body);
+        final orgMatch = RegExp(r'"org"\s*:\s*"([^"]*)"').firstMatch(body);
+        if (ispMatch != null) isp = ispMatch.group(1) ?? '';
+        if (isp.isEmpty && orgMatch != null) isp = orgMatch.group(1) ?? '';
+        isp = _normalizeIspName(isp);
+        if (isp.isNotEmpty) {
+          setState(() => _clientIp = isp);
+        }
       }
-    } catch (_) {}
+    } catch (_) {
+      // Fallback: ipify
+      try {
+        final r = await http
+            .get(Uri.parse('https://api.ipify.org'))
+            .timeout(const Duration(seconds: 5));
+        if (r.statusCode == 200 && mounted) {
+          setState(() => _clientIp = r.body.trim());
+        }
+      } catch (_) {}
+    }
 
-    // Server IP (DNS resolve)
+    // Nama server (bukan IP numerik)
     try {
-      final host = _serverService.selected.host.isNotEmpty
-          ? _serverService.selected.host
-          : ServerConfig.baseUrl
-              .replaceFirst('https://', '')
-              .replaceFirst('http://', '');
-      final addrs = await InternetAddress.lookup(host);
-      if (addrs.isNotEmpty && mounted) {
-        setState(() => _serverIp = addrs.first.address);
-      }
+      final selected = _serverService.selected;
+      final name = selected.name.isNotEmpty
+          ? selected.name
+          : (ServerConfig.serverName.isNotEmpty
+              ? ServerConfig.serverName
+              : 'HaaNSirO');
+      if (mounted) setState(() => _serverIp = name);
     } catch (_) {}
+  }
+
+  String _normalizeIspName(String raw) {
+    final s = raw.trim();
+    if (s.isEmpty) return '';
+    final lower = s.toLowerCase();
+    if (lower.contains('telkom') || lower.contains('indihome') || lower.contains('tlkm')) {
+      return 'Telkom / IndiHome';
+    }
+    if (lower.contains('xl') || lower.contains('axis')) return 'XL Axiata';
+    if (lower.contains('indosat') || lower.contains('im3') || lower.contains('tri ') || lower.contains('3 indonesia')) {
+      return 'Indosat Ooredoo';
+    }
+    if (lower.contains('smartfren')) return 'Smartfren';
+    if (lower.contains('by.u') || lower.contains('byu')) return 'by.U';
+    if (lower.contains('biznet')) return 'Biznet';
+    if (lower.contains('first media') || lower.contains('fastnet')) return 'First Media';
+    if (lower.contains('myrepublic')) return 'MyRepublic';
+    if (lower.contains('cbn')) return 'CBN';
+    if (lower.contains('icon+') || lower.contains('icon plus') || lower.contains('iconpln')) {
+      return 'Icon+';
+    }
+    if (lower.contains('oxygen')) return 'Oxygen.id';
+    if (lower.contains('mnc') || lower.contains('playmedia')) return 'MNC Play';
+    if (lower.contains('google')) return 'Google';
+    if (lower.contains('cloudflare')) return 'Cloudflare';
+    // Ambil kata pertama yang bermakna
+    return s.length > 28 ? '${s.substring(0, 26)}…' : s;
   }
 
   late Animation<double> _speedTween;
@@ -735,14 +781,14 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
         children: [
           _infoRow(
             icon: Icons.wifi_rounded,
-            title: 'IP Client',
+            title: 'ISP / Jaringan',
             subtitle: _clientIp ?? 'Mengambil...',
           ),
           const Divider(height: 18, color: Colors.white10),
           _infoRow(
             icon: Icons.dns_rounded,
-            title: 'IP Server',
-            subtitle: _serverIp ?? selected.host,
+            title: 'Server',
+            subtitle: _serverIp ?? selected.name,
           ),
         ],
       ),

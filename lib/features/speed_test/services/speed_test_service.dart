@@ -33,18 +33,27 @@ class SpeedTestService {
       },
     );
 
+    // Upload: jangan gagalkan seluruh tes jika upload error
+    double uploadMbps = 0;
     onProgress?.call(SpeedTestPhase.upload, 0);
-    final uploadResult = await _uploadService.test(
-      onProgress: (speed) {
-        onProgress?.call(SpeedTestPhase.upload, speed);
-      },
-    );
+    try {
+      final uploadResult = await _uploadService.test(
+        onProgress: (speed) {
+          onProgress?.call(SpeedTestPhase.upload, speed);
+        },
+      );
+      uploadMbps = uploadResult.mbps;
+    } catch (_) {
+      // Upload gagal — tetap lanjut simpan hasil ping + download
+      uploadMbps = 0;
+      onProgress?.call(SpeedTestPhase.upload, 0);
+    }
 
     final result = SpeedResult(
       ping: pingResult.ping,
       jitter: pingResult.jitter,
       download: downloadResult.mbps,
-      upload: uploadResult.mbps,
+      upload: uploadMbps,
       server: ServerConfig.serverName,
       timestamp: DateTime.now(),
     );
