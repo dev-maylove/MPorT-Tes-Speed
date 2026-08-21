@@ -554,48 +554,34 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
         child: Stack(
           alignment: Alignment.center,
           children: [
-            // Logo samar di belakang tombol GO (ukuran sama dengan ring GO)
-            Opacity(
-              opacity: 0.22,
-              child: ClipOval(
-                child: Image.asset(
-                  'assets/images/mport_logo.png',
-                  width: 180,
-                  height: 180,
-                  fit: BoxFit.cover,
-                ),
+            // Logo MPorT jelas (ukuran sama dengan ring GO), background transparan
+            ClipOval(
+              child: Image.asset(
+                'assets/images/mport_logo.png',
+                width: 180,
+                height: 180,
+                fit: BoxFit.cover,
+                filterQuality: FilterQuality.high,
               ),
             ),
-            // Soft glow
+            // Ring GO — hanya border, isi transparan agar logo terlihat utuh
             Container(
               width: 180,
               height: 180,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                gradient: RadialGradient(
-                  colors: [
-                    gold.withValues(alpha: 0.12),
-                    Colors.transparent,
-                  ],
-                ),
-              ),
-            ),
-            // Ring GO
-            Container(
-              width: 180,
-              height: 180,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
+                color: Colors.transparent,
                 border: Border.all(color: gold, width: 2.5),
                 boxShadow: [
                   BoxShadow(
-                    color: gold.withValues(alpha: 0.2),
-                    blurRadius: 28,
-                    spreadRadius: 2,
+                    color: gold.withValues(alpha: 0.18),
+                    blurRadius: 24,
+                    spreadRadius: 1,
                   ),
                 ],
               ),
               alignment: Alignment.center,
+              // Teks GO tidak diubah
               child: const Text(
                 'GO',
                 style: TextStyle(
