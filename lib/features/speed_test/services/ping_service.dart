@@ -60,7 +60,7 @@ class PingService {
 
     // Buang outlier tertinggi agar ping lebih kecil & stabil
     var working = sorted;
-    final trim = ServerConfig.pingTrimCount;
+    const trim = ServerConfig.pingTrimCount;
     if (working.length > trim + 2) {
       working = working.sublist(0, working.length - trim);
     }
