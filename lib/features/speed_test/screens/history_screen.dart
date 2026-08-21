@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/theme/app_colors.dart';
 import '../services/history_service.dart';
 
 class HistoryScreen extends StatefulWidget {
@@ -49,10 +50,10 @@ class HistoryScreenState extends State<HistoryScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF080808),
+      backgroundColor: const AppColors.background,
       appBar: AppBar(
         title: const Text('Riwayat Tes'),
-        backgroundColor: const Color(0xFF080808),
+        backgroundColor: const AppColors.background,
         actions: [
           if (history.isNotEmpty)
             IconButton(
@@ -62,11 +63,11 @@ class HistoryScreenState extends State<HistoryScreen> {
         ],
       ),
       body: loading
-          ? const Center(child: CircularProgressIndicator(color: Color(0xFF00E5A0)))
+          ? const Center(child: CircularProgressIndicator(color: AppColors.green))
           : history.isEmpty
               ? const _EmptyHistory()
               : RefreshIndicator(
-                  color: const Color(0xFF00E5A0),
+                  color: const AppColors.green,
                   onRefresh: reload,
                   child: ListView.builder(
                     padding: const EdgeInsets.all(16),
@@ -88,16 +89,16 @@ class _EmptyHistory extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.speed_outlined, size: 70, color: Colors.white24),
+          Icon(Icons.speed_outlined, size: 70, color: AppColors.greenDim),
           SizedBox(height: 16),
           Text(
             'Belum ada riwayat tes',
-            style: TextStyle(color: Colors.white54, fontSize: 16),
+            style: TextStyle(color: AppColors.textSecondary, fontSize: 16),
           ),
           SizedBox(height: 6),
           Text(
             'Jalankan tes speed terlebih dahulu',
-            style: TextStyle(color: Colors.white30, fontSize: 12),
+            style: TextStyle(color: AppColors.textMuted, fontSize: 12),
           ),
         ],
       ),
@@ -124,7 +125,7 @@ class _HistoryCard extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFF111111),
+        color: const AppColors.card,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
       ),
@@ -132,11 +133,11 @@ class _HistoryCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(Icons.access_time, size: 14, color: Colors.white38),
+              const Icon(Icons.access_time, size: 14, color: AppColors.textMuted),
               const SizedBox(width: 6),
               Text(
                 _formatDate(timestamp),
-                style: const TextStyle(color: Colors.white70, fontSize: 12),
+                style: const TextStyle(color: AppColors.textPrimary, fontSize: 12),
               ),
             ],
           ),
@@ -158,7 +159,7 @@ class _HistoryCard extends StatelessWidget {
             alignment: Alignment.centerLeft,
             child: Text(
               server,
-              style: const TextStyle(color: Colors.white30, fontSize: 10),
+              style: const TextStyle(color: AppColors.textMuted, fontSize: 10),
             ),
           ),
         ],
@@ -195,20 +196,20 @@ class _Value extends StatelessWidget {
       children: [
         Text(
           title,
-          style: const TextStyle(color: Colors.white30, fontSize: 8),
+          style: const TextStyle(color: AppColors.textMuted, fontSize: 8),
         ),
         const SizedBox(height: 4),
         Text(
           value.toStringAsFixed(1),
           style: const TextStyle(
-            color: Colors.white,
+            color: AppColors.textPrimary,
             fontSize: 14,
             fontWeight: FontWeight.bold,
           ),
         ),
         Text(
           unit,
-          style: const TextStyle(color: Colors.white24, fontSize: 7),
+          style: const TextStyle(color: AppColors.greenDim, fontSize: 7),
         ),
       ],
     );

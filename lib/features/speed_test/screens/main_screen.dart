@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/theme/app_colors.dart';
+import '../../maps/screens/maps_screen.dart';
 import 'history_screen.dart';
 import 'speed_test_screen.dart';
 
@@ -17,18 +19,20 @@ class _MainScreenState extends State<MainScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.background,
       body: IndexedStack(
         index: currentIndex,
         children: [
           const SpeedTestScreen(),
           HistoryScreen(key: _historyKey),
+          const MapsScreen(),
         ],
       ),
       bottomNavigationBar: NavigationBar(
+        backgroundColor: AppColors.background,
         selectedIndex: currentIndex,
         onDestinationSelected: (index) {
           setState(() => currentIndex = index);
-          // Refresh riwayat setiap kali tab dibuka
           if (index == 1) {
             _historyKey.currentState?.reload();
           }
@@ -43,6 +47,11 @@ class _MainScreenState extends State<MainScreen> {
             icon: Icon(Icons.history_outlined),
             selectedIcon: Icon(Icons.history),
             label: 'Riwayat',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.map_outlined),
+            selectedIcon: Icon(Icons.map),
+            label: 'Maps',
           ),
         ],
       ),

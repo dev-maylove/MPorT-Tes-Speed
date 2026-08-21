@@ -16,17 +16,13 @@ class AppLogo extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Container(
-          width: size,
-          height: size,
-          decoration: BoxDecoration(
-            color: theme.colorScheme.primary,
-            borderRadius: BorderRadius.circular(size * 0.25),
-          ),
-          child: Icon(
-            Icons.speed_rounded,
-            color: Colors.white,
-            size: size * 0.55,
+        ClipRRect(
+          borderRadius: BorderRadius.circular(size * 0.22),
+          child: Image.asset(
+            'assets/images/mport_logo.png',
+            width: size,
+            height: size,
+            fit: BoxFit.cover,
           ),
         ),
         if (showText) ...[

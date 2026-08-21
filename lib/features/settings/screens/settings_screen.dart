@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../about/screens/about_screen.dart';
 import '../widgets/settings_tile.dart';
@@ -17,7 +18,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Pengaturan')),
+      backgroundColor: AppColors.background,
+      appBar: AppBar(title: const Text('Pengaturan', style: TextStyle(color: AppColors.textPrimary))),
       body: ListView(
         children: [
           const SizedBox(height: 8),

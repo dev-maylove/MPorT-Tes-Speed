@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import '../../../core/theme/app_colors.dart';
 import 'package:http/http.dart' as http;
 
 import '../models/speed_test_state.dart';
@@ -349,7 +350,7 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
                         height: 4,
                         margin: const EdgeInsets.only(bottom: 14),
                         decoration: BoxDecoration(
-                          color: Colors.white24,
+                          color: AppColors.greenDim,
                           borderRadius: BorderRadius.circular(2),
                         ),
                       ),
@@ -380,7 +381,7 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
                           ),
                         ),
                       ),
-                      const Divider(color: Colors.white12, height: 28),
+                      const Divider(color: AppColors.green.withValues(alpha: 0.12), height: 28),
                       _settingRow(
                         label: 'Units',
                         options: const ['Mbps', 'MB/s', 'kB/s'],
@@ -422,9 +423,9 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
           height: 36,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            border: Border.all(color: Colors.white24),
+            border: Border.all(color: AppColors.greenDim),
           ),
-          child: const Icon(Icons.wifi_rounded, color: Colors.white70, size: 18),
+          child: const Icon(Icons.wifi_rounded, color: AppColors.textPrimary, size: 18),
         ),
         const SizedBox(width: 12),
         Expanded(
@@ -436,14 +437,14 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
-                  color: Colors.white,
+                  color: AppColors.textPrimary,
                   fontSize: 15,
                   fontWeight: FontWeight.w600,
                 ),
               ),
               Text(
                 _ispCode,
-                style: const TextStyle(color: Colors.white38, fontSize: 12),
+                style: const TextStyle(color: AppColors.textMuted, fontSize: 12),
               ),
             ],
           ),
@@ -462,9 +463,9 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
           height: 36,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            border: Border.all(color: Colors.white24),
+            border: Border.all(color: AppColors.greenDim),
           ),
-          child: const Icon(Icons.dns_rounded, color: Colors.white70, size: 18),
+          child: const Icon(Icons.dns_rounded, color: AppColors.textPrimary, size: 18),
         ),
         const SizedBox(width: 12),
         Expanded(
@@ -476,14 +477,14 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
-                  color: Colors.white,
+                  color: AppColors.textPrimary,
                   fontSize: 15,
                   fontWeight: FontWeight.w600,
                 ),
               ),
               Text(
                 loc,
-                style: const TextStyle(color: Colors.white38, fontSize: 12),
+                style: const TextStyle(color: AppColors.textMuted, fontSize: 12),
               ),
             ],
           ),
@@ -504,7 +505,7 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
           width: 120,
           child: Text(
             label,
-            style: const TextStyle(color: Colors.white54, fontSize: 14),
+            style: const TextStyle(color: AppColors.textSecondary, fontSize: 14),
           ),
         ),
         Expanded(
@@ -547,29 +548,63 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
   Widget _goButton() {
     return GestureDetector(
       onTap: startTest,
-      child: Container(
-        width: 180,
-        height: 180,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          border: Border.all(color: gold, width: 2.5),
-          boxShadow: [
-            BoxShadow(
-              color: gold.withValues(alpha: 0.15),
-              blurRadius: 30,
-              spreadRadius: 4,
+      child: SizedBox(
+        width: 280,
+        height: 280,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            // Logo samar di belakang tombol GO
+            Opacity(
+              opacity: 0.18,
+              child: Image.asset(
+                'assets/images/mport_logo.png',
+                width: 260,
+                height: 260,
+                fit: BoxFit.contain,
+              ),
+            ),
+            // Soft glow
+            Container(
+              width: 200,
+              height: 200,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: RadialGradient(
+                  colors: [
+                    gold.withValues(alpha: 0.12),
+                    Colors.transparent,
+                  ],
+                ),
+              ),
+            ),
+            // Ring GO
+            Container(
+              width: 180,
+              height: 180,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(color: gold, width: 2.5),
+                boxShadow: [
+                  BoxShadow(
+                    color: gold.withValues(alpha: 0.2),
+                    blurRadius: 28,
+                    spreadRadius: 2,
+                  ),
+                ],
+              ),
+              alignment: Alignment.center,
+              child: const Text(
+                'GO',
+                style: TextStyle(
+                  color: AppColors.textPrimary,
+                  fontSize: 42,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 2,
+                ),
+              ),
             ),
           ],
-        ),
-        alignment: Alignment.center,
-        child: const Text(
-          'GO',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 42,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 2,
-          ),
         ),
       ),
     );
@@ -659,7 +694,7 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
                                     Text(
                                       _animSpeed.toStringAsFixed(1),
                                       style: const TextStyle(
-                                        color: Colors.white,
+                                        color: AppColors.textPrimary,
                                         fontSize: 40,
                                         fontWeight: FontWeight.w800,
                                         height: 1,
@@ -682,7 +717,7 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
                                         Text(
                                           (download ?? 0).toStringAsFixed(1),
                                           style: const TextStyle(
-                                            color: Colors.white,
+                                            color: AppColors.textPrimary,
                                             fontSize: 40,
                                             fontWeight: FontWeight.w800,
                                             height: 1,
@@ -715,11 +750,11 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
-                                  color: Colors.white54, fontSize: 12),
+                                  color: AppColors.textSecondary, fontSize: 12),
                             ),
                           ),
                           const SizedBox(width: 4),
-                          const Icon(Icons.wifi, color: Colors.white30, size: 14),
+                          const Icon(Icons.wifi, color: AppColors.textMuted, size: 14),
                         ],
                       ),
                     ),
@@ -727,7 +762,7 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.end,
                         children: [
-                          const Icon(Icons.dns, color: Colors.white30, size: 14),
+                          const Icon(Icons.dns, color: AppColors.textMuted, size: 14),
                           const SizedBox(width: 4),
                           Flexible(
                             child: Text(
@@ -736,7 +771,7 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
                               overflow: TextOverflow.ellipsis,
                               textAlign: TextAlign.right,
                               style: const TextStyle(
-                                  color: Colors.white54, fontSize: 12),
+                                  color: AppColors.textSecondary, fontSize: 12),
                             ),
                           ),
                         ],
@@ -764,7 +799,7 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
         color: cardColor,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: highlight ? gold.withValues(alpha: 0.4) : Colors.white12,
+          color: highlight ? gold.withValues(alpha: 0.4) : AppColors.green.withValues(alpha: 0.12),
         ),
       ),
       child: Column(
@@ -777,7 +812,7 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
               Text(
                 title,
                 style: const TextStyle(
-                  color: Colors.white70,
+                  color: AppColors.textPrimary,
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
                 ),
@@ -791,7 +826,7 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
               Text(
                 value == null ? '—' : value.toStringAsFixed(1),
                 style: const TextStyle(
-                  color: Colors.white,
+                  color: AppColors.textPrimary,
                   fontSize: 26,
                   fontWeight: FontWeight.w800,
                   height: 1,
@@ -800,7 +835,7 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
               const Spacer(),
               Text(
                 _unit,
-                style: const TextStyle(color: Colors.white38, fontSize: 12),
+                style: const TextStyle(color: AppColors.textMuted, fontSize: 12),
               ),
             ],
           ),
@@ -815,15 +850,15 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
       children: [
         Text(
           label,
-          style: const TextStyle(color: Colors.white38, fontSize: 11),
+          style: const TextStyle(color: AppColors.textMuted, fontSize: 11),
         ),
         const SizedBox(width: 4),
-        Icon(icon, size: 12, color: Colors.white30),
+        Icon(icon, size: 12, color: AppColors.textMuted),
         const SizedBox(width: 2),
         Text(
           value == null ? '—' : value.toStringAsFixed(0),
           style: const TextStyle(
-            color: Colors.white,
+            color: AppColors.textPrimary,
             fontSize: 13,
             fontWeight: FontWeight.w600,
           ),
@@ -833,7 +868,7 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
   }
 
   Widget _dotStat(IconData icon, double? value) {
-    return Icon(icon, size: 14, color: Colors.white24);
+    return Icon(icon, size: 14, color: AppColors.greenDim);
   }
 
   int _qualityDots(double? mbps) {
@@ -849,7 +884,7 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
   Widget _qualityIcon(IconData icon, int dots) {
     return Column(
       children: [
-        Icon(icon, color: Colors.white38, size: 22),
+        Icon(icon, color: AppColors.textMuted, size: 22),
         const SizedBox(height: 4),
         Row(
           mainAxisSize: MainAxisSize.min,
@@ -860,7 +895,7 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
               margin: const EdgeInsets.symmetric(horizontal: 1),
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: i < dots ? gold : Colors.white12,
+                color: i < dots ? gold : AppColors.green.withValues(alpha: 0.12),
               ),
             );
           }),
@@ -877,7 +912,7 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
           if (showClose)
             IconButton(
               onPressed: _cancelTest,
-              icon: const Icon(Icons.close, color: Colors.white70),
+              icon: const Icon(Icons.close, color: AppColors.textPrimary),
             )
           else
             const SizedBox(width: 48),
@@ -890,7 +925,7 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
                 Text(
                   'MPorT',
                   style: TextStyle(
-                    color: Colors.white,
+                    color: AppColors.textPrimary,
                     fontSize: 16,
                     fontWeight: FontWeight.w700,
                     letterSpacing: 1.5,
@@ -905,7 +940,7 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
                 MaterialPageRoute(builder: (_) => const SettingsScreen()),
               );
             },
-            icon: const Icon(Icons.menu, color: Colors.white70),
+            icon: const Icon(Icons.menu, color: AppColors.textPrimary),
           ),
         ],
       ),

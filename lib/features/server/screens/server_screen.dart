@@ -1,3 +1,4 @@
+import '../../../core/theme/app_colors.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/widgets/loading_view.dart';
@@ -35,12 +36,12 @@ class _ServerScreenState extends State<ServerScreen> {
 
   @override
   Widget build(BuildContext context) {
-    const accent = Color(0xFF00E5A0);
+    const accent = AppColors.green;
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0A0E17),
+      backgroundColor: AppColors.background,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF0A0E17),
+        backgroundColor: AppColors.background,
         title: const Text('Pilih Server'),
         actions: [
           IconButton(
@@ -65,7 +66,7 @@ class _ServerScreenState extends State<ServerScreen> {
                 if (_service.isProbing)
                   const LinearProgressIndicator(
                     color: accent,
-                    backgroundColor: Colors.white10,
+                    backgroundColor: AppColors.green.withValues(alpha: 0.1),
                   ),
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
@@ -74,7 +75,7 @@ class _ServerScreenState extends State<ServerScreen> {
                       const Expanded(
                         child: Text(
                           'Server terdekat (Pati, Kudus, Jepara, …)',
-                          style: TextStyle(color: Colors.white38, fontSize: 12),
+                          style: TextStyle(color: AppColors.textMuted, fontSize: 12),
                         ),
                       ),
                       TextButton.icon(
