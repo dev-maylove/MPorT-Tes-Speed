@@ -62,26 +62,41 @@ jobs:
             echo "No keystore — release will use debug signing"
           fi
 
-      - name: Build APK (release)
-        run: flutter build apk --release
+      - name: Build APK (release, split per ABI)
+        run: |
+          # Split per ABI = APK jauh lebih kecil per arsitektur
+          # --obfuscate + --split-debug-info untuk shrink lebih lanjut
+          flutter build apk --release --split-per-abi \
+            --obfuscate \
+            --split-debug-info=build/debug-info
 
-      - name: Locate APK (fallback copy)
+      - name: Locate APKs
         run: |
           mkdir -p artifacts
-          APK=$(find build -name "*.apk" -type f 2>/dev/null | head -1)
-          if [ -n "$APK" ]; then
-            cp "$APK" artifacts/app-release.apk
-            echo "APK: $APK"
-            ls -lh artifacts/app-release.apk
-          else
-            echo "APK not found"
-            find build -type f -name "*.apk" || true
-            exit 1
+          # Prefer split APKs (armeabi-v7a, arm64-v8a, x86_64)
+          found=0
+          for apk in build/app/outputs/flutter-apk/*.apk; do
+            if [ -f "$apk" ]; then
+              cp "$apk" "artifacts/$(basename "$apk")"
+              found=1
+            fi
+          done
+          if [ "$found" -eq 0 ]; then
+            APK=$(find build -name "*.apk" -type f 2>/dev/null | head -1)
+            if [ -n "$APK" ]; then
+              cp "$APK" artifacts/app-release.apk
+            else
+              echo "APK not found"
+              find build -type f -name "*.apk" || true
+              exit 1
+            fi
           fi
+          echo "=== APK artifacts ==="
+          ls -lh artifacts/
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: MPorT-Tes-Speed-release
-          path: artifacts/app-release.apk
+          path: artifacts/
           if-no-files-found: error

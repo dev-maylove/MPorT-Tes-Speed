@@ -554,20 +554,22 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
         child: Stack(
           alignment: Alignment.center,
           children: [
-            // Logo samar di belakang tombol GO
+            // Logo samar di belakang tombol GO (ukuran sama dengan ring GO)
             Opacity(
-              opacity: 0.18,
-              child: Image.asset(
-                'assets/images/mport_logo.png',
-                width: 260,
-                height: 260,
-                fit: BoxFit.contain,
+              opacity: 0.22,
+              child: ClipOval(
+                child: Image.asset(
+                  'assets/images/mport_logo.png',
+                  width: 180,
+                  height: 180,
+                  fit: BoxFit.cover,
+                ),
               ),
             ),
             // Soft glow
             Container(
-              width: 200,
-              height: 200,
+              width: 180,
+              height: 180,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 gradient: RadialGradient(
