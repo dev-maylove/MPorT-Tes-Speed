@@ -1,0 +1,137 @@
+# MPorT Tes Speed — Build Release APK
+# Trigger: push/PR ke main|master, atau manual (workflow_dispatch)
+
+name: Build MPorT Tes Speed APK
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Flutter Analyze · Test · Build APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Flutter version
+        run: flutter --version
+
+      - name: Pub get
+        run: flutter pub get
+
+      - name: Analyze
+        run: flutter analyze --no-fatal-infos
+
+      - name: Test
+        run: flutter test
+
+      # ── Signing (opsional via Secrets) ─────────────────────────────
+      # Jika Secrets diisi → pakai keystore dari Secrets (aman untuk public repo).
+      # Jika tidak → pakai keystore yang sudah ada di repo (internal/testing).
+      - name: Decode keystore from Secrets (jika ada)
+        if: ${{ secrets.KEYSTORE_BASE64 != '' }}
+        run: |
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > android/app/mport-release-key.jks
+          cat > android/key.properties << EOF
+          storePassword=${{ secrets.KEYSTORE_PASSWORD }}
+          keyPassword=${{ secrets.KEY_PASSWORD }}
+          keyAlias=${{ secrets.KEY_ALIAS }}
+          storeFile=mport-release-key.jks
+          EOF
+
+      - name: Verify keystore / key.properties
+        run: |
+          if [ -f android/key.properties ] && [ -f android/app/mport-release-key.jks ]; then
+            echo "✓ Keystore & key.properties ditemukan — build akan di-sign release"
+          else
+            echo "⚠ Keystore tidak lengkap — build release akan jatuh ke debug signing"
+          fi
+
+      - name: Build APK (release)
+        run: flutter build apk --release
+
+      - name: List output
+        run: |
+          ls -lah build/app/outputs/flutter-apk/
+          echo "---"
+          shasum -a 256 build/app/outputs/flutter-apk/*.apk || true
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: MPorT-Tes-Speed-release
+          path: build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
+          retention-days: 30
+
+  # Optional: build App Bundle (AAB) untuk Play Store
+  build-aab:
+    name: Build App Bundle (AAB)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    # Hanya jalan saat manual atau tag release (hemat menit CI)
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/')
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Pub get
+        run: flutter pub get
+
+      - name: Decode keystore from Secrets (jika ada)
+        if: ${{ secrets.KEYSTORE_BASE64 != '' }}
+        run: |
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > android/app/mport-release-key.jks
+          cat > android/key.properties << EOF
+          storePassword=${{ secrets.KEYSTORE_PASSWORD }}
+          keyPassword=${{ secrets.KEY_PASSWORD }}
+          keyAlias=${{ secrets.KEY_ALIAS }}
+          storeFile=mport-release-key.jks
+          EOF
+
+      - name: Build App Bundle
+        run: flutter build appbundle --release
+
+      - name: Upload AAB artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: MPorT-Tes-Speed-aab
+          path: build/app/outputs/bundle/release/app-release.aab
+          if-no-files-found: error
+          retention-days: 30
