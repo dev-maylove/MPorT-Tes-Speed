@@ -31,12 +31,30 @@ class ServerCard extends StatelessWidget {
       ),
       child: ListTile(
         onTap: onTap,
-        leading: CircleAvatar(
-          backgroundColor: accent.withValues(alpha: 0.15),
-          child: Icon(
-            isSelected ? Icons.check_circle : Icons.dns_outlined,
-            color: accent,
-            size: 22,
+        leading: Container(
+          width: 42,
+          height: 42,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            gradient: LinearGradient(
+              colors: [
+                accent.withValues(alpha: 0.28),
+                accent.withValues(alpha: 0.08),
+              ],
+            ),
+            border: Border.all(color: accent.withValues(alpha: 0.35)),
+          ),
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              Icon(Icons.map_rounded,
+                  color: accent.withValues(alpha: 0.35), size: 22),
+              Icon(
+                isSelected ? Icons.location_on : Icons.location_on_outlined,
+                color: accent,
+                size: 18,
+              ),
+            ],
           ),
         ),
         title: Text(
@@ -50,8 +68,7 @@ class ServerCard extends StatelessWidget {
           '${server.network} · ${server.location}'
           '${server.country.isNotEmpty ? ' · ${server.country}' : ''}\n'
           '${server.host}'
-          '${server.distanceKm != null ? ' · ${server.distanceKm} km' : ''}\n'
-          '${server.engine == TestEngine.cbnSpeedtestCustom ? 'Engine: CBN Speedtest Custom' : 'Engine: MPorT'}',
+          '${server.latitude != null ? ' · ${server.latitude!.toStringAsFixed(2)}, ${server.longitude!.toStringAsFixed(2)}' : ''}',
           style: const TextStyle(color: Colors.white54, fontSize: 12),
         ),
         trailing: latency == null

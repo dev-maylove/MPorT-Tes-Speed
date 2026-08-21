@@ -17,6 +17,13 @@ class ServerConfig {
   static String get uploadUrl => '$baseUrl$uploadPath';
   static String get pingUrl => '$baseUrl$pingPath';
 
+  /// WebSocket real-time (status / latency).
+  static String wsPath = '/ws';
+  static String get wsUrl {
+    final base = baseUrl.replaceFirst('https://', 'wss://').replaceFirst('http://', 'ws://');
+    return '$base$wsPath';
+  }
+
   static String downloadUrlBusted() =>
       '$downloadUrl?ckSize=100&n=${DateTime.now().microsecondsSinceEpoch}';
 
