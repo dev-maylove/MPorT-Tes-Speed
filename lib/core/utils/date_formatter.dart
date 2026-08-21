@@ -1,11 +1,21 @@
 import 'package:intl/intl.dart';
 
 class DateFormatter {
-  static final DateFormat _dateTime = DateFormat('dd MMM yyyy, HH:mm');
-  static final DateFormat _time = DateFormat('HH:mm:ss');
-  static final DateFormat _date = DateFormat('dd MMM yyyy');
+  static String format(DateTime dt) {
+    return DateFormat('dd MMM yyyy, HH:mm').format(dt);
+  }
 
-  static String formatDateTime(DateTime dt) => _dateTime.format(dt);
-  static String formatTime(DateTime dt) => _time.format(dt);
-  static String formatDate(DateTime dt) => _date.format(dt);
+  static String formatShort(DateTime dt) {
+    return DateFormat('dd/MM/yy HH:mm').format(dt);
+  }
+
+  static String formatRelative(DateTime dt) {
+    final now = DateTime.now();
+    final diff = now.difference(dt);
+    if (diff.inMinutes < 1) return 'Baru saja';
+    if (diff.inHours < 1) return '${diff.inMinutes} mnt lalu';
+    if (diff.inDays < 1) return '${diff.inHours} jam lalu';
+    if (diff.inDays < 7) return '${diff.inDays} hari lalu';
+    return formatShort(dt);
+  }
 }

@@ -14,6 +14,7 @@ class TestServer {
   final String pingPath;
   final double? latencyMs;
   final String network;
+  final String? externalUrl;
 
   const TestServer({
     required this.id,
@@ -31,6 +32,7 @@ class TestServer {
     this.pingPath = '/',
     this.latencyMs,
     this.network = 'HaaNSirO',
+    this.externalUrl,
   });
 
   factory TestServer.haansiro() => const TestServer(
@@ -51,7 +53,8 @@ class TestServer {
 
   static List<TestServer> catalog() => [TestServer.haansiro()];
 
-  TestServer copyWith({double? latencyMs, int? distanceKm}) => TestServer(
+  TestServer copyWith({double? latencyMs, int? distanceKm, String? externalUrl}) =>
+      TestServer(
         id: id,
         name: name,
         host: host,
@@ -67,6 +70,7 @@ class TestServer {
         pingPath: pingPath,
         latencyMs: latencyMs ?? this.latencyMs,
         network: network,
+        externalUrl: externalUrl ?? this.externalUrl,
       );
 
   @override
