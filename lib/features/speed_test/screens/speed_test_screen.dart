@@ -1,6 +1,8 @@
+import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 
 import '../models/speed_test_state.dart';
 import '../services/history_service.dart';
@@ -38,6 +40,8 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
   double? download;
   double? upload;
   bool running = false;
+  String? _clientIp;
+  String? _serverIp;
 
   late final AnimationController _gaugeCtrl;
   late final AnimationController _pulseCtrl;
@@ -72,6 +76,32 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
     _realtime.addListener(_onServerChanged);
     _autoSelectServer();
     _realtime.connect();
+    _fetchIps();
+  }
+
+  Future<void> _fetchIps() async {
+    // Client public IP
+    try {
+      final r = await http.get(Uri.parse('https://api.ipify.org')).timeout(
+            const Duration(seconds: 5),
+          );
+      if (r.statusCode == 200 && mounted) {
+        setState(() => _clientIp = r.body.trim());
+      }
+    } catch (_) {}
+
+    // Server IP (DNS resolve)
+    try {
+      final host = _serverService.selected.host.isNotEmpty
+          ? _serverService.selected.host
+          : ServerConfig.baseUrl
+              .replaceFirst('https://', '')
+              .replaceFirst('http://', '');
+      final addrs = await InternetAddress.lookup(host);
+      if (addrs.isNotEmpty && mounted) {
+        setState(() => _serverIp = addrs.first.address);
+      }
+    } catch (_) {}
   }
 
   late Animation<double> _speedTween;
@@ -113,7 +143,10 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
   }
 
   void _onServerChanged() {
-    if (mounted) setState(() {});
+    if (mounted) {
+      setState(() {});
+      _fetchIps();
+    }
   }
 
   Future<void> _autoSelectServer() async {
@@ -175,6 +208,13 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
       });
       _animateGaugeTo(result.download);
 
+      // Turunkan gauge setelah selesai agar arc hijau kembali turun
+      Future.delayed(const Duration(milliseconds: 1800), () {
+        if (mounted && phase == SpeedTestPhase.completed) {
+          _animateGaugeTo(0);
+        }
+      });
+
       await _historyService.addResult(
         ping: result.ping,
         jitter: result.jitter,
@@ -227,9 +267,7 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
                   children: [
                     const SizedBox(height: 8),
                     _serverCard(),
-                    const SizedBox(height: 10),
-                    _realtimeBadge(),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 16),
                     _speedGauge(),
                     const SizedBox(height: 6),
                     Text(
@@ -245,8 +283,6 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
                     _metricsLayout(),
                     const SizedBox(height: 22),
                     _connectionInfo(),
-                    const SizedBox(height: 28),
-                    _testButton(),
                     const SizedBox(height: 28),
                   ],
                 ),
@@ -376,7 +412,7 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    host,
+                    selected.name.isNotEmpty ? selected.name : 'HaaNSirO',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
@@ -386,7 +422,9 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
                     ),
                   ),
                   Text(
-                    '${selected.name} · ${selected.location}',
+                    selected.location.isNotEmpty
+                        ? selected.location
+                        : host,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
@@ -425,73 +463,9 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
     );
   }
 
-  Widget _realtimeBadge() {
-    final st = _realtime.status;
-    Color color;
-    String label;
-    switch (st) {
-      case RealtimeStatus.connected:
-        color = gold;
-        final rtt = _realtime.rttMs;
-        label = rtt != null
-            ? 'WS · ${rtt.toStringAsFixed(0)} ms'
-            : 'WS · TERHUBUNG';
-      case RealtimeStatus.connecting:
-        color = Colors.amber;
-        label = 'WS · MENGHUBUNGKAN...';
-      case RealtimeStatus.error:
-        color = Colors.orangeAccent;
-        label = 'WS · OFFLINE (HTTP)';
-      case RealtimeStatus.disconnected:
-        color = Colors.white38;
-        label = 'WS · PUTUS';
-    }
-
-    return AnimatedBuilder(
-      animation: _pulseCtrl,
-      builder: (context, _) {
-        final pulse = st == RealtimeStatus.connected
-            ? 0.45 + _pulseCtrl.value * 0.55
-            : 1.0;
-        return Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Opacity(
-              opacity: pulse,
-              child: Container(
-                width: 7,
-                height: 7,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: color,
-                  boxShadow: st == RealtimeStatus.connected
-                      ? [
-                          BoxShadow(
-                            color: color.withValues(alpha: 0.5),
-                            blurRadius: 6,
-                          ),
-                        ]
-                      : null,
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Text(
-              label,
-              style: TextStyle(
-                color: color.withValues(alpha: 0.9),
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 0.6,
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
   Widget _speedGauge() {
+    // Tampilkan angka saat running atau masih menampilkan hasil akhir (arc turun)
+    final showGo = !running && _animSpeed < 0.5;
     return SizedBox(
       width: 280,
       height: 280,
@@ -503,30 +477,61 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
           pulse: running ? _pulseCtrl.value : 0,
         ),
         child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                _animSpeed.toStringAsFixed(1),
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 52,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -1.5,
-                  height: 1,
+          child: showGo
+              ? GestureDetector(
+                  onTap: startTest,
+                  child: Container(
+                    width: 100,
+                    height: 100,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: const LinearGradient(
+                        colors: [goldLight, gold],
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: gold.withValues(alpha: 0.35),
+                          blurRadius: 20,
+                          spreadRadius: 2,
+                        ),
+                      ],
+                    ),
+                    alignment: Alignment.center,
+                    child: const Text(
+                      'GO',
+                      style: TextStyle(
+                        color: Colors.black,
+                        fontSize: 28,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 2,
+                      ),
+                    ),
+                  ),
+                )
+              : Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      _animSpeed.toStringAsFixed(1),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 52,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -1.5,
+                        height: 1,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    const Text(
+                      'Mbps',
+                      style: TextStyle(
+                        color: goldLight,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-              const SizedBox(height: 4),
-              const Text(
-                'Mbps',
-                style: TextStyle(
-                  color: goldLight,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
         ),
       ),
     );
@@ -730,19 +735,14 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
         children: [
           _infoRow(
             icon: Icons.wifi_rounded,
-            title: selected.network,
-            subtitle: _realtime.isConnected
-                ? 'Realtime WebSocket aktif'
-                : 'MPorT Engine (HTTP)',
+            title: 'IP Client',
+            subtitle: _clientIp ?? 'Mengambil...',
           ),
           const Divider(height: 18, color: Colors.white10),
           _infoRow(
-            icon: Icons.map_rounded,
-            title: selected.name,
-            subtitle: selected.location.isNotEmpty
-                ? '${selected.location}'
-                    '${selected.latitude != null ? ' · ${selected.latitude!.toStringAsFixed(2)}, ${selected.longitude!.toStringAsFixed(2)}' : ''}'
-                : selected.host,
+            icon: Icons.dns_rounded,
+            title: 'IP Server',
+            subtitle: _serverIp ?? selected.host,
           ),
         ],
       ),
@@ -789,52 +789,6 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
     );
   }
 
-  Widget _testButton() {
-    return SizedBox(
-      width: double.infinity,
-      height: 56,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(28),
-          gradient: LinearGradient(
-            colors: running
-                ? const [Color(0xFF333333), Color(0xFF444444)]
-                : [goldLight, gold],
-          ),
-          boxShadow: running
-              ? null
-              : [
-                  BoxShadow(
-                    color: gold.withValues(alpha: 0.22),
-                    blurRadius: 18,
-                    spreadRadius: 1,
-                  ),
-                ],
-        ),
-        child: ElevatedButton(
-          onPressed: running ? null : startTest,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.transparent,
-            shadowColor: Colors.transparent,
-            disabledBackgroundColor: Colors.transparent,
-            foregroundColor: Colors.black,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(28),
-            ),
-          ),
-          child: Text(
-            running ? 'SEDANG MENGUJI...' : 'MULAI TES',
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 1.2,
-              color: running ? Colors.white54 : Colors.black,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
 }
 
 class _GaugePainter extends CustomPainter {
