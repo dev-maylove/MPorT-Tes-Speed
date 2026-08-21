@@ -20,7 +20,8 @@ Workflow: `.github/workflows/build-apk.yml`
 7. `flutter test`  
 8. Setup signing (Secrets **atau** keystore di repo)  
 9. `flutter build apk --release`  
-10. Upload artifact **MPorT-Tes-Speed-release**
+10. Fallback locate/copy APK jika path tidak standar  
+11. Upload artifact **MPorT-Tes-Speed-release**
 
 ## Cara menjalankan
 
@@ -41,8 +42,6 @@ Download dari tab **Actions** → pilih run → **Artifacts**.
 
 ### Opsi A — Secrets (disarankan untuk repo publik)
 
-Buat GitHub Secrets:
-
 | Secret | Isi |
 |--------|-----|
 | `KEYSTORE_BASE64` | `base64 -w0 android/app/mport-release-key.jks` |
@@ -57,10 +56,14 @@ Jika `android/key.properties` + `android/app/mport-release-key.jks` sudah ada di
 > **Peringatan:** Jangan commit keystore & password ke repository publik.  
 > File `.gitignore` sudah meng-exclude `*.jks` dan `key.properties`.
 
-## Matrix build (sesuai README_BUILD)
+## Matrix build
 
-- Gradle **9.3.1**
-- AGP **9.1.0**
-- Kotlin **2.4.0**
-- Java **17**
-- Flutter **stable**
+| Component | Version |
+|-----------|---------|
+| Gradle | **8.12** |
+| AGP | **8.9.1** |
+| Kotlin | **2.1.0** |
+| Java | **17** |
+| Flutter | **stable** (3.47.x) |
+
+> AGP 9.x sengaja **tidak** dipakai — Flutter belum merekomendasikan untuk production (plugin ecosystem).

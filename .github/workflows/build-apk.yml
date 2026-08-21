@@ -85,13 +85,29 @@ jobs:
           fi
 
       - name: Build APK (release)
+        id: flutter_build
+        continue-on-error: true
         run: flutter build apk --release
 
-      - name: List output
+      - name: Locate APK (fallback copy)
         run: |
-          ls -lah build/app/outputs/flutter-apk/
-          echo "---"
-          shasum -a 256 build/app/outputs/flutter-apk/*.apk || true
+          echo "=== Cari APK di workspace ==="
+          find build android -name "*.apk" 2>/dev/null | head -20 || true
+          EXPECTED="build/app/outputs/flutter-apk/app-release.apk"
+          if [ ! -f "$EXPECTED" ]; then
+            FOUND=$(find build android -name "app-release.apk" 2>/dev/null | head -1)
+            if [ -n "$FOUND" ]; then
+              echo "→ Menyalin $FOUND → $EXPECTED"
+              mkdir -p "$(dirname "$EXPECTED")"
+              cp "$FOUND" "$EXPECTED"
+            fi
+          fi
+          if [ ! -f "$EXPECTED" ]; then
+            echo "❌ APK tidak ditemukan"
+            exit 1
+          fi
+          ls -lah "$EXPECTED"
+          shasum -a 256 "$EXPECTED"
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
@@ -106,7 +122,6 @@ jobs:
     name: Build App Bundle (AAB)
     runs-on: ubuntu-latest
     timeout-minutes: 45
-    # Hanya jalan saat manual atau tag release (hemat menit CI)
     if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/')
 
     steps:
@@ -153,9 +168,9 @@ jobs:
           fi
 
           if [ -f android/key.properties ] && [ -f android/app/mport-release-key.jks ]; then
-            echo "✓ Keystore & key.properties siap — AAB akan di-sign release"
+            echo "✓ Keystore & key.properties siap"
           else
-            echo "⚠ Keystore tidak lengkap — build release akan pakai debug signing"
+            echo "⚠ Keystore tidak lengkap — debug signing"
           fi
 
       - name: Build App Bundle
