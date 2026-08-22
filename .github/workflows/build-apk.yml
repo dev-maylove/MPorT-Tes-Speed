@@ -59,37 +59,34 @@ jobs:
 
           echo "=== Checking signing secrets ==="
 
-          if [ -z "${KEYSTORE_BASE64}" ]; then
+          [ -n "${KEYSTORE_BASE64}" ] || {
             echo "::error::KEYSTORE_BASE64 is missing"
             exit 1
-          fi
+          }
 
-          if [ -z "${KEYSTORE_PASSWORD}" ]; then
+          [ -n "${KEYSTORE_PASSWORD}" ] || {
             echo "::error::KEYSTORE_PASSWORD is missing"
             exit 1
-          fi
+          }
 
-          if [ -z "${KEY_PASSWORD}" ]; then
+          [ -n "${KEY_PASSWORD}" ] || {
             echo "::error::KEY_PASSWORD is missing"
             exit 1
-          fi
+          }
 
-          if [ -z "${KEY_ALIAS}" ]; then
+          [ -n "${KEY_ALIAS}" ] || {
             echo "::error::KEY_ALIAS is missing"
             exit 1
-          fi
+          }
 
           echo "Signing secrets are present."
 
-          # Create keystore directory
           mkdir -p android/app
 
-          # Decode the NEW keystore
-          printf '%s' "${KEYSTORE_BASE64}" \
-            | base64 --decode \
-            > android/app/mport-release-new.jks
+          # Decode NEW keystore
+          printf '%s' "${KEYSTORE_BASE64}" |
+            base64 --decode > android/app/mport-release-new.jks
 
-          # Verify keystore file exists
           if [ ! -s android/app/mport-release-new.jks ]; then
             echo "::error::Decoded keystore is empty or missing"
             exit 1
@@ -99,7 +96,7 @@ jobs:
 
           echo "Keystore created successfully."
 
-          # Create key.properties for Gradle
+          # Create Gradle signing configuration
           cat > android/key.properties <<EOF
           storePassword=${KEYSTORE_PASSWORD}
           keyPassword=${KEY_PASSWORD}
@@ -111,7 +108,12 @@ jobs:
 
           echo "key.properties created."
 
-          # Verify alias and keystore integrity
+          # ========================================================
+          # VERIFY KEYSTORE
+          # ========================================================
+
+          echo "=== Verifying keystore ==="
+
           keytool -list \
             -keystore android/app/mport-release-new.jks \
             -alias "${KEY_ALIAS}" \
@@ -120,7 +122,6 @@ jobs:
 
           echo "Keystore alias verification passed."
 
-          # Expected certificate SHA-256 of the NEW keystore
           EXPECTED_SHA256="B8:2C:BB:24:66:9B:42:38:BE:72:D7:0C:18:DF:20:E9:72:01:FB:95:27:98:1D:3A:1D:1A:0D:E7:01:AC:39:40"
 
           ACTUAL_SHA256="$(
@@ -128,17 +129,24 @@ jobs:
               -keystore android/app/mport-release-new.jks \
               -alias "${KEY_ALIAS}" \
               -storepass "${KEYSTORE_PASSWORD}" |
-            awk -F': ' '/SHA256:/{print $2; exit}'
+            sed -n 's/^[[:space:]]*SHA256:[[:space:]]*//p' |
+            head -n 1 |
+            tr '[:lower:]' '[:upper:]'
           )"
 
-          echo "Expected certificate SHA-256:"
+          echo "Expected keystore SHA-256:"
           echo "${EXPECTED_SHA256}"
 
-          echo "Actual certificate SHA-256:"
+          echo "Actual keystore SHA-256:"
           echo "${ACTUAL_SHA256}"
 
+          if [ -z "${ACTUAL_SHA256}" ]; then
+            echo "::error::Could not read keystore SHA-256."
+            exit 1
+          fi
+
           if [ "${ACTUAL_SHA256}" != "${EXPECTED_SHA256}" ]; then
-            echo "::error::Keystore certificate SHA-256 does not match the expected NEW keystore."
+            echo "::error::Keystore SHA-256 does not match NEW keystore."
             exit 1
           fi
 
@@ -156,10 +164,10 @@ jobs:
           rm -f android/app/src/main/res/drawable/ic_launcher.png
           rm -f android/app/src/main/res/drawable/ic_launcher.xml
 
-          echo "drawable after cleanup:"
+          echo "Drawable resources after cleanup:"
           ls -la android/app/src/main/res/drawable/ || true
 
-          echo "mipmap foreground:"
+          echo "Mipmap foreground:"
           ls android/app/src/main/res/mipmap-*/ic_launcher_foreground.png || true
 
       # ============================================================
@@ -184,7 +192,16 @@ jobs:
         run: |
           set -euo pipefail
 
-          APKSIGNER="${ANDROID_HOME}/build-tools/$(ls "${ANDROID_HOME}/build-tools" | sort -V | tail -1)/apksigner"
+          BUILD_TOOLS="$(
+            find "${ANDROID_HOME}/build-tools" \
+              -maxdepth 1 \
+              -mindepth 1 \
+              -type d |
+            sort -V |
+            tail -n 1
+          )"
+
+          APKSIGNER="${BUILD_TOOLS}/apksigner"
 
           if [ ! -x "${APKSIGNER}" ]; then
             echo "::error::apksigner not found"
@@ -199,26 +216,51 @@ jobs:
           found=0
 
           for apk in build/app/outputs/flutter-apk/*.apk; do
-            if [ ! -f "$apk" ]; then
-              continue
-            fi
+            [ -f "${apk}" ] || continue
 
             found=1
 
             echo ""
             echo "================================================"
-            echo "VERIFYING: $apk"
+            echo "VERIFYING: ${apk}"
             echo "================================================"
 
-            "${APKSIGNER}" verify --verbose --print-certs "$apk"
+            # Full verification.
+            "${APKSIGNER}" verify \
+              --verbose \
+              --print-certs \
+              "${apk}"
 
+            # Get certificate SHA-256.
+            #
+            # IMPORTANT:
+            # apksigner output contains:
+            #
+            # Signer #1 certificate SHA-256 digest: XX:XX:...
+            #
+            # We extract ONLY the value after the final colon-space.
             CERT_SHA256="$(
-              "${APKSIGNER}" verify --print-certs "$apk" 2>&1 |
-              awk -F': ' '/certificate SHA-256 digest:/{print $2; exit}'
+              "${APKSIGNER}" verify \
+                --print-certs \
+                "${apk}" 2>&1 |
+              sed -n \
+                's/^[[:space:]]*Signer #[0-9][0-9]* certificate SHA-256 digest:[[:space:]]*//p' |
+              head -n 1 |
+              tr '[:lower:]' '[:upper:]' |
+              tr -d '\r'
             )"
 
             echo "APK certificate SHA-256:"
             echo "${CERT_SHA256}"
+
+            if [ -z "${CERT_SHA256}" ]; then
+              echo "::error::Could not extract APK certificate SHA-256."
+              echo "::error::Raw apksigner certificate output:"
+              "${APKSIGNER}" verify \
+                --print-certs \
+                "${apk}" 2>&1 || true
+              exit 1
+            fi
 
             if [ "${CERT_SHA256}" != "${EXPECTED_SHA256}" ]; then
               echo "::error::APK is NOT signed with the NEW keystore."
@@ -229,10 +271,10 @@ jobs:
 
             echo "✓ APK signature matches NEW keystore."
 
-            cp "$apk" "verified-apks/$(basename "$apk")"
+            cp "${apk}" "verified-apks/$(basename "${apk}")"
           done
 
-          if [ "$found" -eq 0 ]; then
+          if [ "${found}" -eq 0 ]; then
             echo "::error::No APK files found"
             exit 1
           fi
@@ -255,11 +297,12 @@ jobs:
           if-no-files-found: error
 
       # ============================================================
-      # CLEANUP SECRETS FROM RUNNER
+      # CLEANUP
       # ============================================================
       - name: Remove signing files
         if: always()
         run: |
           rm -f android/app/mport-release-new.jks
           rm -f android/key.properties
+
           echo "Temporary signing files removed."
