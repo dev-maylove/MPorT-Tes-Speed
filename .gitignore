@@ -3,6 +3,7 @@
 *.pyc
 *.swp
 .DS_Store
+
 .idea/
 .vscode/
 .dart_tool/
@@ -12,10 +13,15 @@
 .pub-cache/
 .pub/
 build/
+coverage/
+
 **/android/**/gradle-wrapper.jar
 **/android/.gradle
 **/android/local.properties
+
+# Android signing - NEVER commit
 **/android/key.properties
 *.jks
 *.keystore
-coverage/
+**/keystore*.txt
+**/tes_keystore.txt
