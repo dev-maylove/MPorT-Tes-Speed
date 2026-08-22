@@ -219,10 +219,28 @@ jobs:
             echo "APK certificate SHA-256:"
             echo "${CERT_SHA256}"
 
-            if [ "${CERT_SHA256}" != "${EXPECTED_SHA256}" ]; then
+            EXPECTED_NORMALIZED="$(
+              printf '%s' "${EXPECTED_SHA256}" |
+              tr -d ':[:space:]' |
+              tr '[:upper:]' '[:lower:]'
+            )"
+
+            ACTUAL_NORMALIZED="$(
+              printf '%s' "${CERT_SHA256}" |
+              tr -d ':[:space:]' |
+              tr '[:upper:]' '[:lower:]'
+            )"
+
+            echo "Normalized expected SHA-256:"
+            echo "${EXPECTED_NORMALIZED}"
+
+            echo "Normalized actual SHA-256:"
+            echo "${ACTUAL_NORMALIZED}"
+
+            if [ "${ACTUAL_NORMALIZED}" != "${EXPECTED_NORMALIZED}" ]; then
               echo "::error::APK is NOT signed with the NEW keystore."
-              echo "::error::Expected: ${EXPECTED_SHA256}"
-              echo "::error::Actual:   ${CERT_SHA256}"
+              echo "::error::Expected: ${EXPECTED_NORMALIZED}"
+              echo "::error::Actual:   ${ACTUAL_NORMALIZED}"
               exit 1
             fi
 
