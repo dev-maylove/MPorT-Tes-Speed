@@ -1,188 +1,3 @@
-name: Build MPorT Tes Speed APK
-
-on:
-  push:
-    branches: [main, master]
-  pull_request:
-    branches: [main, master]
-  workflow_dispatch:
-
-jobs:
-  build:
-    name: Flutter Analyze · Test · Signed Release APK
-    runs-on: ubuntu-latest
-    timeout-minutes: 45
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Java 17
-        uses: actions/setup-java@v5
-        with:
-          distribution: temurin
-          java-version: "17"
-          cache: gradle
-
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          channel: stable
-          cache: true
-
-      - name: Flutter version
-        run: flutter --version
-
-      - name: Accept Android licenses
-        run: yes | flutter doctor --android-licenses || true
-
-      - name: Pub get
-        run: flutter pub get
-
-      - name: Analyze
-        run: flutter analyze --no-fatal-infos
-
-      - name: Test
-        run: flutter test
-
-      # ============================================================
-      # RELEASE SIGNING
-      # ============================================================
-      - name: Setup new release keystore
-        env:
-          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
-          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
-        run: |
-          set -euo pipefail
-
-          echo "=== Checking signing secrets ==="
-
-          [ -n "${KEYSTORE_BASE64}" ] || {
-            echo "::error::KEYSTORE_BASE64 is missing"
-            exit 1
-          }
-
-          [ -n "${KEYSTORE_PASSWORD}" ] || {
-            echo "::error::KEYSTORE_PASSWORD is missing"
-            exit 1
-          }
-
-          [ -n "${KEY_PASSWORD}" ] || {
-            echo "::error::KEY_PASSWORD is missing"
-            exit 1
-          }
-
-          [ -n "${KEY_ALIAS}" ] || {
-            echo "::error::KEY_ALIAS is missing"
-            exit 1
-          }
-
-          echo "Signing secrets are present."
-
-          mkdir -p android/app
-
-          # Decode NEW keystore
-          printf '%s' "${KEYSTORE_BASE64}" |
-            base64 --decode > android/app/mport-release-new.jks
-
-          if [ ! -s android/app/mport-release-new.jks ]; then
-            echo "::error::Decoded keystore is empty or missing"
-            exit 1
-          fi
-
-          chmod 600 android/app/mport-release-new.jks
-
-          echo "Keystore created successfully."
-
-          # Create Gradle signing configuration
-          cat > android/key.properties <<EOF
-          storePassword=${KEYSTORE_PASSWORD}
-          keyPassword=${KEY_PASSWORD}
-          keyAlias=${KEY_ALIAS}
-          storeFile=app/mport-release-new.jks
-          EOF
-
-          chmod 600 android/key.properties
-
-          echo "key.properties created."
-
-          # ========================================================
-          # VERIFY KEYSTORE
-          # ========================================================
-
-          echo "=== Verifying keystore ==="
-
-          keytool -list \
-            -keystore android/app/mport-release-new.jks \
-            -alias "${KEY_ALIAS}" \
-            -storepass "${KEYSTORE_PASSWORD}" \
-            > /tmp/keystore-check.txt
-
-          echo "Keystore alias verification passed."
-
-          EXPECTED_SHA256="B8:2C:BB:24:66:9B:42:38:BE:72:D7:0C:18:DF:20:E9:72:01:FB:95:27:98:1D:3A:1D:1A:0D:E7:01:AC:39:40"
-
-          ACTUAL_SHA256="$(
-            keytool -list -v \
-              -keystore android/app/mport-release-new.jks \
-              -alias "${KEY_ALIAS}" \
-              -storepass "${KEYSTORE_PASSWORD}" |
-            sed -n 's/^[[:space:]]*SHA256:[[:space:]]*//p' |
-            head -n 1 |
-            tr '[:lower:]' '[:upper:]'
-          )"
-
-          echo "Expected keystore SHA-256:"
-          echo "${EXPECTED_SHA256}"
-
-          echo "Actual keystore SHA-256:"
-          echo "${ACTUAL_SHA256}"
-
-          if [ -z "${ACTUAL_SHA256}" ]; then
-            echo "::error::Could not read keystore SHA-256."
-            exit 1
-          fi
-
-          if [ "${ACTUAL_SHA256}" != "${EXPECTED_SHA256}" ]; then
-            echo "::error::Keystore SHA-256 does not match NEW keystore."
-            exit 1
-          fi
-
-          echo "NEW keystore fingerprint verified successfully."
-
-      # ============================================================
-      # RESOURCE CLEANUP
-      # ============================================================
-      - name: Remove duplicate launcher resources
-        run: |
-          set -e
-
-          rm -f android/app/src/main/res/drawable/ic_launcher_foreground.png
-          rm -f android/app/src/main/res/drawable/ic_launcher_foreground.xml
-          rm -f android/app/src/main/res/drawable/ic_launcher.png
-          rm -f android/app/src/main/res/drawable/ic_launcher.xml
-
-          echo "Drawable resources after cleanup:"
-          ls -la android/app/src/main/res/drawable/ || true
-
-          echo "Mipmap foreground:"
-          ls android/app/src/main/res/mipmap-*/ic_launcher_foreground.png || true
-
-      # ============================================================
-      # BUILD
-      # ============================================================
-      - name: Build APK (signed release, split per ABI)
-        run: |
-          set -e
-
-          flutter build apk \
-            --release \
-            --split-per-abi \
-            --obfuscate \
-            --split-debug-info=build/debug-info
-
       # ============================================================
       # VERIFY APK SIGNATURE
       # ============================================================
@@ -208,8 +23,7 @@ jobs:
             exit 1
           fi
 
-          echo "Using apksigner:"
-          echo "${APKSIGNER}"
+          echo "Using apksigner: ${APKSIGNER}"
 
           mkdir -p verified-apks
 
@@ -225,29 +39,28 @@ jobs:
             echo "VERIFYING: ${apk}"
             echo "================================================"
 
-            # Full verification.
+            # Run Android APK signature verification.
             "${APKSIGNER}" verify \
               --verbose \
               --print-certs \
               "${apk}"
 
-            # Get certificate SHA-256.
-            #
-            # IMPORTANT:
-            # apksigner output contains:
-            #
-            # Signer #1 certificate SHA-256 digest: XX:XX:...
-            #
-            # We extract ONLY the value after the final colon-space.
-            CERT_SHA256="$(
+            # Capture the complete certificate output.
+            CERT_OUTPUT="$(
               "${APKSIGNER}" verify \
                 --print-certs \
-                "${apk}" 2>&1 |
-              sed -n \
-                's/^[[:space:]]*Signer #[0-9][0-9]* certificate SHA-256 digest:[[:space:]]*//p' |
+                "${apk}" 2>&1
+            )"
+
+            echo "Extracting certificate SHA-256..."
+
+            # Extract a complete SHA-256 fingerprint regardless
+            # of the exact apksigner output wording.
+            CERT_SHA256="$(
+              printf '%s\n' "${CERT_OUTPUT}" |
+              grep -Eo '([0-9A-Fa-f]{2}:){31}[0-9A-Fa-f]{2}' |
               head -n 1 |
-              tr '[:lower:]' '[:upper:]' |
-              tr -d '\r'
+              tr '[:lower:]' '[:upper:]'
             )"
 
             echo "APK certificate SHA-256:"
@@ -255,10 +68,8 @@ jobs:
 
             if [ -z "${CERT_SHA256}" ]; then
               echo "::error::Could not extract APK certificate SHA-256."
-              echo "::error::Raw apksigner certificate output:"
-              "${APKSIGNER}" verify \
-                --print-certs \
-                "${apk}" 2>&1 || true
+              echo "::error::Complete apksigner output:"
+              printf '%s\n' "${CERT_OUTPUT}"
               exit 1
             fi
 
@@ -285,24 +96,3 @@ jobs:
           echo "=========================================="
 
           ls -lh verified-apks/
-
-      # ============================================================
-      # ARTIFACTS
-      # ============================================================
-      - name: Upload signed APKs
-        uses: actions/upload-artifact@v4
-        with:
-          name: MPorT-Tes-Speed-signed-release
-          path: verified-apks/
-          if-no-files-found: error
-
-      # ============================================================
-      # CLEANUP
-      # ============================================================
-      - name: Remove signing files
-        if: always()
-        run: |
-          rm -f android/app/mport-release-new.jks
-          rm -f android/key.properties
-
-          echo "Temporary signing files removed."
