@@ -9,7 +9,7 @@ on:
 
 jobs:
   build:
-    name: Flutter Analyze · Test · Build APK
+    name: Flutter Analyze · Test · Signed Release APK
     runs-on: ubuntu-latest
     timeout-minutes: 45
 
@@ -45,70 +45,221 @@ jobs:
       - name: Test
         run: flutter test
 
-      - name: Setup release signing
+      # ============================================================
+      # RELEASE SIGNING
+      # ============================================================
+      - name: Setup new release keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
         run: |
-          if [ -n "${{ secrets.KEYSTORE_BASE64 }}" ]; then
-            echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > android/app/mport-release-key.jks
-            cat > android/key.properties <<EOF
-          storePassword=${{ secrets.KEYSTORE_PASSWORD }}
-          keyPassword=${{ secrets.KEY_PASSWORD }}
-          keyAlias=${{ secrets.KEY_ALIAS }}
-          storeFile=mport-release-key.jks
-          EOF
-            echo "Signing via GitHub Secrets"
-          elif [ -f android/key.properties ] && [ -f android/app/mport-release-key.jks ]; then
-            echo "Signing via keystore in repo"
-          else
-            echo "No keystore — release will use debug signing"
+          set -euo pipefail
+
+          echo "=== Checking signing secrets ==="
+
+          if [ -z "${KEYSTORE_BASE64}" ]; then
+            echo "::error::KEYSTORE_BASE64 is missing"
+            exit 1
           fi
 
+          if [ -z "${KEYSTORE_PASSWORD}" ]; then
+            echo "::error::KEYSTORE_PASSWORD is missing"
+            exit 1
+          fi
+
+          if [ -z "${KEY_PASSWORD}" ]; then
+            echo "::error::KEY_PASSWORD is missing"
+            exit 1
+          fi
+
+          if [ -z "${KEY_ALIAS}" ]; then
+            echo "::error::KEY_ALIAS is missing"
+            exit 1
+          fi
+
+          echo "Signing secrets are present."
+
+          # Create keystore directory
+          mkdir -p android/app
+
+          # Decode the NEW keystore
+          printf '%s' "${KEYSTORE_BASE64}" \
+            | base64 --decode \
+            > android/app/mport-release-new.jks
+
+          # Verify keystore file exists
+          if [ ! -s android/app/mport-release-new.jks ]; then
+            echo "::error::Decoded keystore is empty or missing"
+            exit 1
+          fi
+
+          chmod 600 android/app/mport-release-new.jks
+
+          echo "Keystore created successfully."
+
+          # Create key.properties for Gradle
+          cat > android/key.properties <<EOF
+          storePassword=${KEYSTORE_PASSWORD}
+          keyPassword=${KEY_PASSWORD}
+          keyAlias=${KEY_ALIAS}
+          storeFile=app/mport-release-new.jks
+          EOF
+
+          chmod 600 android/key.properties
+
+          echo "key.properties created."
+
+          # Verify alias and keystore integrity
+          keytool -list \
+            -keystore android/app/mport-release-new.jks \
+            -alias "${KEY_ALIAS}" \
+            -storepass "${KEYSTORE_PASSWORD}" \
+            > /tmp/keystore-check.txt
+
+          echo "Keystore alias verification passed."
+
+          # Expected certificate SHA-256 of the NEW keystore
+          EXPECTED_SHA256="B8:2C:BB:24:66:9B:42:38:BE:72:D7:0C:18:DF:20:E9:72:01:FB:95:27:98:1D:3A:1D:1A:0D:E7:01:AC:39:40"
+
+          ACTUAL_SHA256="$(
+            keytool -list -v \
+              -keystore android/app/mport-release-new.jks \
+              -alias "${KEY_ALIAS}" \
+              -storepass "${KEYSTORE_PASSWORD}" |
+            awk -F': ' '/SHA256:/{print $2; exit}'
+          )"
+
+          echo "Expected certificate SHA-256:"
+          echo "${EXPECTED_SHA256}"
+
+          echo "Actual certificate SHA-256:"
+          echo "${ACTUAL_SHA256}"
+
+          if [ "${ACTUAL_SHA256}" != "${EXPECTED_SHA256}" ]; then
+            echo "::error::Keystore certificate SHA-256 does not match the expected NEW keystore."
+            exit 1
+          fi
+
+          echo "NEW keystore fingerprint verified successfully."
+
+      # ============================================================
+      # RESOURCE CLEANUP
+      # ============================================================
       - name: Remove duplicate launcher resources
         run: |
-          # Hapus file lama yang bentrok (png+xml sama nama di drawable)
+          set -e
+
           rm -f android/app/src/main/res/drawable/ic_launcher_foreground.png
           rm -f android/app/src/main/res/drawable/ic_launcher_foreground.xml
           rm -f android/app/src/main/res/drawable/ic_launcher.png
           rm -f android/app/src/main/res/drawable/ic_launcher.xml
+
           echo "drawable after cleanup:"
           ls -la android/app/src/main/res/drawable/ || true
+
           echo "mipmap foreground:"
           ls android/app/src/main/res/mipmap-*/ic_launcher_foreground.png || true
 
-      - name: Build APK (release, split per ABI)
+      # ============================================================
+      # BUILD
+      # ============================================================
+      - name: Build APK (signed release, split per ABI)
         run: |
-          # Split per ABI = APK jauh lebih kecil per arsitektur
-          # --obfuscate + --split-debug-info untuk shrink lebih lanjut
-          flutter build apk --release --split-per-abi \
+          set -e
+
+          flutter build apk \
+            --release \
+            --split-per-abi \
             --obfuscate \
             --split-debug-info=build/debug-info
 
-      - name: Locate APKs
+      # ============================================================
+      # VERIFY APK SIGNATURE
+      # ============================================================
+      - name: Verify APK signatures
+        env:
+          EXPECTED_SHA256: "B8:2C:BB:24:66:9B:42:38:BE:72:D7:0C:18:DF:20:E9:72:01:FB:95:27:98:1D:3A:1D:1A:0D:E7:01:AC:39:40"
         run: |
-          mkdir -p artifacts
-          # Prefer split APKs (armeabi-v7a, arm64-v8a, x86_64)
+          set -euo pipefail
+
+          APKSIGNER="${ANDROID_HOME}/build-tools/$(ls "${ANDROID_HOME}/build-tools" | sort -V | tail -1)/apksigner"
+
+          if [ ! -x "${APKSIGNER}" ]; then
+            echo "::error::apksigner not found"
+            exit 1
+          fi
+
+          echo "Using apksigner:"
+          echo "${APKSIGNER}"
+
+          mkdir -p verified-apks
+
           found=0
+
           for apk in build/app/outputs/flutter-apk/*.apk; do
-            if [ -f "$apk" ]; then
-              cp "$apk" "artifacts/$(basename "$apk")"
-              found=1
+            if [ ! -f "$apk" ]; then
+              continue
             fi
-          done
-          if [ "$found" -eq 0 ]; then
-            APK=$(find build -name "*.apk" -type f 2>/dev/null | head -1)
-            if [ -n "$APK" ]; then
-              cp "$APK" artifacts/app-release.apk
-            else
-              echo "APK not found"
-              find build -type f -name "*.apk" || true
+
+            found=1
+
+            echo ""
+            echo "================================================"
+            echo "VERIFYING: $apk"
+            echo "================================================"
+
+            "${APKSIGNER}" verify --verbose --print-certs "$apk"
+
+            CERT_SHA256="$(
+              "${APKSIGNER}" verify --print-certs "$apk" 2>&1 |
+              awk -F': ' '/certificate SHA-256 digest:/{print $2; exit}'
+            )"
+
+            echo "APK certificate SHA-256:"
+            echo "${CERT_SHA256}"
+
+            if [ "${CERT_SHA256}" != "${EXPECTED_SHA256}" ]; then
+              echo "::error::APK is NOT signed with the NEW keystore."
+              echo "::error::Expected: ${EXPECTED_SHA256}"
+              echo "::error::Actual:   ${CERT_SHA256}"
               exit 1
             fi
-          fi
-          echo "=== APK artifacts ==="
-          ls -lh artifacts/
 
-      - name: Upload APK
+            echo "✓ APK signature matches NEW keystore."
+
+            cp "$apk" "verified-apks/$(basename "$apk")"
+          done
+
+          if [ "$found" -eq 0 ]; then
+            echo "::error::No APK files found"
+            exit 1
+          fi
+
+          echo ""
+          echo "=========================================="
+          echo "ALL APK SIGNATURES VERIFIED"
+          echo "=========================================="
+
+          ls -lh verified-apks/
+
+      # ============================================================
+      # ARTIFACTS
+      # ============================================================
+      - name: Upload signed APKs
         uses: actions/upload-artifact@v4
         with:
-          name: MPorT-Tes-Speed-release
-          path: artifacts/
+          name: MPorT-Tes-Speed-signed-release
+          path: verified-apks/
           if-no-files-found: error
+
+      # ============================================================
+      # CLEANUP SECRETS FROM RUNNER
+      # ============================================================
+      - name: Remove signing files
+        if: always()
+        run: |
+          rm -f android/app/mport-release-new.jks
+          rm -f android/key.properties
+          echo "Temporary signing files removed."
