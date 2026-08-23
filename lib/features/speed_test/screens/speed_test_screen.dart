@@ -1,8 +1,11 @@
 import 'dart:math' as math;
 
+import 'package:device_info_plus/device_info_plus.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import '../../../core/theme/app_colors.dart';
 import 'package:http/http.dart' as http;
+
+import '../../../core/theme/app_colors.dart';
 
 import '../models/speed_test_state.dart';
 import '../services/history_service.dart';
@@ -43,6 +46,8 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
   bool running = false;
   String? _ispName;
   String? _serverDisplay;
+  String _deviceModel = '—';
+  String? _testId;
 
   // Bottom sheet
   final DraggableScrollableController _sheetCtrl =
@@ -91,6 +96,37 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
     _autoSelectServer();
     _realtime.connect();
     _fetchMeta();
+    _loadDeviceModel();
+  }
+
+  Future<void> _loadDeviceModel() async {
+    try {
+      final info = DeviceInfoPlugin();
+      String model = '—';
+      switch (defaultTargetPlatform) {
+        case TargetPlatform.android:
+          final a = await info.androidInfo;
+          model = (a.model.isNotEmpty ? a.model : a.device).trim();
+          if (a.brand.isNotEmpty &&
+              !model.toLowerCase().startsWith(a.brand.toLowerCase())) {
+            model = '${a.brand} $model'.trim();
+          }
+          break;
+        case TargetPlatform.iOS:
+          final i = await info.iosInfo;
+          model = i.utsname.machine.isNotEmpty ? i.utsname.machine : i.model;
+          break;
+        default:
+          final d = await info.deviceInfo;
+          model = d.data['model']?.toString() ??
+              d.data['name']?.toString() ??
+              '—';
+      }
+      if (model.isEmpty) model = '—';
+      if (mounted) setState(() => _deviceModel = model);
+    } catch (_) {
+      if (mounted) setState(() => _deviceModel = 'Unknown device');
+    }
   }
 
   void _animateGaugeTo(double speedMbps) {
@@ -238,6 +274,7 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
         currentSpeed = result.download;
         phase = SpeedTestPhase.completed;
         running = false;
+        _testId = (1000000000 + math.Random().nextInt(9000000000)).toString();
       });
       _animateGaugeTo(result.download);
 
@@ -277,17 +314,10 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
   }
 
   String get _ispLabel {
-    return _ispName ?? 'Jaringan';
+    return _ispName ?? 'Network';
   }
 
-  String get _ispCode {
-    final selected = _serverService.selected;
-    if (selected.host.isNotEmpty) {
-      final parts = selected.host.replaceAll('speed2.', '').split('.');
-      return parts.isNotEmpty ? parts.first.toUpperCase() : 'Z2465N';
-    }
-    return 'Z2465N';
-  }
+  String get _ispCode => _deviceModel;
 
   @override
   Widget build(BuildContext context) {
@@ -742,123 +772,293 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
                     _qualityIcon(Icons.videocam_outlined, _qualityDots(upload)),
                   ],
                 ),
-                // Gauge
+                // Gauge with GO-button style glow behind the speed number
                 Expanded(
                   child: Center(
                     child: SizedBox(
-                      width: 240,
-                      height: 240,
+                      width: 260,
+                      height: 260,
                       child: AnimatedBuilder(
                         animation: Listenable.merge([_pulseCtrl, _gaugeCtrl]),
                         builder: (context, child) {
-                          return CustomPaint(
-                            painter: _ArcGaugePainter(
-                              progress: _animProgress,
-                              gold: gold,
-                              goldLight: goldLight,
-                              pulse: running ? _pulseCtrl.value : 0,
-                            ),
-                            child: child,
-                          );
-                        },
-                        child: Center(
-                          child: running
-                              ? Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Text(
-                                      _animSpeed.toStringAsFixed(1),
-                                      style: const TextStyle(
-                                        color: AppColors.textPrimary,
-                                        fontSize: 40,
-                                        fontWeight: FontWeight.w800,
-                                        height: 1,
-                                      ),
+                          final pulse = running ? _pulseCtrl.value : 0.35;
+                          final glowBoost = 0.28 + (pulse * 0.14);
+                          return Stack(
+                            alignment: Alignment.center,
+                            children: [
+                              // Soft green radial glow (same language as GO button)
+                              Container(
+                                width: 190,
+                                height: 190,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: gold.withValues(alpha: glowBoost),
+                                      blurRadius: 40 + pulse * 14,
+                                      spreadRadius: 4 + pulse * 4,
                                     ),
-                                    Text(
-                                      _unit,
-                                      style: const TextStyle(
-                                        color: goldLight,
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w600,
-                                      ),
+                                    BoxShadow(
+                                      color: goldLight.withValues(alpha: 0.10 + pulse * 0.06),
+                                      blurRadius: 24,
+                                      spreadRadius: 1,
                                     ),
                                   ],
-                                )
-                              : phase == SpeedTestPhase.completed
-                                  ? Column(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Text(
-                                          (download ?? 0).toStringAsFixed(1),
-                                          style: const TextStyle(
-                                            color: AppColors.textPrimary,
-                                            fontSize: 40,
-                                            fontWeight: FontWeight.w800,
-                                            height: 1,
-                                          ),
-                                        ),
-                                        Text(
-                                          _unit,
-                                          style: const TextStyle(
-                                            color: goldLight,
-                                            fontSize: 14,
-                                          ),
-                                        ),
-                                      ],
-                                    )
-                                  : const SizedBox.shrink(),
-                        ),
+                                  gradient: RadialGradient(
+                                    colors: [
+                                      gold.withValues(alpha: 0.16 + pulse * 0.08),
+                                      gold.withValues(alpha: 0.05),
+                                      Colors.transparent,
+                                    ],
+                                    stops: const [0.0, 0.55, 1.0],
+                                  ),
+                                ),
+                              ),
+                              CustomPaint(
+                                size: const Size(240, 240),
+                                painter: _ArcGaugePainter(
+                                  progress: _animProgress,
+                                  gold: gold,
+                                  goldLight: goldLight,
+                                  pulse: running ? _pulseCtrl.value : 0,
+                                ),
+                              ),
+                              child!,
+                            ],
+                          );
+                        },
+                        child: _gaugeCenterValue(),
                       ),
                     ),
                   ),
                 ),
-                // Bottom ISP + Server
-                Row(
-                  children: [
-                    Expanded(
-                      child: Row(
-                        children: [
-                          Flexible(
-                            child: Text(
-                              _ispLabel,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                  color: AppColors.textSecondary, fontSize: 12),
-                            ),
-                          ),
-                          const SizedBox(width: 4),
-                          const Icon(Icons.wifi, color: AppColors.textMuted, size: 14),
-                        ],
-                      ),
-                    ),
-                    Expanded(
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: [
-                          const Icon(Icons.dns, color: AppColors.textMuted, size: 14),
-                          const SizedBox(width: 4),
-                          Flexible(
-                            child: Text(
-                              '${_serverDisplay ?? 'HaaNSirO'} · ${_serverService.selected.location.isNotEmpty ? _serverService.selected.location : 'Pati'}',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              textAlign: TextAlign.right,
-                              style: const TextStyle(
-                                  color: AppColors.textSecondary, fontSize: 12),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
+                // Bottom: ISP + server (running) or full result panel (completed)
+                if (phase == SpeedTestPhase.completed)
+                  _resultFooter()
+                else
+                  _testingIspServerRow(),
               ],
             ),
           ),
         ),
       ],
+    );
+  }
+
+
+  Widget _gaugeCenterValue() {
+    final show = running || phase == SpeedTestPhase.completed;
+    if (!show) return const SizedBox.shrink();
+    final value = running ? _animSpeed : (download ?? 0);
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          value.toStringAsFixed(1),
+          style: const TextStyle(
+            color: AppColors.textPrimary,
+            fontSize: 40,
+            fontWeight: FontWeight.w800,
+            height: 1,
+          ),
+        ),
+        Text(
+          _unit,
+          style: const TextStyle(
+            color: goldLight,
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _testingIspServerRow() {
+    return Row(
+      children: [
+        Expanded(
+          child: Row(
+            children: [
+              Flexible(
+                child: Text(
+                  _ispLabel,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 4),
+              const Icon(Icons.wifi, color: AppColors.textMuted, size: 14),
+            ],
+          ),
+        ),
+        Expanded(
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              const Icon(Icons.dns, color: AppColors.textMuted, size: 14),
+              const SizedBox(width: 4),
+              Flexible(
+                child: Text(
+                  '${_serverDisplay ?? 'HaaNSirO'} · ${_serverService.selected.location.isNotEmpty ? _serverService.selected.location : 'Pati'}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.right,
+                  style: const TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Result footer (image 3 style) shown on the testing view when completed.
+  Widget _resultFooter() {
+    final loc = _serverService.selected.location.isNotEmpty
+        ? _serverService.selected.location
+        : 'Pati';
+    final serverName = _serverDisplay ?? 'HaaNSirO';
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(8, 10, 8, 4),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Flexible(
+                          child: Text(
+                            _ispLabel,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: AppColors.textSecondary,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        const Icon(Icons.phone_android_rounded,
+                            color: AppColors.textMuted, size: 16),
+                      ],
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      _deviceModel,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: AppColors.textMuted,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: Column(
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.dns_rounded,
+                            color: AppColors.textMuted, size: 16),
+                        const SizedBox(width: 6),
+                        Flexible(
+                          child: Text(
+                            serverName,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: AppColors.textSecondary,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      loc,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: AppColors.textMuted,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Test ID ${_testId ?? '—'}',
+            style: const TextStyle(
+              color: AppColors.textMuted,
+              fontSize: 12,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              TextButton(
+                onPressed: () {
+                  // Navigate to history for detailed past results
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        'Download ${(download ?? 0).toStringAsFixed(1)} $_unit · '
+                        'Upload ${(upload ?? 0).toStringAsFixed(1)} $_unit · '
+                        'Ping ${(ping ?? 0).toStringAsFixed(0)} ms · '
+                        'Jitter ${(jitter ?? 0).toStringAsFixed(0)} ms',
+                      ),
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                },
+                child: const Text(
+                  'Detailed result',
+                  style: TextStyle(
+                    color: Color(0xFF4DA3FF),
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              TextButton(
+                onPressed: startTest,
+                child: const Text(
+                  'Test Again',
+                  style: TextStyle(
+                    color: Color(0xFF4DA3FF),
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 
