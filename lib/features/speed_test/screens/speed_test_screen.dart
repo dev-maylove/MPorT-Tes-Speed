@@ -51,6 +51,7 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
   String? _serverDisplay;
   String _deviceModel = '—';
   String? _testId;
+  String? _serverStatus; // Online / Offline / latency
 
   // Bottom sheet
   final DraggableScrollableController _sheetCtrl =
@@ -274,8 +275,12 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
       packetLoss = null;
       download = null;
       upload = null;
+      _testId = null;
+      _serverStatus = 'Checking…';
     });
     _animateGaugeTo(0);
+    // ignore: unawaited_futures
+    _refreshServerStatus();
 
     try {
       final result = await _service.start(
@@ -313,11 +318,14 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
         currentSpeed = result.download;
         phase = SpeedTestPhase.completed;
         running = false;
-        _testId = (1000000000 + math.Random().nextInt(9000000000)).toString();
+        // nextInt max must be <= 2^32; build a 10–13 digit Test ID safely
+        _testId = _generateTestId();
       });
       _animateGaugeTo(result.download);
 
       // Keep final speed on the gauge (do not reset to 0).
+      // ignore: unawaited_futures
+      _refreshServerStatus();
 
       await _historyService.addResult(
         ping: result.ping,
@@ -349,6 +357,38 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
       currentSpeed = 0;
     });
     _animateGaugeTo(0);
+  }
+
+
+  /// Safe Test ID (Random.nextInt max must be <= 2^32).
+  String _generateTestId() {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final suffix = math.Random().nextInt(9000) + 1000; // 1000–9999
+    return '$now$suffix';
+  }
+
+  /// Probe selected server via ping/status URL.
+  Future<void> _refreshServerStatus() async {
+    try {
+      final url = ServerConfig.statusUrl;
+      final sw = Stopwatch()..start();
+      final res = await http
+          .get(Uri.parse(url), headers: ServerConfig.defaultHeaders)
+          .timeout(const Duration(seconds: 4));
+      sw.stop();
+      if (!mounted) return;
+      if (res.statusCode < 500) {
+        setState(() {
+          _serverStatus = 'Online · ${sw.elapsedMilliseconds} ms';
+        });
+      } else {
+        setState(() {
+          _serverStatus = 'Degraded · HTTP ${res.statusCode}';
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _serverStatus = 'Offline');
+    }
   }
 
   String get _ispLabel {
@@ -1138,11 +1178,26 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
             ],
           ),
           const SizedBox(height: 8),
+          if (_serverStatus != null)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: Text(
+                'Server status: $_serverStatus',
+                style: TextStyle(
+                  color: (_serverStatus ?? '').startsWith('Online')
+                      ? gold
+                      : AppColors.textMuted,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
           Text(
-            'Test ID ${_testId ?? '—'}',
+            'Test ID: ${_testId ?? '—'}',
             style: const TextStyle(
               color: AppColors.textMuted,
               fontSize: 12,
+              fontWeight: FontWeight.w500,
             ),
           ),
           const SizedBox(height: 10),

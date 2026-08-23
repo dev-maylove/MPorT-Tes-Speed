@@ -17,6 +17,9 @@ class ServerConfig {
   static String get uploadUrl => '$baseUrl$uploadPath';
   static String get pingUrl => '$baseUrl$pingPath';
 
+  /// Lightweight server status / health probe (same host as ping).
+  static String get statusUrl => pingUrl;
+
   /// Real-time WebSocket (status / latency).
   static String wsPath = '/ws';
   static String get wsUrl {
