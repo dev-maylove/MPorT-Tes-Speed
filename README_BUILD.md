@@ -53,3 +53,21 @@ Followed: https://docs.flutter.dev/release/breaking-changes/migrate-to-built-in-
 1. Removed `id("kotlin-android")` from the app plugins block.
 2. Kept / used the `kotlin { compilerOptions { ... } }` block.
 3. Set `android.builtInKotlin=true` in `gradle.properties`.
+
+## Fast analyze
+
+Full project:
+
+```bash
+flutter analyze --no-fatal-infos
+```
+
+Faster (lib only):
+
+```bash
+flutter analyze --no-fatal-infos lib
+# or
+./tool/fast_analyze.sh
+```
+
+`analysis_options.yaml` excludes `build/`, `.dart_tool/`, platform folders, and generated `*.g.dart` files to keep analysis light.
