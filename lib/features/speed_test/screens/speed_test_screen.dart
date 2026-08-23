@@ -102,31 +102,61 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
     _loadDeviceModel();
   }
 
+  /// Loads a human-readable device model via device_info_plus (^13.2.0).
   Future<void> _loadDeviceModel() async {
     try {
-      final info = DeviceInfoPlugin();
+      final plugin = DeviceInfoPlugin();
       String model = '—';
+
       switch (defaultTargetPlatform) {
         case TargetPlatform.android:
-          final a = await info.androidInfo;
-          model = (a.model.isNotEmpty ? a.model : a.device).trim();
-          if (a.brand.isNotEmpty &&
-              !model.toLowerCase().startsWith(a.brand.toLowerCase())) {
-            model = '${a.brand} $model'.trim();
+          final a = await plugin.androidInfo;
+          // Prefer marketing model; fall back to device codename.
+          final base = (a.model.isNotEmpty ? a.model : a.device).trim();
+          final brand = a.brand.trim();
+          if (brand.isNotEmpty &&
+              !base.toLowerCase().startsWith(brand.toLowerCase())) {
+            model = '$brand $base'.trim();
+          } else {
+            model = base;
           }
           break;
         case TargetPlatform.iOS:
-          final i = await info.iosInfo;
-          model = i.utsname.machine.isNotEmpty ? i.utsname.machine : i.model;
+          final i = await plugin.iosInfo;
+          // utsname.machine = hardware id (e.g. iPhone15,2); name/model as fallback.
+          model = i.utsname.machine.isNotEmpty
+              ? i.utsname.machine
+              : (i.name.isNotEmpty ? i.name : i.model);
+          break;
+        case TargetPlatform.macOS:
+          final m = await plugin.macOsInfo;
+          // Prefer friendly modelName, then hardware model id.
+          model = m.modelName.isNotEmpty
+              ? m.modelName
+              : (m.model.isNotEmpty ? m.model : m.computerName);
+          break;
+        case TargetPlatform.windows:
+          final w = await plugin.windowsInfo;
+          model = w.computerName.isNotEmpty
+              ? w.computerName
+              : (w.productName.isNotEmpty ? w.productName : 'Windows');
+          break;
+        case TargetPlatform.linux:
+          final l = await plugin.linuxInfo;
+          model = l.prettyName.isNotEmpty
+              ? l.prettyName
+              : (l.name.isNotEmpty ? l.name : 'Linux');
           break;
         default:
-          final d = await info.deviceInfo;
+          final d = await plugin.deviceInfo;
           model = d.data['model']?.toString() ??
               d.data['name']?.toString() ??
+              d.data['computerName']?.toString() ??
               '—';
       }
-      if (model.isEmpty) model = '—';
-      if (mounted) setState(() => _deviceModel = model);
+
+      if (model.trim().isEmpty) model = '—';
+      if (mounted) setState(() => _deviceModel = model.trim());
     } catch (_) {
       if (mounted) setState(() => _deviceModel = 'Unknown device');
     }
