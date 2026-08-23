@@ -669,27 +669,6 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
                       ),
                     ),
 
-                    // Teks GO
-                    Text(
-                      'GO',
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.98),
-                        fontSize: 44,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 3,
-                        shadows: [
-                          Shadow(
-                            color: Colors.black.withValues(alpha: 0.70),
-                            blurRadius: 12,
-                            offset: const Offset(0, 2),
-                          ),
-                          Shadow(
-                            color: gold.withValues(alpha: 0.30 + _pulseCtrl.value * 0.15),
-                            blurRadius: 14,
-                          ),
-                        ],
-                      ),
-                    ),
                   ],
                 ),
               ),
