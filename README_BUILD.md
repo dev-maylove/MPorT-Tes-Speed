@@ -1,4 +1,4 @@
-# MPorT Tes Speed - Build Notes
+# MPorT Go - Build Notes
 
 Server speed test: `https://speed2.haansiro.id`
 

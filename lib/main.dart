@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'core/theme/app_colors.dart';
-import 'features/speed_test/screens/main_screen.dart';
+import 'features/splash/screens/splash_screen.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -24,7 +24,7 @@ class MporTApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'MPorT Tes Speed',
+      title: 'MPorT Go',
       theme: ThemeData(
         brightness: Brightness.dark,
         useMaterial3: true,
@@ -89,7 +89,7 @@ class MporTApp extends StatelessWidget {
           }),
         ),
       ),
-      home: const MainScreen(),
+      home: const SplashScreen(),
     );
   }
 }

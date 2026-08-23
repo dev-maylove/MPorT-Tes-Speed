@@ -28,7 +28,7 @@ class AppLogo extends StatelessWidget {
         if (showText) ...[
           const SizedBox(width: 12),
           Text(
-            'MPorT Tes Speed',
+            'MPorT Go',
             style: theme.textTheme.titleLarge?.copyWith(
               fontWeight: FontWeight.bold,
             ),

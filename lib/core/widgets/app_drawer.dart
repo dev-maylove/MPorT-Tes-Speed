@@ -33,7 +33,7 @@ class AppDrawer extends StatelessWidget {
                   Icon(Icons.speed_rounded, color: AppColors.green, size: 36),
                   SizedBox(height: 12),
                   Text(
-                    'MPorT Tes Speed',
+                    'MPorT Go',
                     style: TextStyle(
                       color: AppColors.textPrimary,
                       fontSize: 18,

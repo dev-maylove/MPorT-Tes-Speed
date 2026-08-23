@@ -1,4 +1,4 @@
-# GitHub Actions CI — MPorT Tes Speed
+# GitHub Actions CI — MPorT Go
 
 Workflow: `.github/workflows/build-apk.yml`
 
@@ -26,7 +26,7 @@ Workflow: `.github/workflows/build-apk.yml`
 ## Cara menjalankan
 
 - **Otomatis:** push ke branch `main` / `master`
-- **Manual:** GitHub → **Actions** → **Build MPorT Tes Speed APK** → **Run workflow**
+- **Manual:** GitHub → **Actions** → **Build MPorT Go APK** → **Run workflow**
 - **AAB:** jalankan manual (workflow_dispatch) atau buat git tag
 
 ## Hasil

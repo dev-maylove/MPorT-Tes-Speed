@@ -1,5 +1,5 @@
 class AppConstants {
-  static const String appName = 'MPorT Tes Speed';
+  static const String appName = 'MPorT Go';
   static const String appVersion = '1.9.0';
   static const String appBuild = '19';
 

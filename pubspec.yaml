@@ -1,5 +1,5 @@
 name: mport_test_speed
-description: MPorT Tes Speed - Aplikasi pengujian kecepatan internet akurat.
+description: MPorT Go - Aplikasi pengujian kecepatan internet akurat.
 publish_to: 'none'
 version: 1.9.2+21
 

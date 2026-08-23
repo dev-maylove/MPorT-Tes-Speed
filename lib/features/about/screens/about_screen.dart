@@ -80,7 +80,7 @@ class AboutScreen extends StatelessWidget {
         ),
         const SizedBox(height: 18),
         const Text(
-          'MPorT Speed Test',
+          'MPorT Go',
           textAlign: TextAlign.center,
           style: TextStyle(
             color: Colors.white,
@@ -124,7 +124,7 @@ class AboutScreen extends StatelessWidget {
           ),
           const SizedBox(height: 14),
           const Text(
-            'MPorT Speed Test adalah aplikasi untuk mengukur '
+            'MPorT Go adalah aplikasi untuk mengukur '
             'performa koneksi internet secara praktis. '
             'Aplikasi ini membantu mengetahui kecepatan download, '
             'upload, ping, dan kualitas koneksi internet yang sedang digunakan.',
@@ -279,7 +279,7 @@ class AboutScreen extends StatelessWidget {
         ),
         const SizedBox(height: 18),
         const Text(
-          'MPorT Speed Test',
+          'MPorT Go',
           style: TextStyle(
             color: Colors.white70,
             fontSize: 13,

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../features/speed_test/screens/main_screen.dart';
+import '../features/splash/screens/splash_screen.dart';
 import 'app_theme.dart';
 
 /// Alternatif entry (tema Material 3 full). Entry aktif ada di main.dart.
@@ -10,12 +10,12 @@ class MPortApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'MPorT Tes Speed',
+      title: 'MPorT Go',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
       themeMode: ThemeMode.dark,
-      home: const MainScreen(),
+      home: const SplashScreen(),
     );
   }
 }

@@ -1,4 +1,4 @@
-MPorT Tes Speed
+MPorT Go
 
 Aplikasi Flutter untuk menguji kecepatan internet menggunakan server pengujian yang dikonfigurasi oleh aplikasi.
 
