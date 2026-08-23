@@ -52,6 +52,9 @@ class SpeedTestService {
     final result = SpeedResult(
       ping: pingResult.ping,
       jitter: pingResult.jitter,
+      avgPing: pingResult.avgPing,
+      maxPing: pingResult.maxPing,
+      packetLossPercent: pingResult.packetLossPercent,
       download: downloadResult.mbps,
       upload: uploadMbps,
       server: ServerConfig.serverName,

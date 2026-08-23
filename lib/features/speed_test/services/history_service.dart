@@ -30,6 +30,9 @@ class HistoryService {
   Future<void> addResult({
     required double ping,
     required double jitter,
+    double avgPing = 0,
+    double maxPing = 0,
+    double packetLossPercent = 0,
     required double download,
     required double upload,
     required String server,
@@ -41,6 +44,9 @@ class HistoryService {
     history.insert(0, {
       'ping': ping,
       'jitter': jitter,
+      'avgPing': avgPing,
+      'maxPing': maxPing,
+      'packetLossPercent': packetLossPercent,
       'download': download,
       'upload': upload,
       'server': server,

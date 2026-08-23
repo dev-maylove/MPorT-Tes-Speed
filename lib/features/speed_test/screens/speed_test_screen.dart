@@ -41,6 +41,9 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
   double currentSpeed = 0;
   double? ping;
   double? jitter;
+  double? avgPing;
+  double? maxPing;
+  double? packetLoss;
   double? download;
   double? upload;
   bool running = false;
@@ -236,6 +239,9 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
       currentSpeed = 0;
       ping = null;
       jitter = null;
+      avgPing = null;
+      maxPing = null;
+      packetLoss = null;
       download = null;
       upload = null;
     });
@@ -269,6 +275,9 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
       setState(() {
         ping = result.ping;
         jitter = result.jitter;
+        avgPing = result.avgPing;
+        maxPing = result.maxPing;
+        packetLoss = result.packetLossPercent;
         download = result.download;
         upload = result.upload;
         currentSpeed = result.download;
@@ -287,6 +296,9 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
       await _historyService.addResult(
         ping: result.ping,
         jitter: result.jitter,
+        avgPing: result.avgPing,
+        maxPing: result.maxPing,
+        packetLossPercent: result.packetLossPercent,
         download: result.download,
         upload: result.upload,
         server: result.server,
@@ -748,19 +760,8 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
                   ],
                 ),
                 const SizedBox(height: 14),
-                // Ping / Jitter row
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    _smallStat('Ping ms', ping, Icons.speed),
-                    const SizedBox(width: 8),
-                    _dotStat(Icons.wifi_tethering, null),
-                    const SizedBox(width: 8),
-                    _dotStat(Icons.cell_tower, null),
-                    const SizedBox(width: 8),
-                    _smallStat('Jitter ms', jitter, Icons.waves),
-                  ],
-                ),
+                // Network latency metrics
+                _latencyMetricsRow(),
                 const SizedBox(height: 16),
                 // Quality icons
                 Row(
@@ -1029,7 +1030,9 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
                         'Download ${(download ?? 0).toStringAsFixed(1)} $_unit · '
                         'Upload ${(upload ?? 0).toStringAsFixed(1)} $_unit · '
                         'Ping ${(ping ?? 0).toStringAsFixed(0)} ms · '
-                        'Jitter ${(jitter ?? 0).toStringAsFixed(0)} ms',
+                        'Avg ${(avgPing ?? 0).toStringAsFixed(0)} ms · '
+                        'Jitter ${(jitter ?? 0).toStringAsFixed(0)} ms · '
+                        'Loss ${(packetLoss ?? 0).toStringAsFixed(0)}%',
                       ),
                       behavior: SnackBarBehavior.floating,
                     ),
@@ -1113,6 +1116,118 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
                 style: const TextStyle(color: AppColors.textMuted, fontSize: 12),
               ),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+
+
+  Widget _latencyMetricsRow() {
+    return Column(
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          children: [
+            _latencyChip(
+              label: 'Ping',
+              value: ping,
+              unit: 'ms',
+              icon: Icons.speed_rounded,
+            ),
+            _latencyChip(
+              label: 'Avg',
+              value: avgPing ?? (running && phase == SpeedTestPhase.ping ? ping : avgPing),
+              unit: 'ms',
+              icon: Icons.timelapse_rounded,
+            ),
+            _latencyChip(
+              label: 'Jitter',
+              value: jitter,
+              unit: 'ms',
+              icon: Icons.waves_rounded,
+            ),
+            _latencyChip(
+              label: 'Loss',
+              value: packetLoss,
+              unit: '%',
+              icon: Icons.signal_cellular_alt_rounded,
+              fractionDigits: 0,
+            ),
+          ],
+        ),
+        if (maxPing != null && maxPing! > 0) ...[
+          const SizedBox(height: 8),
+          Text(
+            'Max latency ${maxPing!.toStringAsFixed(0)} ms',
+            style: const TextStyle(
+              color: AppColors.textMuted,
+              fontSize: 11,
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _latencyChip({
+    required String label,
+    required double? value,
+    required String unit,
+    required IconData icon,
+    int fractionDigits = 0,
+  }) {
+    final display = value == null
+        ? '—'
+        : value.toStringAsFixed(fractionDigits);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: cardColor,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.green.withValues(alpha: 0.12)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 12, color: gold),
+              const SizedBox(width: 4),
+              Text(
+                label,
+                style: const TextStyle(
+                  color: AppColors.textMuted,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          RichText(
+            text: TextSpan(
+              children: [
+                TextSpan(
+                  text: display,
+                  style: const TextStyle(
+                    color: AppColors.textPrimary,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    height: 1.1,
+                  ),
+                ),
+                TextSpan(
+                  text: ' $unit',
+                  style: const TextStyle(
+                    color: AppColors.textMuted,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
