@@ -1264,32 +1264,7 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
     );
   }
 
-  Widget _smallStat(String label, double? value, IconData icon) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          label,
-          style: const TextStyle(color: AppColors.textMuted, fontSize: 11),
-        ),
-        const SizedBox(width: 4),
-        Icon(icon, size: 12, color: AppColors.textMuted),
-        const SizedBox(width: 2),
-        Text(
-          value == null ? '—' : value.toStringAsFixed(0),
-          style: const TextStyle(
-            color: AppColors.textPrimary,
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ],
-    );
-  }
 
-  Widget _dotStat(IconData icon, double? value) {
-    return Icon(icon, size: 14, color: AppColors.greenDim);
-  }
 
   int _qualityDots(double? mbps) {
     if (mbps == null) return 0;
