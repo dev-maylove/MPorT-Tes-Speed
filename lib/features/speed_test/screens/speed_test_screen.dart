@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
@@ -554,41 +555,121 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
         child: Stack(
           alignment: Alignment.center,
           children: [
-            // Logo MPorT jelas (ukuran sama dengan ring GO), background transparan
-            ClipOval(
-              child: Image.asset(
-                'assets/images/mport_logo.png',
-                width: 180,
-                height: 180,
-                fit: BoxFit.cover,
-                filterQuality: FilterQuality.high,
-              ),
-            ),
-            // Ring GO — hanya border, isi transparan agar logo terlihat utuh
+            // Soft outer glow
             Container(
-              width: 180,
-              height: 180,
+              width: 200,
+              height: 200,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: Colors.transparent,
-                border: Border.all(color: gold, width: 2.5),
                 boxShadow: [
                   BoxShadow(
-                    color: gold.withValues(alpha: 0.18),
-                    blurRadius: 24,
-                    spreadRadius: 1,
+                    color: gold.withValues(alpha: 0.22),
+                    blurRadius: 36,
+                    spreadRadius: 2,
+                  ),
+                  BoxShadow(
+                    color: goldLight.withValues(alpha: 0.10),
+                    blurRadius: 60,
+                    spreadRadius: 8,
                   ),
                 ],
               ),
-              alignment: Alignment.center,
-              // Teks GO tidak diubah
-              child: const Text(
-                'GO',
-                style: TextStyle(
-                  color: AppColors.textPrimary,
-                  fontSize: 42,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 2,
+            ),
+            // Glass circle (kaca modern)
+            ClipOval(
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+                child: Container(
+                  width: 180,
+                  height: 180,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        Colors.white.withValues(alpha: 0.18),
+                        Colors.white.withValues(alpha: 0.06),
+                        gold.withValues(alpha: 0.08),
+                      ],
+                      stops: const [0.0, 0.55, 1.0],
+                    ),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.28),
+                      width: 1.5,
+                    ),
+                  ),
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      // Subtle inner highlight (glass reflection)
+                      Positioned(
+                        top: 18,
+                        left: 28,
+                        right: 28,
+                        child: Container(
+                          height: 36,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(40),
+                            gradient: LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [
+                                Colors.white.withValues(alpha: 0.22),
+                                Colors.white.withValues(alpha: 0.0),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                      // Logo di belakang teks (lebih soft)
+                      Opacity(
+                        opacity: 0.35,
+                        child: Image.asset(
+                          'assets/images/mport_logo.png',
+                          width: 120,
+                          height: 120,
+                          fit: BoxFit.contain,
+                          filterQuality: FilterQuality.high,
+                        ),
+                      ),
+                      // Teks GO
+                      Text(
+                        'GO',
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.95),
+                          fontSize: 42,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 3,
+                          shadows: [
+                            Shadow(
+                              color: gold.withValues(alpha: 0.45),
+                              blurRadius: 12,
+                            ),
+                            Shadow(
+                              color: Colors.black.withValues(alpha: 0.35),
+                              blurRadius: 4,
+                              offset: const Offset(0, 1),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            // Thin gold accent ring
+            IgnorePointer(
+              child: Container(
+                width: 180,
+                height: 180,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: gold.withValues(alpha: 0.55),
+                    width: 1.2,
+                  ),
                 ),
               ),
             ),
