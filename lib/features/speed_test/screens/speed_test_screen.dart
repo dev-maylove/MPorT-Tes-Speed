@@ -1,5 +1,4 @@
 import 'dart:math' as math;
-import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
@@ -299,7 +298,37 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
     return Scaffold(
       backgroundColor: background,
       body: SafeArea(
-        child: showTestUi ? _buildTestingView() : _buildStandbyView(),
+        child: AnimatedSwitcher(
+          duration: const Duration(milliseconds: 420),
+          reverseDuration: const Duration(milliseconds: 320),
+          switchInCurve: Curves.easeOutCubic,
+          switchOutCurve: Curves.easeInCubic,
+          transitionBuilder: (child, animation) {
+            final fade = CurvedAnimation(
+              parent: animation,
+              curve: Curves.easeOutCubic,
+            );
+            final scale = Tween<double>(begin: 0.96, end: 1.0).animate(fade);
+            final slide = Tween<Offset>(
+              begin: const Offset(0, 0.04),
+              end: Offset.zero,
+            ).animate(fade);
+            return FadeTransition(
+              opacity: fade,
+              child: ScaleTransition(
+                scale: scale,
+                child: SlideTransition(
+                  position: slide,
+                  child: child,
+                ),
+              ),
+            );
+          },
+          child: KeyedSubtree(
+            key: ValueKey<bool>(showTestUi),
+            child: showTestUi ? _buildTestingView() : _buildStandbyView(),
+          ),
+        ),
       ),
     );
   }
@@ -546,135 +575,127 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
     );
   }
 
+  bool _goPressed = false;
+
   Widget _goButton() {
+    // Tombol GO: logo original full + ring kaca + animasi pulse & press
     return GestureDetector(
+      onTapDown: (_) => setState(() => _goPressed = true),
+      onTapUp: (_) => setState(() => _goPressed = false),
+      onTapCancel: () => setState(() => _goPressed = false),
       onTap: startTest,
-      child: SizedBox(
-        width: 280,
-        height: 280,
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            // Soft outer glow
-            Container(
-              width: 200,
-              height: 200,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: gold.withValues(alpha: 0.22),
-                    blurRadius: 36,
-                    spreadRadius: 2,
-                  ),
-                  BoxShadow(
-                    color: goldLight.withValues(alpha: 0.10),
-                    blurRadius: 60,
-                    spreadRadius: 8,
-                  ),
-                ],
-              ),
-            ),
-            // Glass circle (kaca modern)
-            ClipOval(
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-                child: Container(
-                  width: 180,
-                  height: 180,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [
-                        Colors.white.withValues(alpha: 0.18),
-                        Colors.white.withValues(alpha: 0.06),
-                        gold.withValues(alpha: 0.08),
-                      ],
-                      stops: const [0.0, 0.55, 1.0],
+      child: AnimatedBuilder(
+        animation: _pulseCtrl,
+        builder: (context, _) {
+          final pulse = 1.0 + (_pulseCtrl.value * 0.035);
+          final pressScale = _goPressed ? 0.94 : 1.0;
+          final glowBoost = 0.30 + (_pulseCtrl.value * 0.12);
+
+          return AnimatedScale(
+            scale: pressScale,
+            duration: const Duration(milliseconds: 120),
+            curve: Curves.easeOutCubic,
+            child: Transform.scale(
+              scale: pulse,
+              child: SizedBox(
+                width: 280,
+                height: 280,
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    // Glow luar (cyan lembut, ikut pulse)
+                    Container(
+                      width: 200,
+                      height: 200,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: gold.withValues(alpha: glowBoost),
+                            blurRadius: 36 + (_pulseCtrl.value * 12),
+                            spreadRadius: 2 + (_pulseCtrl.value * 3),
+                          ),
+                          BoxShadow(
+                            color: goldLight.withValues(alpha: 0.10 + _pulseCtrl.value * 0.06),
+                            blurRadius: 64,
+                            spreadRadius: 8,
+                          ),
+                        ],
+                      ),
                     ),
-                    border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.28),
-                      width: 1.5,
+
+                    // Logo ORIGINAL — full, terang
+                    ClipOval(
+                      child: Image.asset(
+                        'assets/images/mport_logo.png',
+                        width: 180,
+                        height: 180,
+                        fit: BoxFit.cover,
+                        filterQuality: FilterQuality.high,
+                      ),
                     ),
-                  ),
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      // Subtle inner highlight (glass reflection)
-                      Positioned(
-                        top: 18,
-                        left: 28,
-                        right: 28,
-                        child: Container(
-                          height: 36,
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(40),
-                            gradient: LinearGradient(
-                              begin: Alignment.topCenter,
-                              end: Alignment.bottomCenter,
-                              colors: [
-                                Colors.white.withValues(alpha: 0.22),
-                                Colors.white.withValues(alpha: 0.0),
-                              ],
-                            ),
+
+                    // Ring kaca transparan
+                    IgnorePointer(
+                      child: Container(
+                        width: 180,
+                        height: 180,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.transparent,
+                          border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.28),
+                            width: 1.5,
                           ),
                         ),
                       ),
-                      // Logo di belakang teks (lebih soft)
-                      Opacity(
-                        opacity: 0.35,
-                        child: Image.asset(
-                          'assets/images/mport_logo.png',
-                          width: 120,
-                          height: 120,
-                          fit: BoxFit.contain,
-                          filterQuality: FilterQuality.high,
+                    ),
+
+                    // Ring aksen hijau transparan (opacity ikut pulse)
+                    IgnorePointer(
+                      child: Container(
+                        width: 188,
+                        height: 188,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.transparent,
+                          border: Border.all(
+                            color: gold.withValues(
+                              alpha: 0.35 + (_pulseCtrl.value * 0.25),
+                            ),
+                            width: 1.5,
+                          ),
                         ),
                       ),
-                      // Teks GO
-                      Text(
-                        'GO',
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.95),
-                          fontSize: 42,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 3,
-                          shadows: [
-                            Shadow(
-                              color: gold.withValues(alpha: 0.45),
-                              blurRadius: 12,
-                            ),
-                            Shadow(
-                              color: Colors.black.withValues(alpha: 0.35),
-                              blurRadius: 4,
-                              offset: const Offset(0, 1),
-                            ),
-                          ],
-                        ),
+                    ),
+
+                    // Teks GO
+                    Text(
+                      'GO',
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.98),
+                        fontSize: 44,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 3,
+                        shadows: [
+                          Shadow(
+                            color: Colors.black.withValues(alpha: 0.70),
+                            blurRadius: 12,
+                            offset: const Offset(0, 2),
+                          ),
+                          Shadow(
+                            color: gold.withValues(alpha: 0.30 + _pulseCtrl.value * 0.15),
+                            blurRadius: 14,
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
             ),
-            // Thin gold accent ring
-            IgnorePointer(
-              child: Container(
-                width: 180,
-                height: 180,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: gold.withValues(alpha: 0.55),
-                    width: 1.2,
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }
@@ -748,13 +769,19 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
                     child: SizedBox(
                       width: 240,
                       height: 240,
-                      child: CustomPaint(
-                        painter: _ArcGaugePainter(
-                          progress: _animProgress,
-                          gold: gold,
-                          goldLight: goldLight,
-                          pulse: running ? _pulseCtrl.value : 0,
-                        ),
+                      child: AnimatedBuilder(
+                        animation: Listenable.merge([_pulseCtrl, _gaugeCtrl]),
+                        builder: (context, child) {
+                          return CustomPaint(
+                            painter: _ArcGaugePainter(
+                              progress: _animProgress,
+                              gold: gold,
+                              goldLight: goldLight,
+                              pulse: running ? _pulseCtrl.value : 0,
+                            ),
+                            child: child,
+                          );
+                        },
                         child: Center(
                           child: running
                               ? Column(
