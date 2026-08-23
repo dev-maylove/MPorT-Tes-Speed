@@ -1,38 +1,45 @@
-# Keystore — MPorT Go
+# Keystore — MPorT Go (Release only)
 
-## File
+## Files
 
-| File | Lokasi |
-|------|--------|
-| `mport_tes_keystore.jks` | `android/app/` (PKCS#12) |
+| File | Location |
+|------|----------|
+| `mport-release-key.jks` | `android/app/` (PKCS#12) |
 | `key.properties` | `android/` |
+| `keystore_release_base64.txt` | `android/` (single-line base64, optional for CI) |
 
-## Kredensial
+## Credentials
 
 ```
 storePassword = Optionso@1212
 keyPassword   = Optionso@1212
 keyAlias      = mport_key_tes
-storeFile     = mport_tes_keystore.jks
+storeFile     = mport-release-key.jks
 ```
 
-> Alias di dalam keystore: **mport_key_tes**  
-> (bukan `mport_tes_keystore` — itu nama file saja)
+> Alias inside the keystore: **mport_key_tes**  
+> Certificate SHA-256:  
+> `73:04:EC:0E:80:FA:95:ED:CF:86:82:AC:DB:5C:25:0F:11:5D:C4:90:1B:DD:C4:BE:D0:CB:09:A6:81:A5:EA:B7`
 
-## CI Secrets
+## CI Secrets (GitHub Actions)
 
-- `KEYSTORE_BASE64` ← `base64 -w0 android/app/mport_tes_keystore.jks`
-- `KEYSTORE_PASSWORD` = `Optionso@1212`
-- `KEY_PASSWORD` = `Optionso@1212`
-- `KEY_ALIAS` = `mport_key_tes`
+| Secret | Value |
+|--------|--------|
+| `KEYSTORE_BASE64` | contents of `android/keystore_release_base64.txt` |
+| `KEYSTORE_PASSWORD` | `Optionso@1212` |
+| `KEY_PASSWORD` | `Optionso@1212` |
+| `KEY_ALIAS` | `mport_key_tes` |
 
-## Base64 (untuk GitHub Secret)
+**Note:** The CI workflow currently expects a different fingerprint  
+(`B8:2C:BB:24:...`). If you switch CI to this release keystore, update  
+`EXPECTED_SHA256` in `.github/workflows/build-apk.yml` to the SHA above,  
+or keep using the secret-based `mport-release-new.jks` for production.
 
-File: `tes_keystore.txt` / `android/keystore_tes_base64.txt`
+## Local release build
 
+```bash
+flutter build apk --release
 ```
-KEYSTORE_BASE64 = (isi file di atas, satu baris)
-KEYSTORE_PASSWORD = Optionso@1212
-KEY_PASSWORD = Optionso@1212
-KEY_ALIAS = mport_key_tes
-```
+
+Gradle resolves `storeFile` relative to the app module (`android/app/`) first,  
+then `android/`. If the keystore is missing, release falls back to debug signing.

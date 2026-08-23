@@ -42,10 +42,10 @@ class _ServerScreenState extends State<ServerScreen> {
       backgroundColor: AppColors.background,
       appBar: AppBar(
         backgroundColor: AppColors.background,
-        title: const Text('Pilih Server'),
+        title: const Text('Select Server'),
         actions: [
           IconButton(
-            tooltip: 'Pilih otomatis (terdekat)',
+            tooltip: 'Auto-select (nearest)',
             icon: const Icon(Icons.my_location_outlined),
             onPressed:
                 _service.isProbing ? null : () => _service.selectNearest(force: true),
@@ -74,7 +74,7 @@ class _ServerScreenState extends State<ServerScreen> {
                     children: [
                       const Expanded(
                         child: Text(
-                          'Server terdekat (Pati, Kudus, Jepara, …)',
+                          'Nearest servers (Pati, Kudus, Jepara, …)',
                           style: TextStyle(color: AppColors.textMuted, fontSize: 12),
                         ),
                       ),

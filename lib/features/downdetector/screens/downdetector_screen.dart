@@ -191,7 +191,7 @@ class _DowndetectorScreenState extends State<DowndetectorScreen> {
         .toList();
   }
 
-  /// Probe 2–3 layanan per tick agar tidak membebani jaringan.
+  /// Probe 2–3 services per tick so the network is not overloaded.
   Future<void> _tickProbe() async {
     if (_probing || !mounted || _activeSlug != null) return;
     _probing = true;

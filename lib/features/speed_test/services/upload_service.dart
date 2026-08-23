@@ -92,8 +92,8 @@ class UploadService {
                 );
           } catch (_) {}
 
-          // Terima status 2xx/3xx/4xx (banyak server balas 200/204/405/413 tapi data terkirim)
-          // Hanya skip 5xx berat
+          // Accept 2xx/3xx/4xx (many servers reply 200/204/405/413 even when data was sent)
+          // Only skip hard 5xx errors
           if (response.statusCode >= 500) {
             continue;
           }
@@ -123,7 +123,7 @@ class UploadService {
           }
         } catch (_) {
           if (!running) break;
-          // Lanjut coba request berikutnya
+          // Continue with the next request
         }
       }
     }
@@ -145,7 +145,7 @@ class UploadService {
         ? (stopwatch.elapsed - grace).inMicroseconds / 1e6
         : stopwatch.elapsedMicroseconds / 1e6;
 
-    // Jika ada data terkirim, jangan throw — kembalikan hasil terbaik
+    // If any data was sent, do not throw — return the best result
     if (totalBytes > 0 && stopwatch.elapsedMicroseconds > 0) {
       final sec = measureSeconds > 0.1
           ? measureSeconds
@@ -160,7 +160,7 @@ class UploadService {
       );
     }
 
-    // Sama sekali gagal
-    throw Exception('Upload gagal — server tidak menerima data ($successCount OK)');
+    // Completely failed
+    throw Exception('Upload failed — server did not accept data ($successCount OK)');
   }
 }

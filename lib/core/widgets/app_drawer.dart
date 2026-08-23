@@ -7,7 +7,7 @@ import '../../features/server/screens/server_screen.dart';
 import '../../features/settings/screens/settings_screen.dart';
 import '../../features/speed_test/screens/main_screen.dart';
 
-/// Menu hamburger bersama — dipakai di semua halaman utama.
+/// Shared hamburger menu used on main screens.
 class AppDrawer extends StatelessWidget {
   const AppDrawer({super.key});
 
@@ -55,27 +55,27 @@ class AppDrawer extends StatelessWidget {
                   _item(
                     context,
                     icon: Icons.dns_outlined,
-                    title: 'Pilih Server',
+                    title: 'Select Server',
                     onTap: () => _go(context, const ServerScreen()),
                   ),
                   _item(
                     context,
                     icon: Icons.report_problem_outlined,
                     title: 'Downdetector',
-                    subtitle: 'Cek gangguan layanan',
+                    subtitle: 'Check service outages',
                     onTap: () => _go(context, const DowndetectorScreen()),
                   ),
                   _item(
                     context,
                     icon: Icons.settings_outlined,
-                    title: 'Pengaturan',
+                    title: 'Settings',
                     onTap: () => _go(context, const SettingsScreen()),
                   ),
                   const Divider(color: Color(0xFF1A2030)),
                   _item(
                     context,
                     icon: Icons.info_outline,
-                    title: 'Tentang Aplikasi',
+                    title: 'About',
                     onTap: () => _go(context, const AboutScreen()),
                   ),
                 ],
@@ -124,7 +124,7 @@ class AppDrawer extends StatelessWidget {
   }
 }
 
-/// Tombol hamburger standar — membuka drawer MainScreen.
+/// Standard hamburger button — opens the MainScreen drawer.
 Widget appMenuButton(BuildContext context) {
   return IconButton(
     tooltip: 'Menu',
@@ -134,7 +134,7 @@ Widget appMenuButton(BuildContext context) {
         state.openDrawer();
         return;
       }
-      // Fallback jika tidak di dalam MainScreen
+      // Fallback when not inside MainScreen
       Navigator.of(context).push(
         MaterialPageRoute(builder: (_) => const SettingsScreen()),
       );

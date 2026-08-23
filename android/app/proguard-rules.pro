@@ -29,7 +29,7 @@
 -dontwarn org.conscrypt.**
 -dontwarn org.openjsse.**
 
-# Google Play Core — dipakai Flutter deferred components (opsional, tidak di-bundle)
+# Google Play Core — used by Flutter deferred components (optional, not bundled)
 -dontwarn com.google.android.play.core.**
 -dontwarn com.google.android.play.core.splitcompat.**
 -dontwarn com.google.android.play.core.splitinstall.**

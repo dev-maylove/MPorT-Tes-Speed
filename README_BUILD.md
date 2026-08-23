@@ -1,28 +1,34 @@
 # MPorT Go - Build Notes
 
-Server speed test: `https://speed2.haansiro.id`
+Speed test server: configurable (default host in `ServerConfig`).
 
-Endpoints:
-- Download: `/downloading`
-- Upload: `/upload`
+Endpoints (OpenSpeedTest-style / Ookla-style depending on selected server):
+- Download: `/downloading` or `/speedtest/download`
+- Upload: `/upload` or `/speedtest/upload.php`
 
-## Android Build Matrix (Flutter 3.47.x)
+## Android Build Matrix (Flutter 3.47.x+)
 
-| Component | Version | Catatan |
-|-----------|---------|---------|
-| **Gradle** | **9.1.0** | Min Flutter 3.47 ≈ 8.14; recommended ≥ 9.1 |
-| **AGP** | **9.0.1** | + `android.newDsl=false` |
-| **Kotlin** | **2.2.20** | Min Flutter 3.47 |
+| Component | Version | Notes |
+|-----------|---------|-------|
+| **Gradle** | **9.1.0** | Recommended ≥ 9.1 |
+| **AGP** | **9.0.1** | Requires Java 17 |
+| **Kotlin** | **Built-in (AGP 9)** | `android.builtInKotlin=true` |
 | **Java** | **17** | |
 
-### `android/gradle.properties` (penting)
+### `android/gradle.properties` (important)
 
 ```
 android.newDsl=false
-android.builtInKotlin=false
+android.builtInKotlin=true
 ```
 
-Tanpa dua flag ini, AGP 9 memaksa new DSL / built-in Kotlin dan Flutter Gradle plugin bisa gagal.
+- `android.builtInKotlin=true` — migrated to AGP built-in Kotlin (no separate `kotlin-android` plugin in the app module).
+- `android.newDsl=false` — kept for compatibility until all Flutter plugins fully support the new AGP DSL.
+
+### App module (`android/app/build.gradle.kts`)
+
+- Plugins: `com.android.application` + Flutter Gradle plugin only (no `kotlin-android`).
+- JVM target: set via `kotlin { compilerOptions { jvmTarget = JVM_17 } }`.
 
 ## Build
 
@@ -34,8 +40,16 @@ flutter test
 flutter build apk --release
 ```
 
-APK: `build/app/outputs/flutter-apk/app-release.apk`
+APK output: `build/app/outputs/flutter-apk/app-release.apk`
 
 ## Signing
 
-Lihat **KEYSTORE.md**.
+See **KEYSTORE.md**.
+
+## Migration notes (Built-in Kotlin)
+
+Followed: https://docs.flutter.dev/release/breaking-changes/migrate-to-built-in-kotlin/for-app-developers
+
+1. Removed `id("kotlin-android")` from the app plugins block.
+2. Kept / used the `kotlin { compilerOptions { ... } }` block.
+3. Set `android.builtInKotlin=true` in `gradle.properties`.

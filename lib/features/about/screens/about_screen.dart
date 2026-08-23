@@ -5,7 +5,7 @@ import '../../../core/constants/app_constants.dart';
 class AboutScreen extends StatelessWidget {
   const AboutScreen({super.key});
 
-  // Selaras dengan tema MPorT (hijau) + aksen premium
+  // Aligned with MPorT theme (green) + premium accent
   static const Color primaryColor = Color(0xFF00E5A0);
   static const Color primaryGold = Color(0xFFD4AF37);
   static const Color darkBackground = Color(0xFF0B0B0F);
@@ -21,7 +21,7 @@ class AboutScreen extends StatelessWidget {
         elevation: 0,
         centerTitle: true,
         title: const Text(
-          'Tentang Aplikasi',
+          'About',
           style: TextStyle(
             color: Colors.white,
             fontSize: 19,
@@ -120,7 +120,7 @@ class AboutScreen extends StatelessWidget {
         children: [
           _sectionTitle(
             icon: Icons.info_outline_rounded,
-            title: 'Tentang MPorT',
+            title: 'About MPorT',
           ),
           const SizedBox(height: 14),
           const Text(
@@ -194,7 +194,7 @@ class AboutScreen extends StatelessWidget {
             value: AppConstants.appName,
           ),
           _infoRow(
-            title: 'Versi',
+            title: 'Version',
             value: AppConstants.appVersion,
           ),
           _infoRow(

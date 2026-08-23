@@ -33,7 +33,7 @@ class SpeedTestService {
       },
     );
 
-    // Upload: jangan gagalkan seluruh tes jika upload error
+    // Upload: do not fail the whole test if upload errors
     double uploadMbps = 0;
     onProgress?.call(SpeedTestPhase.upload, 0);
     try {
@@ -44,7 +44,7 @@ class SpeedTestService {
       );
       uploadMbps = uploadResult.mbps;
     } catch (_) {
-      // Upload gagal — tetap lanjut simpan hasil ping + download
+      // Upload failed — still keep ping + download results
       uploadMbps = 0;
       onProgress?.call(SpeedTestPhase.upload, 0);
     }

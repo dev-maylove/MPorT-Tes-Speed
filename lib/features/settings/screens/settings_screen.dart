@@ -20,14 +20,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(title: const Text('Pengaturan', style: TextStyle(color: AppColors.textPrimary))),
+      appBar: AppBar(title: const Text('Settings', style: TextStyle(color: AppColors.textPrimary))),
       body: ListView(
         children: [
           const SizedBox(height: 8),
-          const _SectionHeader(title: 'Umum'),
+          const _SectionHeader(title: 'General'),
           SettingsTile(
             icon: Icons.speed_rounded,
-            title: 'Satuan Kecepatan',
+            title: 'Speed Unit',
             subtitle: _speedUnit,
             trailing: DropdownButton<String>(
               value: _speedUnit,
@@ -43,15 +43,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           SettingsTile(
             icon: Icons.palette_outlined,
-            title: 'Tema',
+            title: 'Theme',
             subtitle: _themeLabel(_themeMode),
             trailing: DropdownButton<ThemeMode>(
               value: _themeMode,
               underline: const SizedBox.shrink(),
               items: const [
-                DropdownMenuItem(value: ThemeMode.system, child: Text('Sistem')),
-                DropdownMenuItem(value: ThemeMode.light, child: Text('Terang')),
-                DropdownMenuItem(value: ThemeMode.dark, child: Text('Gelap')),
+                DropdownMenuItem(value: ThemeMode.system, child: Text('System')),
+                DropdownMenuItem(value: ThemeMode.light, child: Text('Light')),
+                DropdownMenuItem(value: ThemeMode.dark, child: Text('Dark')),
               ],
               onChanged: (v) {
                 if (v != null) setState(() => _themeMode = v);
@@ -59,11 +59,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
           const Divider(),
-          const _SectionHeader(title: 'Jaringan'),
+          const _SectionHeader(title: 'Network'),
           SettingsTile(
             icon: Icons.report_problem_outlined,
             title: 'Downdetector',
-            subtitle: 'Cek gangguan layanan',
+            subtitle: 'Check service outages',
             onTap: () {
               Navigator.of(context).push(
                 MaterialPageRoute(builder: (_) => const DowndetectorScreen()),
@@ -71,11 +71,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
             },
           ),
           const Divider(),
-          const _SectionHeader(title: 'Lainnya'),
+          const _SectionHeader(title: 'Other'),
           SettingsTile(
             icon: Icons.info_outline_rounded,
-            title: 'Tentang Aplikasi',
-            subtitle: 'Versi ${AppConstants.appVersion}',
+            title: 'About',
+            subtitle: 'Version ${AppConstants.appVersion}',
             onTap: () {
               Navigator.of(context).push(
                 MaterialPageRoute(builder: (_) => const AboutScreen()),
@@ -98,11 +98,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
   String _themeLabel(ThemeMode mode) {
     switch (mode) {
       case ThemeMode.system:
-        return 'Ikuti sistem';
+        return 'Follow system';
       case ThemeMode.light:
-        return 'Terang';
+        return 'Light';
       case ThemeMode.dark:
-        return 'Gelap';
+        return 'Dark';
     }
   }
 }

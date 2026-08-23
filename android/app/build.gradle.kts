@@ -4,7 +4,7 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     id("com.android.application")
-    id("kotlin-android")
+    // kotlin-android plugin removed — using built-in Kotlin (AGP 9+)
     id("dev.flutter.flutter-gradle-plugin")
 }
 

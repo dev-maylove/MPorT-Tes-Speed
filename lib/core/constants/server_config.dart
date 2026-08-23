@@ -1,12 +1,12 @@
-/// Konfigurasi server speed test (gaya OpenSpeedTest).
+/// Speed test server configuration (OpenSpeedTest-style).
 ///
-/// Endpoint standar:
+/// Standard endpoints:
 /// - Download: GET  /downloading
 /// - Upload:   POST /upload
 ///
-/// Server aktif bisa diganti lewat [useServer] (multi-server / terdekat).
+/// Active server can be changed via [useServer] (multi-server / nearest).
 class ServerConfig {
-  // ── Server aktif (bisa diubah runtime) ──────────────────
+  // ── Active server (runtime-switchable) ──────────────────
   static String baseUrl = 'http://ookla.haansiro.net:8080';
   static String downloadPath = '/speedtest/download';
   static String uploadPath = '/speedtest/upload.php';
@@ -17,7 +17,7 @@ class ServerConfig {
   static String get uploadUrl => '$baseUrl$uploadPath';
   static String get pingUrl => '$baseUrl$pingPath';
 
-  /// WebSocket real-time (status / latency).
+  /// Real-time WebSocket (status / latency).
   static String wsPath = '/ws';
   static String get wsUrl {
     final base = baseUrl.replaceFirst('https://', 'wss://').replaceFirst('http://', 'ws://');
@@ -39,7 +39,7 @@ class ServerConfig {
     return '$uploadUrl${sep}n=$n';
   }
 
-  /// Ganti server aktif (dipanggil saat pilih / auto-nearest).
+  /// Switch active server (called on select / auto-nearest).
   static void useServer({
     required String host,
     required String name,
@@ -56,25 +56,25 @@ class ServerConfig {
     pingPath = ping;
   }
 
-  // ── Durasi tes (detik) ──────────────────────────────────
+  // ── Test duration (seconds) ─────────────────────────────
   static const int downloadDurationSeconds = 15;
   static const int uploadDurationSeconds = 15;
   static const int gracePeriodSeconds = 2;
 
-  // ── Parallelisme ────────────────────────────────────────
+  // ── Parallelism ─────────────────────────────────────────
   static const int downloadThreads = 6;
   static const int uploadThreads = 4;
 
-  // ── Payload upload ──────────────────────────────────────
+  // ── Upload payload ──────────────────────────────────────
   static const int uploadPayloadMegabytes = 1;
 
-  // ── Ping (ringan, hasil serendah mungkin) ───────────────
+  // ── Ping (lightweight, aim for lowest result) ───────────
   static const int pingSamples = 16;
   static const int pingWarmup = 3;
   static const int pingIntervalMs = 10;
   static const int pingTrimCount = 4;
 
-  // ── Koreksi overhead ────────────────────────────────────
+  // ── Overhead correction ─────────────────────────────────
   static const double overheadAdjustment = 1.06;
 
   // ── Timeout ─────────────────────────────────────────────

@@ -110,7 +110,7 @@ class DownloadService {
     if (measureSeconds <= 0 || measureBytes <= 0) {
       final sec = stopwatch.elapsedMicroseconds / 1e6;
       if (sec <= 0 || totalBytes <= 0) {
-        throw Exception('Download gagal');
+        throw Exception('Download failed');
       }
       final mbps =
           totalBytes * 8 / sec / 1e6 * ServerConfig.overheadAdjustment;

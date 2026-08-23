@@ -6,7 +6,7 @@ import 'package:video_player/video_player.dart';
 
 import '../../speed_test/screens/main_screen.dart';
 
-/// Splash screen MPorT Go — memutar video animasi logo, lalu ke MainScreen.
+/// MPorT Go splash screen — plays logo animation video, then navigates to MainScreen.
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 
@@ -46,19 +46,19 @@ class _SplashScreenState extends State<SplashScreen> {
       await controller.initialize();
       if (!mounted) return;
 
-      // Video square 1080x1080, putar sekali
+      // Square 1080x1080 video, play once
       await controller.setLooping(false);
-      await controller.setVolume(0); // tanpa audio
+      await controller.setVolume(0); // mute audio
 
       controller.addListener(_onVideoUpdate);
 
       setState(() => _initialized = true);
       await controller.play();
 
-      // Fallback: jika video tidak fire completion (edge case)
+      // Fallback: if video does not fire completion (edge case)
       Timer(const Duration(milliseconds: 5500), _goToHome);
     } catch (e) {
-      // Jika video gagal load, langsung lanjut ke home
+      // If video fails to load, continue to home immediately
       if (mounted) {
         setState(() => _hasError = true);
         Timer(const Duration(milliseconds: 800), _goToHome);
@@ -73,7 +73,7 @@ class _SplashScreenState extends State<SplashScreen> {
     final pos = c.value.position;
     final dur = c.value.duration;
 
-    // Navigasi saat video hampir selesai
+    // Navigate when video is almost finished
     if (dur.inMilliseconds > 0 &&
         pos.inMilliseconds >= dur.inMilliseconds - 80) {
       _goToHome();
@@ -166,7 +166,7 @@ class _SplashScreenState extends State<SplashScreen> {
               ),
             ),
 
-          // Soft vignette agar tepi video lebih menyatu dengan hitam
+          // Soft vignette so video edges blend better into black
           if (_initialized && !_hasError)
             IgnorePointer(
               child: DecoratedBox(

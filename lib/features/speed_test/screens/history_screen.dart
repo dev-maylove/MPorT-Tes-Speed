@@ -54,7 +54,7 @@ class HistoryScreenState extends State<HistoryScreen> {
       backgroundColor: AppColors.background,
       appBar: AppBar(
         title: const Text(
-          'Riwayat Tes',
+          'Test History',
           style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w700),
         ),
         backgroundColor: AppColors.background,

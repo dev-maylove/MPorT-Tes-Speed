@@ -17,7 +17,7 @@ class PingService {
   /// Ping ultra-ringan — hasil sekecil mungkin:
   /// - keep-alive, HEAD dulu
   /// - banyak sample, ambil minimum murni
-  /// - jitter dihitung dari sample stabil, tetap tampil (tidak di-zero)
+  /// - jitter is calculated from stable samples and always shown (not zeroed)
   Future<PingResult> test({
     int samples = ServerConfig.pingSamples,
   }) async {
@@ -53,12 +53,12 @@ class PingService {
     }
 
     if (samplesMs.isEmpty) {
-      throw Exception('Ping gagal — server tidak merespons');
+      throw Exception('Ping failed — server did not respond');
     }
 
     final sorted = List<double>.from(samplesMs)..sort();
 
-    // Buang outlier tertinggi agar ping lebih kecil & stabil
+    // Drop the highest outliers so ping is lower and more stable
     var working = sorted;
     const trim = ServerConfig.pingTrimCount;
     if (working.length > trim + 2) {
@@ -68,7 +68,7 @@ class PingService {
     // Ping = nilai TERKECIL (best latency)
     var ping = working.reduce(math.min);
 
-    // Koreksi overhead HTTP/TLS agar angka lebih realistis & kecil
+    // Correct HTTP/TLS overhead so numbers are more realistic and lower
     // (HTTP RTT biasanya 1–3 ms lebih tinggi dari ICMP)
     ping = math.max(1.0, ping * 0.82);
 

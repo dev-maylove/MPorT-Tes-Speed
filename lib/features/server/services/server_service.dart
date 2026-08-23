@@ -118,14 +118,14 @@ class ServerService extends ChangeNotifier {
             bestLat = lat;
             final updated = s.copyWith(latencyMs: lat);
             best = updated;
-            // Update UI segera agar user lihat server terpilih
+            // Update UI immediately so the user sees the selected server
             _selected = updated;
             _applySelected();
             notifyListeners();
           }
         }
 
-        // Early stop: latency sangat baik → tidak perlu probe sisa
+        // Early stop: latency is very good → no need to probe the rest
         if (bestLat < 12) break;
       }
 
@@ -146,7 +146,7 @@ class ServerService extends ChangeNotifier {
         // Fallback default
         _selected = TestServer.haansiro();
         _applySelected();
-        _error = 'Probe gagal — memakai server default';
+        _error = 'Probe failed — using default server';
       }
 
       _autoDone = true;
@@ -188,7 +188,7 @@ class ServerService extends ChangeNotifier {
         }
       }
       if (attempt == 0 && samples.isNotEmpty) {
-        // jeda sangat singkat antar sampel
+        // very short pause between samples
         await Future<void>.delayed(const Duration(milliseconds: 20));
       }
     }

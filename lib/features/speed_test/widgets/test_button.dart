@@ -20,7 +20,7 @@ class TestButton extends StatelessWidget {
   Widget build(BuildContext context) {
     if (isRunning) {
       return AppButton(
-        label: 'Batalkan',
+        label: 'Cancel',
         isOutlined: true,
         icon: Icons.stop_rounded,
         onPressed: onCancel,
@@ -32,15 +32,15 @@ class TestButton extends StatelessWidget {
     IconData icon;
     switch (phase) {
       case SpeedTestPhase.completed:
-        label = 'Tes Lagi';
+        label = 'Test Again';
         icon = Icons.refresh_rounded;
         break;
       case SpeedTestPhase.error:
-        label = 'Coba Lagi';
+        label = 'Try Again';
         icon = Icons.refresh_rounded;
         break;
       default:
-        label = 'Mulai Tes';
+        label = 'Start Test';
         icon = Icons.play_arrow_rounded;
     }
 

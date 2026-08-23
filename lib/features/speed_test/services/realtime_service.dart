@@ -14,7 +14,7 @@ enum RealtimeStatus { disconnected, connecting, connected, error }
 /// - client → server: `{"type":"ping","t":<ms>}`
 /// - server → client: `{"type":"pong","t":<ms>}` atau pesan status lain
 ///
-/// Jika endpoint WS tidak tersedia, service tetap aman (status error)
+/// If the WS endpoint is unavailable, the service stays safe (error status)
 /// dan app lanjut memakai HTTP seperti biasa.
 class RealtimeService extends ChangeNotifier {
   RealtimeService._();

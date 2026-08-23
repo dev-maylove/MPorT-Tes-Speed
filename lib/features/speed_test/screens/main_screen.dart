@@ -10,7 +10,7 @@ import 'speed_test_screen.dart';
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
 
-  /// Dibuka dari tombol hamburger di tab anak.
+  /// Opened from the hamburger button in child tabs.
   static final scaffoldKey = GlobalKey<ScaffoldState>();
 
   @override
@@ -31,7 +31,7 @@ class _MainScreenState extends State<MainScreen> {
         ScaffoldMessenger.of(context).hideCurrentSnackBar();
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Ketuk sekali lagi untuk keluar'),
+            content: Text('Press back again to exit'),
             duration: Duration(seconds: 2),
             behavior: SnackBarBehavior.floating,
           ),
@@ -39,7 +39,7 @@ class _MainScreenState extends State<MainScreen> {
       }
       return false;
     }
-    // Keluar aplikasi
+    // Exit the app
     SystemNavigator.pop();
     return true;
   }
@@ -77,12 +77,12 @@ class _MainScreenState extends State<MainScreen> {
             NavigationDestination(
               icon: Icon(Icons.speed_outlined),
               selectedIcon: Icon(Icons.speed),
-              label: 'Tes Speed',
+              label: 'Speed Test',
             ),
             NavigationDestination(
               icon: Icon(Icons.history_outlined),
               selectedIcon: Icon(Icons.history),
-              label: 'Riwayat',
+              label: 'History',
             ),
             NavigationDestination(
               icon: Icon(Icons.map_outlined),

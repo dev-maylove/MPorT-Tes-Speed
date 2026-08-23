@@ -1,7 +1,8 @@
 class AppConstants {
   static const String appName = 'MPorT Go';
-  static const String appVersion = '1.9.0';
-  static const String appBuild = '19';
+  /// Keep in sync with pubspec.yaml version (name+build).
+  static const String appVersion = '1.9.2';
+  static const String appBuild = '21';
 
   static const String defaultSpeedUnit = 'Mbps';
   static const String defaultLatencyUnit = 'ms';
@@ -11,7 +12,7 @@ class AppConstants {
   static const int defaultUploadDurationSeconds = 10;
   static const int connectionTimeoutSeconds = 15;
 
-  /// Jumlah koneksi paralel (gaya OpenSpeedTest)
+  /// Parallel connections (OpenSpeedTest-style).
   static const int parallelConnections = 4;
 
   static const int maxHistoryItems = 100;

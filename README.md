@@ -1,46 +1,61 @@
-MPorT Go
+# MPorT Go
 
-Aplikasi Flutter untuk menguji kecepatan internet menggunakan server pengujian yang dikonfigurasi oleh aplikasi.
+Flutter application for accurate internet speed testing using application-configured test servers.
 
-Fitur
+## Features
 
 - Ping & Jitter
-- Download speed dengan 6 parallel threads
-- Upload speed dengan 6 parallel threads
-- Payload upload 4 MB
-- Gauge kecepatan dengan tema dark + gold
-- Riwayat hasil pengujian secara lokal menggunakan SharedPreferences
-- Navigasi bottom:
-  - Tes Speed
-  - Riwayat
+- Download speed with parallel threads
+- Upload speed with parallel threads
+- Speed gauge with dark theme
+- Local test history via SharedPreferences
+- Bottom navigation:
+  - Speed Test
+  - History
+  - (Maps, Server, Settings, About, etc.)
 
-Mesin Speed Test
+## Speed Test Engine
 
-Aplikasi menggunakan mesin pengujian untuk melakukan:
+The app performs:
 
-- Pengujian latency
-- Pengukuran jitter
-- Pengujian download
-- Pengujian upload
-- Koneksi paralel untuk meningkatkan akurasi pengukuran
-- Penyesuaian overhead pada hasil pengukuran
+- Latency testing
+- Jitter measurement
+- Download testing
+- Upload testing
+- Parallel connections for better accuracy
+- Overhead adjustment on results
 
-Detail endpoint, alamat server, dan konfigurasi infrastruktur tidak dipublikasikan dalam dokumentasi proyek.
+Endpoint details, server addresses, and infrastructure configuration are managed inside the app and are not published in project documentation.
 
-Menjalankan
+## Getting started
 
-flutter create . --project-name mport_test_speed --org com.mport
+```bash
 flutter pub get
 flutter run
+```
 
-Konfigurasi Server
+## Release build (Android)
 
-Konfigurasi server pengujian dikelola secara internal oleh aplikasi dan tidak ditampilkan pada dokumentasi publik.
+See **README_BUILD.md** and **KEYSTORE.md**.
 
-Jangan memasukkan alamat server internal, credential, API key, token, atau konfigurasi rahasia ke dalam README atau repository publik.
+```bash
+flutter clean
+flutter pub get
+flutter build apk --release
+```
 
-Catatan
+APK: `build/app/outputs/flutter-apk/app-release.apk`
 
-- Pengukuran sebaiknya diuji pada perangkat nyata.
-- Hasil speed test dapat dipengaruhi oleh kondisi jaringan, perangkat, lokasi server, dan trafik.
-- Struktur aplikasi dirancang agar dapat dikembangkan lebih lanjut dengan fitur tambahan seperti server selection, settings, about, dan network diagnostics.
+## Built-in Kotlin (AGP 9+)
+
+This project has been migrated to AGP built-in Kotlin:
+
+- `android.builtInKotlin=true` in `android/gradle.properties`
+- `kotlin-android` plugin removed from `android/app/build.gradle.kts`
+- Kotlin JVM target set via `kotlin { compilerOptions { ... } }`
+
+Guide: https://docs.flutter.dev/release/breaking-changes/migrate-to-built-in-kotlin/for-app-developers
+
+## Security note
+
+Do not commit internal server addresses, credentials, API keys, tokens, or secrets into the public README or repository.

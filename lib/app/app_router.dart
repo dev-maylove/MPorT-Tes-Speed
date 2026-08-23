@@ -29,7 +29,7 @@ class AppRouter {
         return MaterialPageRoute(
           builder: (_) => Scaffold(
             body: Center(
-              child: Text('Route tidak ditemukan: ${settings.name}'),
+              child: Text('Route not found: ${settings.name}'),
             ),
           ),
         );

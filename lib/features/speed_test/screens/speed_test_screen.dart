@@ -262,7 +262,7 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
         running = false;
       });
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Tes gagal: $e')),
+        SnackBar(content: Text('Test failed: $e')),
       );
     }
   }

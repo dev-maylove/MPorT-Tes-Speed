@@ -10,17 +10,17 @@ class TestProgress extends StatelessWidget {
   String get _label {
     switch (phase) {
       case SpeedTestPhase.ping:
-        return 'Mengukur Ping...';
+        return 'Measuring Ping...';
       case SpeedTestPhase.download:
-        return 'Mengukur Download...';
+        return 'Measuring Download...';
       case SpeedTestPhase.upload:
-        return 'Mengukur Upload...';
+        return 'Measuring Upload...';
       case SpeedTestPhase.completed:
-        return 'Selesai';
+        return 'Completed';
       case SpeedTestPhase.error:
-        return 'Terjadi kesalahan';
+        return 'An error occurred';
       case SpeedTestPhase.idle:
-        return 'Siap untuk tes';
+        return 'Ready to test';
     }
   }
 

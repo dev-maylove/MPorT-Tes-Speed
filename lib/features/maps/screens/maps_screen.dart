@@ -7,7 +7,7 @@ import '../../server/services/server_service.dart';
 import '../../speed_test/models/test_server.dart';
 
 /// Peta server — dioptimalkan:
-/// - 1x load HTML (tidak reload saat ganti fokus)
+/// - Load HTML once (do not reload when switching tabs)
 /// - pan via JavaScript
 /// - marker digabung per koordinat
 /// - tile ringan + preferCanvas
@@ -36,7 +36,7 @@ class _MapsScreenState extends State<MapsScreen>
         .where((s) => s.latitude != null && s.longitude != null)
         .toList();
     _focus = ServerService.instance.selected;
-    // Delay init WebView 1 frame agar tab lain tidak terblokir
+    // Delay WebView init by 1 frame so other tabs are not blocked
     WidgetsBinding.instance.addPostFrameCallback((_) => _initMap());
   }
 
@@ -183,7 +183,7 @@ window.panTo=function(lat,lon,z){
         backgroundColor: AppColors.background,
         automaticallyImplyLeading: false,
         title: const Text(
-          'Peta Server',
+          'Server Map',
           style: TextStyle(
             color: AppColors.textPrimary,
             fontWeight: FontWeight.w700,
