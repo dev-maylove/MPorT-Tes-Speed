@@ -1,59 +1,46 @@
-# MPorT Tes Speed
+MPorT Tes Speed
 
-Aplikasi Flutter untuk menguji kecepatan internet menggunakan server **HaaNSirO**.
+Aplikasi Flutter untuk menguji kecepatan internet menggunakan server pengujian yang dikonfigurasi oleh aplikasi.
 
-## Server
-
-- Base URL: `https://speed2.haansiro.id`
-- Download: `GET /downloading`
-- Upload: `POST /upload`
-
-Implementasi mengikuti endpoint mesin speed-test yang dikonfigurasi (koneksi paralel 6 thread + overhead adjustment). Server dapat memiliki scheme HTTPS/HTTP, endpoint download, dan endpoint upload sendiri.
-
-## Fitur
+Fitur
 
 - Ping & Jitter
-- Download speed (6 parallel threads)
-- Upload speed (6 parallel threads, payload 4 MB)
-- Gauge speed (tema dark + gold)
-- Riwayat hasil lokal (SharedPreferences)
-- Navigasi bottom: Tes Speed | Riwayat
+- Download speed dengan 6 parallel threads
+- Upload speed dengan 6 parallel threads
+- Payload upload 4 MB
+- Gauge kecepatan dengan tema dark + gold
+- Riwayat hasil pengujian secara lokal menggunakan SharedPreferences
+- Navigasi bottom:
+  - Tes Speed
+  - Riwayat
 
-## Struktur
+Mesin Speed Test
 
-```
-lib/
-├── main.dart
-├── app/                    # Router & theme (opsional / ekspansi)
-├── core/
-│   ├── constants/          # server_config, app_constants
-│   ├── network/
-│   ├── storage/
-│   ├── utils/
-│   └── widgets/
-└── features/
-    ├── speed_test/         # Mesin utama + UI
-    │   ├── models/
-    │   ├── services/       # ping, download, upload, history
-    │   └── screens/        # main, speed_test, history
-    ├── history/
-    ├── server/
-    ├── settings/
-    └── about/
-```
+Aplikasi menggunakan mesin pengujian untuk melakukan:
 
-## Menjalankan
+- Pengujian latency
+- Pengukuran jitter
+- Pengujian download
+- Pengujian upload
+- Koneksi paralel untuk meningkatkan akurasi pengukuran
+- Penyesuaian overhead pada hasil pengukuran
 
-```bash
+Detail endpoint, alamat server, dan konfigurasi infrastruktur tidak dipublikasikan dalam dokumentasi proyek.
+
+Menjalankan
+
 flutter create . --project-name mport_test_speed --org com.mport
 flutter pub get
 flutter run
-```
 
-## Catatan
+Konfigurasi Server
 
-- Pengukuran perlu diuji di perangkat nyata.
-- Struktur feature-based disiapkan untuk ekspansi (server selection, settings, about).
+Konfigurasi server pengujian dikelola secara internal oleh aplikasi dan tidak ditampilkan pada dokumentasi publik.
 
-## CBN engine note
-CBN servers are discovered dynamically from the CBN Speedtest Custom server API. The app uses the official `https://cbn.speedtestcustom.com` web engine for CBN tests. The discovered server host/latency is displayed as a server diagnostic; the app does not inject undocumented server-selection parameters into the CBN engine.
+Jangan memasukkan alamat server internal, credential, API key, token, atau konfigurasi rahasia ke dalam README atau repository publik.
+
+Catatan
+
+- Pengukuran sebaiknya diuji pada perangkat nyata.
+- Hasil speed test dapat dipengaruhi oleh kondisi jaringan, perangkat, lokasi server, dan trafik.
+- Struktur aplikasi dirancang agar dapat dikembangkan lebih lanjut dengan fitur tambahan seperti server selection, settings, about, dan network diagnostics.
