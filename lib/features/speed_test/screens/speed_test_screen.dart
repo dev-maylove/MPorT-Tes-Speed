@@ -317,11 +317,7 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
       });
       _animateGaugeTo(result.download);
 
-      Future.delayed(const Duration(milliseconds: 1800), () {
-        if (mounted && phase == SpeedTestPhase.completed) {
-          _animateGaugeTo(0);
-        }
-      });
+      // Keep final speed on the gauge (do not reset to 0).
 
       await _historyService.addResult(
         ping: result.ping,
@@ -803,7 +799,7 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
                     _qualityIcon(Icons.videocam_outlined, _qualityDots(upload)),
                   ],
                 ),
-                // Gauge with GO-button style glow behind the speed number
+                // Gauge: arc + MPorT GO logo background (standby button style)
                 Expanded(
                   child: Center(
                     child: SizedBox(
@@ -812,39 +808,88 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
                       child: AnimatedBuilder(
                         animation: Listenable.merge([_pulseCtrl, _gaugeCtrl]),
                         builder: (context, child) {
-                          final pulse = running ? _pulseCtrl.value : 0.35;
-                          final glowBoost = 0.28 + (pulse * 0.14);
+                          final pulse = running ? _pulseCtrl.value : 0.4;
+                          final glowBoost = 0.32 + (pulse * 0.14);
                           return Stack(
                             alignment: Alignment.center,
                             children: [
-                              // Soft green radial glow (same language as GO button)
+                              // Outer soft glow (matches GO button)
                               Container(
-                                width: 190,
-                                height: 190,
+                                width: 200,
+                                height: 200,
                                 decoration: BoxDecoration(
                                   shape: BoxShape.circle,
                                   boxShadow: [
                                     BoxShadow(
                                       color: gold.withValues(alpha: glowBoost),
-                                      blurRadius: 40 + pulse * 14,
-                                      spreadRadius: 4 + pulse * 4,
+                                      blurRadius: 36 + pulse * 14,
+                                      spreadRadius: 2 + pulse * 4,
                                     ),
                                     BoxShadow(
-                                      color: goldLight.withValues(alpha: 0.10 + pulse * 0.06),
-                                      blurRadius: 24,
-                                      spreadRadius: 1,
+                                      color: goldLight.withValues(
+                                        alpha: 0.10 + pulse * 0.06,
+                                      ),
+                                      blurRadius: 56,
+                                      spreadRadius: 6,
                                     ),
                                   ],
-                                  gradient: RadialGradient(
-                                    colors: [
-                                      gold.withValues(alpha: 0.16 + pulse * 0.08),
-                                      gold.withValues(alpha: 0.05),
-                                      Colors.transparent,
-                                    ],
-                                    stops: const [0.0, 0.55, 1.0],
+                                ),
+                              ),
+                              // MPorT GO logo (same asset as GO button)
+                              ClipOval(
+                                child: Image.asset(
+                                  'assets/images/mport_logo.png',
+                                  width: 168,
+                                  height: 168,
+                                  fit: BoxFit.cover,
+                                  filterQuality: FilterQuality.high,
+                                ),
+                              ),
+                              // Dark veil so speed digits stay readable
+                              Container(
+                                width: 168,
+                                height: 168,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: Colors.black.withValues(
+                                    alpha: running ||
+                                            phase == SpeedTestPhase.completed
+                                        ? 0.45
+                                        : 0.25,
                                   ),
                                 ),
                               ),
+                              // Glass ring
+                              IgnorePointer(
+                                child: Container(
+                                  width: 168,
+                                  height: 168,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                      color: Colors.white.withValues(alpha: 0.28),
+                                      width: 1.5,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              // Accent ring
+                              IgnorePointer(
+                                child: Container(
+                                  width: 176,
+                                  height: 176,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                      color: gold.withValues(
+                                        alpha: 0.35 + pulse * 0.25,
+                                      ),
+                                      width: 1.5,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              // Progress arc on top
                               CustomPaint(
                                 size: const Size(240, 240),
                                 painter: _ArcGaugePainter(
@@ -863,7 +908,7 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
                     ),
                   ),
                 ),
-                // Bottom: ISP + server (running) or full result panel (completed)
+                // Bottom: full result panel when done; ISP + device while running
                 if (phase == SpeedTestPhase.completed)
                   _resultFooter()
                 else
@@ -880,25 +925,37 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
   Widget _gaugeCenterValue() {
     final show = running || phase == SpeedTestPhase.completed;
     if (!show) return const SizedBox.shrink();
-    final value = running ? _animSpeed : (download ?? 0);
+    final value = running ? _animSpeed : (download ?? _animSpeed);
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         Text(
           value.toStringAsFixed(1),
-          style: const TextStyle(
+          style: TextStyle(
             color: AppColors.textPrimary,
             fontSize: 40,
             fontWeight: FontWeight.w800,
             height: 1,
+            shadows: [
+              Shadow(
+                color: Colors.black.withValues(alpha: 0.75),
+                blurRadius: 12,
+              ),
+            ],
           ),
         ),
         Text(
           _unit,
-          style: const TextStyle(
+          style: TextStyle(
             color: goldLight,
             fontSize: 14,
             fontWeight: FontWeight.w600,
+            shadows: [
+              Shadow(
+                color: Colors.black.withValues(alpha: 0.6),
+                blurRadius: 8,
+              ),
+            ],
           ),
         ),
       ],
@@ -906,49 +963,90 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
   }
 
   Widget _testingIspServerRow() {
-    return Row(
-      children: [
-        Expanded(
-          child: Row(
-            children: [
-              Flexible(
-                child: Text(
-                  _ispLabel,
+    final loc = _serverService.selected.location.isNotEmpty
+        ? _serverService.selected.location
+        : 'Pati';
+    final serverName = _serverDisplay ?? 'HaaNSirO';
+    return Padding(
+      padding: const EdgeInsets.only(top: 4),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        _ispLabel,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: AppColors.textSecondary,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    const Icon(Icons.phone_android_rounded,
+                        color: AppColors.textMuted, size: 14),
+                  ],
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  _deviceModel,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    color: AppColors.textSecondary,
-                    fontSize: 12,
+                    color: AppColors.textMuted,
+                    fontSize: 11,
                   ),
                 ),
-              ),
-              const SizedBox(width: 4),
-              const Icon(Icons.wifi, color: AppColors.textMuted, size: 14),
-            ],
+              ],
+            ),
           ),
-        ),
-        Expanded(
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              const Icon(Icons.dns, color: AppColors.textMuted, size: 14),
-              const SizedBox(width: 4),
-              Flexible(
-                child: Text(
-                  '${_serverDisplay ?? 'HaaNSirO'} · ${_serverService.selected.location.isNotEmpty ? _serverService.selected.location : 'Pati'}',
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    const Icon(Icons.dns_rounded,
+                        color: AppColors.textMuted, size: 14),
+                    const SizedBox(width: 4),
+                    Flexible(
+                      child: Text(
+                        serverName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.right,
+                        style: const TextStyle(
+                          color: AppColors.textSecondary,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  loc,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.right,
                   style: const TextStyle(
-                    color: AppColors.textSecondary,
-                    fontSize: 12,
+                    color: AppColors.textMuted,
+                    fontSize: 11,
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
