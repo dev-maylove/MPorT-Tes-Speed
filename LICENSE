@@ -1,4 +1,4 @@
-MIT License
+MPorT — MIT License
 
 Copyright (c) 2026 MPorT
 
@@ -9,8 +9,129 @@ to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 copies of the Software, and to permit persons to whom the Software is
 furnished to do so, subject to the following conditions:
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+1. Copyright Notice and License Notice
+   
+   The above copyright notice and this permission notice shall be included in
+   all copies or substantial portions of the Software.
+
+2. Source Code and Modifications
+   
+   You are permitted to use, copy, modify, merge, publish, distribute,
+   sublicense, and sell copies of the Software, including modified versions,
+   provided that the copyright notice and this license notice are retained in
+   all copies or substantial portions of the Software.
+
+3. Commercial Use
+   
+   Commercial use of the Software is permitted.
+   
+   You may incorporate the Software, in whole or in part, into commercial
+   applications, services, products, or other software, subject to the terms
+   and conditions of this license.
+
+4. Distribution
+   
+   You may distribute original or modified copies of the Software in source
+   code or compiled/binary form, provided that this copyright notice and
+   license notice are included with the distributed Software or its
+   substantial portions.
+
+5. Sublicensing
+   
+   You may sublicense the Software or portions of the Software under different
+   terms, provided that the portions originally covered by this license remain
+   subject to the permissions and conditions of this MIT License.
+
+6. Attribution
+   
+   Any redistribution of the Software, whether modified or unmodified, must
+   preserve the following attribution:
+   
+   Copyright (c) 2026 MPorT
+   
+   together with this MIT License.
+
+7. Trademarks and Branding
+   
+   This license does not grant permission to use the name "MPorT", the MPorT
+   name, logo, brand identity, trademarks, service marks, product names, or
+   other branding associated with the MPorT project for the purpose of
+   implying endorsement, sponsorship, affiliation, or official status.
+   
+   Any use of MPorT trademarks or branding is subject to applicable trademark
+   laws and any separate permission granted by the respective rights holder.
+
+8. Third-Party Components
+   
+   The Software may include, depend upon, or interact with third-party
+   libraries, frameworks, services, assets, fonts, icons, or other components
+   that are distributed under their own licenses.
+   
+   Such third-party components are not necessarily covered by this MIT License.
+   Users and distributors are responsible for complying with the applicable
+   license terms of those components.
+
+9. Assets and Media
+   
+   Unless explicitly stated otherwise in a separate license or notice,
+   this license applies to the software code and associated documentation
+   contributed to the MPorT project.
+   
+   Images, logos, artwork, fonts, icons, audio, video, datasets, API
+   credentials, configuration files containing secrets, and other media or
+   proprietary materials may be subject to separate rights or restrictions.
+
+10. No Warranty
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+
+11. Limitation of Liability
+
+IN NO EVENT SHALL THE AUTHORS, COPYRIGHT HOLDERS, CONTRIBUTORS, OR OTHER
+PARTIES INVOLVED IN THE CREATION, DEVELOPMENT, OR DISTRIBUTION OF THE
+SOFTWARE BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY, WHETHER IN
+AN ACTION OF CONTRACT, TORT, OR OTHERWISE, ARISING FROM, OUT OF, OR IN
+CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+12. No Requirement for Support
+
+Permission to use, modify, or distribute the Software does not create any
+obligation for the copyright holder or contributors to provide technical
+support, maintenance, updates, security fixes, or future versions.
+
+13. Independent Modifications
+
+Modified versions of the Software may be distributed under different
+project names and branding, provided that the copyright and license
+requirements applicable to the original MPorT code are preserved.
+
+14. Acceptance
+
+By using, copying, modifying, or distributing the Software, you acknowledge
+and agree to comply with the terms and conditions of this license.
+
+---
+
+Copyright
+
+Copyright (c) 2026 MPorT
+
+All rights reserved except as expressly granted under this license.
+
+---
+
+License Scope
+
+This license is intended to apply to the MPorT source code and documentation
+unless a specific file, directory, component, or dependency contains a
+different license notice.
+
+Where another license is explicitly identified for a particular component,
+that component shall remain governed by its applicable license.
+
+---
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
