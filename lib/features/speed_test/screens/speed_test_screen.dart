@@ -5,16 +5,16 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
+import '../../../core/constants/server_config.dart';
 import '../../../core/theme/app_colors.dart';
-
+import '../../../core/widgets/app_drawer.dart';
+import '../../server/screens/server_screen.dart';
+import '../../server/services/server_service.dart';
 import '../models/speed_test_state.dart';
 import '../services/history_service.dart';
 import '../services/realtime_service.dart';
 import '../services/speed_test_service.dart';
-import '../../server/screens/server_screen.dart';
-import '../../server/services/server_service.dart';
-import '../../../core/constants/server_config.dart';
-import '../../../core/widgets/app_drawer.dart';
+
 
 class SpeedTestScreen extends StatefulWidget {
   const SpeedTestScreen({super.key});
@@ -466,7 +466,7 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
                       GestureDetector(
                         onTap: () async {
                           await Navigator.of(context).push(
-                            MaterialPageRoute(
+                            MaterialPageRoute<void>(
                                 builder: (_) => const ServerScreen()),
                           );
                           if (mounted) setState(() {});

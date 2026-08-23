@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 
-import '../theme/app_colors.dart';
 import '../../features/about/screens/about_screen.dart';
 import '../../features/downdetector/screens/downdetector_screen.dart';
 import '../../features/server/screens/server_screen.dart';
 import '../../features/settings/screens/settings_screen.dart';
 import '../../features/speed_test/screens/main_screen.dart';
+import '../theme/app_colors.dart';
 
 /// Shared hamburger menu used on main screens.
 class AppDrawer extends StatelessWidget {
@@ -120,7 +120,7 @@ class AppDrawer extends StatelessWidget {
 
   static void _go(BuildContext context, Widget page) {
     Navigator.of(context).pop(); // close drawer
-    Navigator.of(context).push(MaterialPageRoute(builder: (_) => page));
+    Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => page));
   }
 }
 
@@ -136,7 +136,7 @@ Widget appMenuButton(BuildContext context) {
       }
       // Fallback when not inside MainScreen
       Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => const SettingsScreen()),
+        MaterialPageRoute<void>(builder: (_) => const SettingsScreen()),
       );
     },
     icon: const Icon(Icons.menu, color: AppColors.textPrimary),

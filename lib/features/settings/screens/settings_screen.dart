@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
-import '../../../core/theme/app_colors.dart';
+
 import '../../../core/constants/app_constants.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../about/screens/about_screen.dart';
 import '../../downdetector/screens/downdetector_screen.dart';
 import '../widgets/settings_tile.dart';
+
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -66,7 +68,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             subtitle: 'Check service outages',
             onTap: () {
               Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const DowndetectorScreen()),
+                MaterialPageRoute<void>(builder: (_) => const DowndetectorScreen()),
               );
             },
           ),
@@ -78,7 +80,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             subtitle: 'Version ${AppConstants.appVersion}',
             onTap: () {
               Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const AboutScreen()),
+                MaterialPageRoute<void>(builder: (_) => const AboutScreen()),
               );
             },
           ),

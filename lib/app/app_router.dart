@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 
-import '../features/speed_test/screens/history_screen.dart';
-import '../features/speed_test/screens/main_screen.dart';
+import '../features/about/screens/about_screen.dart';
 import '../features/server/screens/server_screen.dart';
 import '../features/settings/screens/settings_screen.dart';
-import '../features/about/screens/about_screen.dart';
+import '../features/speed_test/screens/history_screen.dart';
+import '../features/speed_test/screens/main_screen.dart';
 
 class AppRouter {
   static const String home = '/';
@@ -16,17 +16,17 @@ class AppRouter {
   static Route<dynamic> generateRoute(RouteSettings settings) {
     switch (settings.name) {
       case home:
-        return MaterialPageRoute(builder: (_) => const MainScreen());
+        return MaterialPageRoute<void>(builder: (_) => const MainScreen());
       case history:
-        return MaterialPageRoute(builder: (_) => const HistoryScreen());
+        return MaterialPageRoute<void>(builder: (_) => const HistoryScreen());
       case server:
-        return MaterialPageRoute(builder: (_) => const ServerScreen());
+        return MaterialPageRoute<void>(builder: (_) => const ServerScreen());
       case AppRouter.settings:
-        return MaterialPageRoute(builder: (_) => const SettingsScreen());
+        return MaterialPageRoute<void>(builder: (_) => const SettingsScreen());
       case about:
-        return MaterialPageRoute(builder: (_) => const AboutScreen());
+        return MaterialPageRoute<void>(builder: (_) => const AboutScreen());
       default:
-        return MaterialPageRoute(
+        return MaterialPageRoute<void>(
           builder: (_) => Scaffold(
             body: Center(
               child: Text('Route not found: ${settings.name}'),

@@ -22,7 +22,7 @@ class RealtimeService extends ChangeNotifier {
   factory RealtimeService() => instance;
 
   WebSocketChannel? _channel;
-  StreamSubscription? _sub;
+  StreamSubscription<dynamic>? _sub;
   Timer? _pingTimer;
   Timer? _reconnectTimer;
 
@@ -59,7 +59,7 @@ class RealtimeService extends ChangeNotifier {
 
       _sub = _channel!.stream.listen(
         _onMessage,
-        onError: (e) {
+        onError: (Object e) {
           _lastError = e.toString();
           _status = RealtimeStatus.error;
           notifyListeners();

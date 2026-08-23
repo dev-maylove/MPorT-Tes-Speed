@@ -132,7 +132,7 @@ class UploadService {
 
     await Future.any([
       Future.wait(workers),
-      Future.delayed(duration + const Duration(seconds: 1)),
+      Future<void>.delayed(duration + const Duration(seconds: 1)),
     ]);
 
     running = false;

@@ -94,7 +94,7 @@ class DownloadService {
 
     await Future.any([
       Future.wait(workers),
-      Future.delayed(duration),
+      Future<void>.delayed(duration),
     ]);
 
     running = false;
