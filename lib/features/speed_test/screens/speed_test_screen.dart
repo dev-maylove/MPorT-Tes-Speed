@@ -1,9 +1,11 @@
 import 'dart:math' as math;
 
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:network_info_plus/network_info_plus.dart';
 
 import '../../../core/constants/server_config.dart';
 import '../../../core/theme/app_colors.dart';
@@ -48,6 +50,7 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
   double? upload;
   bool running = false;
   String? _ispName;
+  String? _deviceNetworkName; // Wi-Fi SSID or mobile network label
   String? _serverDisplay;
   String _deviceModel = '—';
   String? _testId;
@@ -101,6 +104,7 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
     _realtime.connect();
     _fetchMeta();
     _loadDeviceModel();
+    _loadDeviceNetworkName();
   }
 
   /// Loads a human-readable device model via device_info_plus (^13.2.0).
@@ -209,21 +213,11 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
   }
 
   Future<void> _fetchMeta() async {
-    try {
-      final r = await http
-          .get(Uri.parse('https://ipapi.co/json/'))
-          .timeout(const Duration(seconds: 6));
-      if (r.statusCode == 200 && mounted) {
-        final body = r.body;
-        String isp = '';
-        final ispMatch = RegExp(r'"isp"\s*:\s*"([^"]*)"').firstMatch(body);
-        final orgMatch = RegExp(r'"org"\s*:\s*"([^"]*)"').firstMatch(body);
-        if (ispMatch != null) isp = ispMatch.group(1) ?? '';
-        if (isp.isEmpty && orgMatch != null) isp = orgMatch.group(1) ?? '';
-        isp = _normalizeIspName(isp);
-        if (isp.isNotEmpty) setState(() => _ispName = isp);
-      }
-    } catch (_) {}
+    // Auto-detect ISP from public IP lookup (multiple providers).
+    final isp = await _detectIspName();
+    if (isp != null && isp.isNotEmpty && mounted) {
+      setState(() => _ispName = isp);
+    }
 
     final selected = _serverService.selected;
     final name = selected.name.isNotEmpty
@@ -232,27 +226,90 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
     if (mounted) setState(() => _serverDisplay = name);
   }
 
+  /// Tries several free geo-IP endpoints until an ISP/org name is found.
+  Future<String?> _detectIspName() async {
+    final endpoints = <(String, List<String>)>[
+      // (url, json keys to try in order)
+      ('https://ipapi.co/json/', ['isp', 'org']),
+      ('https://ip-api.com/json/?fields=status,isp,org,as', ['isp', 'org', 'as']),
+      ('https://ipinfo.io/json', ['org', 'hostname']),
+    ];
+
+    for (final entry in endpoints) {
+      final url = entry.$1;
+      final keys = entry.$2;
+      try {
+        final r = await http
+            .get(Uri.parse(url), headers: const {'Accept': 'application/json'})
+            .timeout(const Duration(seconds: 5));
+        if (r.statusCode != 200) continue;
+        final body = r.body;
+        for (final key in keys) {
+          final m = RegExp('"$key"\s*:\s*"([^"]*)"').firstMatch(body);
+          var raw = (m?.group(1) ?? '').trim();
+          if (raw.isEmpty) continue;
+          // ipinfo org often looks like "ASxxxxx Name"
+          if (key == 'as' || key == 'org') {
+            raw = raw.replaceFirst(RegExp(r'^AS\d+\s*'), '').trim();
+          }
+          final normalized = _normalizeIspName(raw);
+          if (normalized.isNotEmpty) return normalized;
+        }
+      } catch (_) {
+        // try next provider
+      }
+    }
+    return null;
+  }
+
   String _normalizeIspName(String raw) {
     final s = raw.trim();
     if (s.isEmpty) return '';
     final lower = s.toLowerCase();
-    if (lower.contains('telkom') || lower.contains('indihome') || lower.contains('tlkm')) {
+    if (lower.contains('telkom') ||
+        lower.contains('indihome') ||
+        lower.contains('tlkm') ||
+        lower.contains('telekomunikasi indonesia')) {
       return 'Telkom / IndiHome';
     }
-    if (lower.contains('xl') || lower.contains('axis')) return 'XL Axiata';
-    if (lower.contains('indosat') || lower.contains('im3') || lower.contains('tri ')) {
+    if (lower.contains('xl axiata') ||
+        lower.contains('xl ') ||
+        lower == 'xl' ||
+        lower.contains('axis')) {
+      return 'XL Axiata';
+    }
+    if (lower.contains('indosat') ||
+        lower.contains('im3') ||
+        lower.contains('tri ') ||
+        lower.contains('hutchison')) {
       return 'Indosat Ooredoo';
     }
     if (lower.contains('smartfren')) return 'Smartfren';
     if (lower.contains('by.u') || lower.contains('byu')) return 'by.U';
     if (lower.contains('biznet')) return 'Biznet';
-    if (lower.contains('first media') || lower.contains('fastnet')) return 'First Media';
+    if (lower.contains('first media') || lower.contains('fastnet')) {
+      return 'First Media';
+    }
     if (lower.contains('myrepublic')) return 'MyRepublic';
     if (lower.contains('cbn')) return 'CBN';
-    if (lower.contains('icon')) return 'Icon+';
+    if (lower.contains('icon+') || lower.contains('icon plus')) return 'Icon+';
     if (lower.contains('oxygen')) return 'Oxygen.id';
     if (lower.contains('mnc')) return 'MNC Play';
-    return s.length > 28 ? '${s.substring(0, 26)}…' : s;
+    if (lower.contains('haansiro') || lower.contains('haan siro')) {
+      return 'HaaNSirO';
+    }
+    if (lower.contains('arrab')) return 'ARRAB NETWORK';
+    if (lower.contains('jsn') || lower.contains('jaringanku')) {
+      return 'JSN Jaringanku';
+    }
+    if (lower.contains('three') || lower.contains('3 indonesia')) {
+      return 'Tri Indonesia';
+    }
+    if (lower.contains('bolt')) return 'BOLT';
+    if (lower.contains('orbit')) return 'Telkomsel Orbit';
+    if (lower.contains('telkomsel')) return 'Telkomsel';
+    // Keep original, trim length for UI
+    return s.length > 32 ? '${s.substring(0, 30)}…' : s;
   }
 
   Future<void> startTest() async {
@@ -281,6 +338,10 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
     _animateGaugeTo(0);
     // ignore: unawaited_futures
     _refreshServerStatus();
+    // ignore: unawaited_futures
+    _loadDeviceNetworkName();
+    // ignore: unawaited_futures
+    _fetchMeta();
 
     try {
       final result = await _service.start(
@@ -391,8 +452,58 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
     }
   }
 
+
+  /// Active network name on the device (Wi-Fi SSID or mobile/other).
+  Future<void> _loadDeviceNetworkName() async {
+    try {
+      final list = await Connectivity().checkConnectivity();
+      final hasWifi = list.contains(ConnectivityResult.wifi);
+      final hasMobile = list.contains(ConnectivityResult.mobile);
+      final hasEthernet = list.contains(ConnectivityResult.ethernet);
+
+      String? name;
+      if (hasWifi) {
+        try {
+          final raw = await NetworkInfo().getWifiName();
+          if (raw != null && raw.trim().isNotEmpty) {
+            // Android may wrap SSID in quotes
+            name = raw.trim().replaceAll('"', '');
+          } else {
+            name = 'Wi-Fi';
+          }
+        } catch (_) {
+          name = 'Wi-Fi';
+        }
+      } else if (hasMobile) {
+        name = 'Mobile data';
+      } else if (hasEthernet) {
+        name = 'Ethernet';
+      }
+
+      if (name != null && mounted) {
+        setState(() => _deviceNetworkName = name);
+      }
+    } catch (_) {
+      // keep previous / fall back to ISP
+    }
+  }
+
   String get _ispLabel {
-    return _ispName ?? 'Network';
+    // 1) Wi-Fi SSID when available (not the generic fallback labels)
+    final deviceNet = _deviceNetworkName?.trim();
+    if (deviceNet != null &&
+        deviceNet.isNotEmpty &&
+        deviceNet != 'Wi-Fi' &&
+        deviceNet != 'Mobile data' &&
+        deviceNet != 'Ethernet') {
+      return deviceNet;
+    }
+    // 2) Auto-detected ISP name
+    final isp = _ispName?.trim();
+    if (isp != null && isp.isNotEmpty) return isp;
+    // 3) Connection type fallback
+    if (deviceNet != null && deviceNet.isNotEmpty) return deviceNet;
+    return 'Network';
   }
 
   String get _ispCode => _deviceModel;
