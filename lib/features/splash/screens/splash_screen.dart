@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:video_player/video_player.dart';
 
-import '../../../core/theme/app_colors.dart';
 import '../../speed_test/screens/main_screen.dart';
 
 /// Splash screen MPorT Go — memutar video animasi logo, lalu ke MainScreen.
