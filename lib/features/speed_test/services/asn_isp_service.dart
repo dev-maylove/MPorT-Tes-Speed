@@ -21,6 +21,10 @@ class AsnIspService {
   /// In-memory cache for the current process.
   _IspCacheEntry? _memory;
 
+  /// In-flight remote lookup — prevents duplicate API calls when
+  /// init + connectivity + startTest all request meta at once.
+  Future<IspLookupResult>? _inFlight;
+
   /// Last known values (for UI before async completes).
   String? lastIspName;
   String? lastPublicIp;
@@ -32,76 +36,71 @@ class AsnIspService {
   Future<IspLookupResult> lookup({bool forceRefresh = false}) async {
     // 1) Memory cache
     if (!forceRefresh && _memory != null && !_memory!.isExpired) {
-      lastIspName = _memory!.ispName;
-      lastPublicIp = _memory!.publicIp;
-      lastAsn = _memory!.asn;
-      return IspLookupResult(
-        ispName: _memory!.ispName,
-        publicIp: _memory!.publicIp,
-        asn: _memory!.asn,
-        fromCache: true,
-      );
+      return _apply(_memory!, fromCache: true);
     }
 
     // 2) Disk cache
     if (!forceRefresh) {
       final disk = await _loadDisk();
-      if (disk != null && !disk.isExpired) {
+      if (disk != null && !disk.isExpired && disk.ispName.isNotEmpty) {
         _memory = disk;
-        lastIspName = disk.ispName;
-        lastPublicIp = disk.publicIp;
-        lastAsn = disk.asn;
-        return IspLookupResult(
-          ispName: disk.ispName,
-          publicIp: disk.publicIp,
-          asn: disk.asn,
-          fromCache: true,
-        );
+        return _apply(disk, fromCache: true);
       }
     }
 
-    // 3) Fresh lookup
-    final fresh = await _fetchRemote();
-    if (fresh != null) {
-      _memory = fresh;
-      await _saveDisk(fresh);
-      lastIspName = fresh.ispName;
-      lastPublicIp = fresh.publicIp;
-      lastAsn = fresh.asn;
-      return IspLookupResult(
-        ispName: fresh.ispName,
-        publicIp: fresh.publicIp,
-        asn: fresh.asn,
-        fromCache: false,
-      );
+    // 3) Coalesce concurrent remote lookups
+    if (_inFlight != null && !forceRefresh) {
+      return _inFlight!;
     }
 
-    // 4) Stale cache as last resort
-    if (_memory != null) {
-      return IspLookupResult(
-        ispName: _memory!.ispName,
-        publicIp: _memory!.publicIp,
-        asn: _memory!.asn,
-        fromCache: true,
-      );
+    final future = _lookupRemote();
+    _inFlight = future;
+    try {
+      return await future;
+    } finally {
+      if (identical(_inFlight, future)) {
+        _inFlight = null;
+      }
+    }
+  }
+
+  Future<IspLookupResult> _lookupRemote() async {
+    final fresh = await _fetchRemote();
+    if (fresh != null && fresh.ispName.isNotEmpty) {
+      _memory = fresh;
+      await _saveDisk(fresh);
+      return _apply(fresh, fromCache: false);
+    }
+
+    // Stale cache as last resort
+    if (_memory != null && _memory!.ispName.isNotEmpty) {
+      return _apply(_memory!, fromCache: true);
     }
     final stale = await _loadDisk();
-    if (stale != null) {
+    if (stale != null && stale.ispName.isNotEmpty) {
       _memory = stale;
-      return IspLookupResult(
-        ispName: stale.ispName,
-        publicIp: stale.publicIp,
-        asn: stale.asn,
-        fromCache: true,
-      );
+      return _apply(stale, fromCache: true);
     }
 
     return const IspLookupResult(ispName: null, publicIp: null, asn: null);
   }
 
+  IspLookupResult _apply(_IspCacheEntry entry, {required bool fromCache}) {
+    lastIspName = entry.ispName;
+    lastPublicIp = entry.publicIp;
+    lastAsn = entry.asn;
+    return IspLookupResult(
+      ispName: entry.ispName,
+      publicIp: entry.publicIp,
+      asn: entry.asn,
+      fromCache: fromCache,
+    );
+  }
+
   /// Clear memory + disk cache (e.g. after network change).
   Future<void> clearCache() async {
     _memory = null;
+    _inFlight = null;
     lastIspName = null;
     lastPublicIp = null;
     lastAsn = null;
@@ -149,6 +148,10 @@ class AsnIspService {
         final dynamic decoded = jsonDecode(r.body);
         if (decoded is! Map) continue;
         final map = Map<String, dynamic>.from(decoded);
+
+        // ip-api.com returns status=fail on rate-limit / reserved IP
+        final status = (map['status']?.toString() ?? '').toLowerCase();
+        if (status == 'fail' || status == 'error') continue;
 
         final publicIp = (map[ep.ipKey]?.toString() ?? '').trim();
         final asnRaw = (map[ep.asnKey]?.toString() ?? '').trim();
@@ -209,7 +212,9 @@ class AsnIspService {
       final raw = prefs.getString(_cacheKey);
       if (raw == null || raw.isEmpty) return null;
       final map = jsonDecode(raw) as Map<String, dynamic>;
-      return _IspCacheEntry.fromJson(map);
+      final entry = _IspCacheEntry.fromJson(map);
+      if (entry.ispName.isEmpty) return null;
+      return entry;
     } catch (_) {
       return null;
     }

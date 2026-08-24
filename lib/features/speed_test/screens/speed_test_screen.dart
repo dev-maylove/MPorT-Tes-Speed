@@ -52,6 +52,8 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
   double? download;
   double? upload;
   bool running = false;
+  /// Bumps on cancel so an in-flight test cannot overwrite UI after cancel.
+  int _testGeneration = 0;
   String? _ispName;
   String? _publicIp;
   String? _asn;
@@ -290,6 +292,8 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
           duration: const Duration(milliseconds: 300), curve: Curves.easeOut);
     } catch (_) {}
 
+    final gen = ++_testGeneration;
+
     setState(() {
       running = true;
       phase = SpeedTestPhase.ping;
@@ -315,7 +319,7 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
     try {
       final result = await _service.start(
         onProgress: (newPhase, value) {
-          if (!mounted) return;
+          if (!mounted || gen != _testGeneration) return;
           setState(() {
             phase = newPhase;
             if (newPhase == SpeedTestPhase.ping) {
@@ -335,7 +339,8 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
         },
       );
 
-      if (!mounted) return;
+      // Cancelled while test was running — discard results.
+      if (!mounted || gen != _testGeneration) return;
 
       setState(() {
         ping = result.ping;
@@ -369,7 +374,7 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
         timestamp: result.timestamp,
       );
     } catch (e) {
-      if (!mounted) return;
+      if (!mounted || gen != _testGeneration) return;
       setState(() {
         phase = SpeedTestPhase.error;
         running = false;
@@ -381,6 +386,7 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
   }
 
   void _cancelTest() {
+    _testGeneration++; // invalidate in-flight test callbacks/results
     setState(() {
       running = false;
       phase = SpeedTestPhase.idle;
