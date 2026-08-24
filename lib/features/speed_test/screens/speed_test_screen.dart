@@ -476,17 +476,6 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
     return 'Network';
   }
 
-  /// Secondary network line: ASN when known, else device model.
-  String get _ispCode {
-    final asn = _asn?.trim();
-    if (asn != null && asn.isNotEmpty) {
-      final ip = _publicIp?.trim();
-      if (ip != null && ip.isNotEmpty) return '$asn · $ip';
-      return asn;
-    }
-    return _deviceModel;
-  }
-
   @override
   Widget build(BuildContext context) {
     final showTestUi = running ||
