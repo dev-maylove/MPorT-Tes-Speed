@@ -50,13 +50,13 @@ class AppFooter extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 5),
-          Text.rich(
+          const Text.rich(
             TextSpan(
-              style: const TextStyle(
+              style: TextStyle(
                 color: Color(0xFF777783),
                 fontSize: 11,
               ),
-              children: const [
+              children: [
                 TextSpan(text: 'Made with '),
                 TextSpan(
                   text: '❤️',

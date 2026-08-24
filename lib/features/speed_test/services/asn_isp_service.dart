@@ -15,7 +15,8 @@ class AsnIspService {
   static final AsnIspService instance = AsnIspService._();
 
   static const _cacheKey = 'mport_asn_isp_cache_v1';
-  static const _cacheTtl = Duration(minutes: 20);
+  /// Keep ISP/ASN warm for one session without re-hitting geo-IP APIs.
+  static const _cacheTtl = Duration(minutes: 15);
 
   /// In-memory cache for the current process.
   _IspCacheEntry? _memory;
@@ -114,23 +115,23 @@ class AsnIspService {
 
   Future<_IspCacheEntry?> _fetchRemote() async {
     // Prefer endpoints that also return IP + ASN in one call.
-    final endpoints = <_Endpoint>[
+    const endpoints = <_Endpoint>[
       _Endpoint(
         url: 'https://ip-api.com/json/?fields=status,query,isp,org,as,asname',
         ipKey: 'query',
-        ispKeys: const ['isp', 'org', 'asname'],
+        ispKeys: ['isp', 'org', 'asname'],
         asnKey: 'as',
       ),
       _Endpoint(
         url: 'https://ipapi.co/json/',
         ipKey: 'ip',
-        ispKeys: const ['isp', 'org'],
+        ispKeys: ['isp', 'org'],
         asnKey: 'asn',
       ),
       _Endpoint(
         url: 'https://ipinfo.io/json',
         ipKey: 'ip',
-        ispKeys: const ['org'],
+        ispKeys: ['org'],
         asnKey: 'org', // often "ASxxxxx Name"
       ),
     ];
@@ -150,7 +151,7 @@ class AsnIspService {
         final map = Map<String, dynamic>.from(decoded);
 
         final publicIp = (map[ep.ipKey]?.toString() ?? '').trim();
-        var asnRaw = (map[ep.asnKey]?.toString() ?? '').trim();
+        final asnRaw = (map[ep.asnKey]?.toString() ?? '').trim();
         String? ispRaw;
         for (final k in ep.ispKeys) {
           final v = (map[k]?.toString() ?? '').trim();
@@ -169,13 +170,13 @@ class AsnIspService {
         }
 
         // Prefer local ASN map when we have a known ASN.
-        String? ispName;
+        String ispName = '';
         if (asn != null && _localAsnMap.containsKey(asn)) {
-          ispName = _localAsnMap[asn];
+          ispName = _localAsnMap[asn] ?? '';
         }
 
         // Fall back to normalized remote ISP/org name.
-        if (ispName == null || ispName.isEmpty) {
+        if (ispName.isEmpty) {
           var raw = ispRaw ?? '';
           if (raw.isEmpty && asnRaw.isNotEmpty) {
             raw = asnRaw.replaceFirst(RegExp(r'^AS\d+\s*'), '').trim();
@@ -185,7 +186,7 @@ class AsnIspService {
           ispName = normalizeIspName(raw);
         }
 
-        if (ispName == null || ispName.isEmpty) continue;
+        if (ispName.isEmpty) continue;
 
         return _IspCacheEntry(
           ispName: ispName,

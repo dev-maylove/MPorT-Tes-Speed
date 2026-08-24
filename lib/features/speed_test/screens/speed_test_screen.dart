@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:connectivity_plus/connectivity_plus.dart';
@@ -60,6 +61,9 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
   String? _testId;
   String? _serverStatus; // Online / Offline / latency
 
+  StreamSubscription<List<ConnectivityResult>>? _connectivitySub;
+  String? _connectivityKey; // fingerprint of last connectivity type(s)
+
   // Bottom sheet
   final DraggableScrollableController _sheetCtrl =
       DraggableScrollableController();
@@ -109,6 +113,44 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
     _fetchMeta();
     _loadDeviceModel();
     _loadDeviceNetworkName();
+    _listenConnectivity();
+  }
+
+  /// Clears ASN/ISP cache when Wi-Fi ↔ mobile (or offline) so Network label
+  /// stays accurate after the user switches networks.
+  void _listenConnectivity() {
+    // Seed current state without forcing a refresh.
+    Connectivity().checkConnectivity().then((list) {
+      _connectivityKey = _connectivityFingerprint(list);
+    }).catchError((_) {});
+
+    _connectivitySub = Connectivity().onConnectivityChanged.listen((list) {
+      final key = _connectivityFingerprint(list);
+      if (_connectivityKey == null) {
+        _connectivityKey = key;
+        return;
+      }
+      if (key == _connectivityKey) return;
+      _connectivityKey = key;
+      // ignore: unawaited_futures
+      _onNetworkPathChanged();
+    });
+  }
+
+  String _connectivityFingerprint(List<ConnectivityResult> list) {
+    if (list.isEmpty) return 'none';
+    final sorted = List<ConnectivityResult>.from(list)
+      ..sort((a, b) => a.name.compareTo(b.name));
+    return sorted.map((e) => e.name).join(',');
+  }
+
+  Future<void> _onNetworkPathChanged() async {
+    await _asnIsp.clearCache();
+    if (!mounted) return;
+    await Future.wait([
+      _loadDeviceNetworkName(),
+      _fetchMeta(forceRefresh: true),
+    ]);
   }
 
   /// Loads a human-readable device model via device_info_plus (^13.2.0).
@@ -195,6 +237,7 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
 
   @override
   void dispose() {
+    _connectivitySub?.cancel();
     _serverService.removeListener(_onServerChanged);
     _realtime.removeListener(_onServerChanged);
     _gaugeCtrl.dispose();
@@ -216,13 +259,15 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
     } catch (_) {}
   }
 
-  Future<void> _fetchMeta() async {
-    // ISP/ASN: memory → disk cache (20 min) → remote API. No API on every test.
-    final result = await _asnIsp.lookup();
+  Future<void> _fetchMeta({bool forceRefresh = false}) async {
+    // ISP/ASN: memory → disk (15 min) → remote API. Not on every Download/Upload.
+    final result = await _asnIsp.lookup(forceRefresh: forceRefresh);
     if (mounted) {
       setState(() {
         if (result.ispName != null && result.ispName!.isNotEmpty) {
           _ispName = result.ispName;
+        } else if (forceRefresh) {
+          _ispName = null;
         }
         _publicIp = result.publicIp;
         _asn = result.asn;
@@ -599,6 +644,21 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
   }
 
   Widget _sheetIspRow() {
+    // Recommended layout:
+    //   Network
+    //   Telkom / IndiHome
+    //   AS7713 · 36.xxx.xxx.xxx
+    final asn = _asn?.trim();
+    final ip = _publicIp?.trim();
+    final hasAsnIp = (asn != null && asn.isNotEmpty) ||
+        (ip != null && ip.isNotEmpty);
+    final subtitle = hasAsnIp
+        ? [
+            if (asn != null && asn.isNotEmpty) asn,
+            if (ip != null && ip.isNotEmpty) ip,
+          ].join(' · ')
+        : _deviceModel;
+
     return Row(
       children: [
         Container(
@@ -615,6 +675,15 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              const Text(
+                'Network',
+                style: TextStyle(
+                  color: AppColors.textMuted,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: 2),
               Text(
                 _ispLabel,
                 maxLines: 1,
@@ -625,8 +694,11 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
                   fontWeight: FontWeight.w600,
                 ),
               ),
+              const SizedBox(height: 2),
               Text(
-                _ispCode,
+                subtitle,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: const TextStyle(color: AppColors.textMuted, fontSize: 12),
               ),
             ],
