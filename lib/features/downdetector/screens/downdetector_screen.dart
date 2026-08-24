@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import 'package:webview_flutter/webview_flutter.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/app_footer.dart';
 
 /// Halaman Downdetector — daftar + sparkline realtime (probe latency).
 class DowndetectorScreen extends StatefulWidget {
@@ -476,13 +477,16 @@ class _DowndetectorScreenState extends State<DowndetectorScreen> {
                 : ListView.separated(
                     physics: const AlwaysScrollableScrollPhysics(),
                     padding: const EdgeInsets.fromLTRB(0, 0, 0, 24),
-                    itemCount: items.length,
+                    itemCount: items.length + 1,
                     separatorBuilder: (_, __) => Divider(
                       height: 1,
                       color: Colors.white.withValues(alpha: 0.06),
                       indent: 56,
                     ),
                     itemBuilder: (context, i) {
+                      if (i == items.length) {
+                        return const AppFooter();
+                      }
                       final s = items[i];
                       final chartColor = s.warning
                           ? const Color(0xFFFFB300)

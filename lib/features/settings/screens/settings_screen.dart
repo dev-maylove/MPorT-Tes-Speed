@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/constants/app_constants.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/app_footer.dart';
 import '../../about/screens/about_screen.dart';
 import '../../downdetector/screens/downdetector_screen.dart';
 import '../widgets/settings_tile.dart';
@@ -85,13 +86,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
             },
           ),
           const SizedBox(height: 24),
-          Center(
-            child: Text(
-              '© 2026 MPorT',
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
-          ),
-          const SizedBox(height: 16),
+          const AppFooter(),
+          const SizedBox(height: 8),
         ],
       ),
     );

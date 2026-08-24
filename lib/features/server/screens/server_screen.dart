@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/app_footer.dart';
 import '../../../core/widgets/loading_view.dart';
 import '../services/server_service.dart';
 import '../widgets/server_card.dart';
@@ -99,8 +100,11 @@ class _ServerScreenState extends State<ServerScreen> {
                 Expanded(
                   child: ListView.builder(
                     padding: const EdgeInsets.all(16),
-                    itemCount: _service.servers.length,
+                    itemCount: _service.servers.length + 1,
                     itemBuilder: (context, index) {
+                      if (index == _service.servers.length) {
+                        return const AppFooter();
+                      }
                       final server = _service.servers[index];
                       final isSelected = _service.selected.id == server.id;
                       return ServerCard(

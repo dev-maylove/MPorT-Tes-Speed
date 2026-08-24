@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:math' as math;
 
 import 'package:connectivity_plus/connectivity_plus.dart';
@@ -227,6 +228,8 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
   }
 
   /// Tries several free geo-IP endpoints until an ISP/org name is found.
+  /// Uses proper JSON parsing (previous regex used invalid \s escapes in a
+  /// non-raw string, so ISP lookup always failed).
   Future<String?> _detectIspName() async {
     final endpoints = <(String, List<String>)>[
       // (url, json keys to try in order)
@@ -243,12 +246,13 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
             .get(Uri.parse(url), headers: const {'Accept': 'application/json'})
             .timeout(const Duration(seconds: 5));
         if (r.statusCode != 200) continue;
-        final body = r.body;
+        final dynamic decoded = jsonDecode(r.body);
+        if (decoded is! Map) continue;
+        final map = Map<String, dynamic>.from(decoded);
         for (final key in keys) {
-          final m = RegExp('"$key"\s*:\s*"([^"]*)"').firstMatch(body);
-          var raw = (m?.group(1) ?? '').trim();
+          var raw = (map[key]?.toString() ?? '').trim();
           if (raw.isEmpty) continue;
-          // ipinfo org often looks like "ASxxxxx Name"
+          // ipinfo org / "as" often looks like "ASxxxxx Name"
           if (key == 'as' || key == 'org') {
             raw = raw.replaceFirst(RegExp(r'^AS\d+\s*'), '').trim();
           }
@@ -489,7 +493,11 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
   }
 
   String get _ispLabel {
-    // 1) Wi-Fi SSID when available (not the generic fallback labels)
+    // Prefer real ISP from public-IP lookup (SSID ≠ ISP name).
+    final isp = _ispName?.trim();
+    if (isp != null && isp.isNotEmpty) return isp;
+
+    // Fall back to Wi-Fi SSID when it is a real network name (not generic).
     final deviceNet = _deviceNetworkName?.trim();
     if (deviceNet != null &&
         deviceNet.isNotEmpty &&
@@ -498,10 +506,7 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
         deviceNet != 'Ethernet') {
       return deviceNet;
     }
-    // 2) Auto-detected ISP name
-    final isp = _ispName?.trim();
-    if (isp != null && isp.isNotEmpty) return isp;
-    // 3) Connection type fallback
+    // Connection type / generic fallback
     if (deviceNet != null && deviceNet.isNotEmpty) return deviceNet;
     return 'Network';
   }

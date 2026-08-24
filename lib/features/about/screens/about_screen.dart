@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/constants/app_constants.dart';
+import '../../../core/widgets/app_footer.dart';
 
 class AboutScreen extends StatelessWidget {
   const AboutScreen({super.key});
@@ -45,8 +46,8 @@ class AboutScreen extends StatelessWidget {
               _buildAppInfo(),
               const SizedBox(height: 20),
               _buildDeveloperCard(),
-              const SizedBox(height: 28),
-              _buildCopyright(),
+              const SizedBox(height: 12),
+              const AppFooter(),
             ],
           ),
         ),
@@ -101,7 +102,7 @@ class AboutScreen extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         const Text(
-          'Uji kecepatan internet dengan mudah,\ncepat, dan nyaman.',
+          'Measure your internet speed easily,\nquickly, and comfortably.',
           textAlign: TextAlign.center,
           style: TextStyle(
             color: secondaryText,
@@ -124,10 +125,11 @@ class AboutScreen extends StatelessWidget {
           ),
           const SizedBox(height: 14),
           const Text(
-            'MPorT Go adalah aplikasi untuk mengukur '
-            'performa koneksi internet secara praktis. '
-            'Aplikasi ini membantu mengetahui kecepatan download, '
-            'upload, ping, dan kualitas koneksi internet yang sedang digunakan.',
+            'MPorT Go is an app for measuring internet '
+            'connection performance in a practical way. '
+            'It helps you check download speed, upload speed, '
+            'ping, and the overall quality of the connection '
+            'you are using.',
             style: TextStyle(
               color: Color(0xFFB8B8C2),
               fontSize: 14,
@@ -146,33 +148,33 @@ class AboutScreen extends StatelessWidget {
         children: [
           _sectionTitle(
             icon: Icons.auto_awesome_rounded,
-            title: 'Fitur Utama',
+            title: 'Main Features',
           ),
           const SizedBox(height: 16),
           _featureItem(
             icon: Icons.download_rounded,
             title: 'Download Speed',
-            description: 'Mengukur kecepatan download internet.',
+            description: 'Measure your internet download speed.',
           ),
           _featureItem(
             icon: Icons.upload_rounded,
             title: 'Upload Speed',
-            description: 'Mengukur kecepatan upload internet.',
+            description: 'Measure your internet upload speed.',
           ),
           _featureItem(
             icon: Icons.network_ping_rounded,
             title: 'Ping / Latency',
-            description: 'Mengetahui responsivitas koneksi.',
+            description: 'Check connection responsiveness.',
           ),
           _featureItem(
             icon: Icons.show_chart_rounded,
             title: 'Jitter',
-            description: 'Melihat kestabilan koneksi jaringan.',
+            description: 'See how stable your network connection is.',
           ),
           _featureItem(
             icon: Icons.dns_rounded,
             title: 'Server Test',
-            description: 'Menampilkan server yang digunakan untuk pengujian.',
+            description: 'Shows the server used for the test.',
           ),
         ],
       ),
@@ -186,11 +188,11 @@ class AboutScreen extends StatelessWidget {
         children: [
           _sectionTitle(
             icon: Icons.phone_android_rounded,
-            title: 'Informasi Aplikasi',
+            title: 'App Information',
           ),
           const SizedBox(height: 14),
           _infoRow(
-            title: 'Nama Aplikasi',
+            title: 'App Name',
             value: AppConstants.appName,
           ),
           _infoRow(
@@ -202,7 +204,7 @@ class AboutScreen extends StatelessWidget {
             value: 'Android',
           ),
           _infoRow(
-            title: 'Kategori',
+            title: 'Category',
             value: 'Internet / Speed Test',
           ),
         ],
@@ -217,7 +219,7 @@ class AboutScreen extends StatelessWidget {
         children: [
           _sectionTitle(
             icon: Icons.code_rounded,
-            title: 'Pengembang',
+            title: 'Developer',
           ),
           const SizedBox(height: 16),
           Row(
@@ -266,43 +268,6 @@ class AboutScreen extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildCopyright() {
-    return Column(
-      children: [
-        Container(
-          width: 45,
-          height: 1,
-          color: Colors.white.withValues(alpha: 0.08),
-        ),
-        const SizedBox(height: 18),
-        const Text(
-          'MPorT Go',
-          style: TextStyle(
-            color: Colors.white70,
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        const SizedBox(height: 6),
-        const Text(
-          '© 2026 MPorT. All rights reserved.',
-          style: TextStyle(
-            color: secondaryText,
-            fontSize: 12,
-          ),
-        ),
-        const SizedBox(height: 5),
-        const Text(
-          'Made with ❤ in Kincir Tengah',
-          style: TextStyle(
-            color: Color(0xFF777783),
-            fontSize: 11,
-          ),
-        ),
-      ],
     );
   }
 

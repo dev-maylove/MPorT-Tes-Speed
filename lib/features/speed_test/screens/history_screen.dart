@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_drawer.dart';
+import '../../../core/widgets/app_footer.dart';
 import '../services/history_service.dart';
 
 class HistoryScreen extends StatefulWidget {
@@ -77,9 +78,13 @@ class HistoryScreenState extends State<HistoryScreen> {
                   onRefresh: reload,
                   child: ListView.builder(
                     padding: const EdgeInsets.all(16),
-                    itemCount: history.length,
-                    itemBuilder: (context, index) =>
-                        _HistoryCard(data: history[index]),
+                    itemCount: history.length + 1,
+                    itemBuilder: (context, index) {
+                      if (index == history.length) {
+                        return const AppFooter();
+                      }
+                      return _HistoryCard(data: history[index]);
+                    },
                   ),
                 ),
     );

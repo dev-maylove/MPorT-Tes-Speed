@@ -6,6 +6,7 @@ import '../../features/server/screens/server_screen.dart';
 import '../../features/settings/screens/settings_screen.dart';
 import '../../features/speed_test/screens/main_screen.dart';
 import '../theme/app_colors.dart';
+import 'app_footer.dart';
 
 /// Shared hamburger menu used on main screens.
 class AppDrawer extends StatelessWidget {
@@ -81,14 +82,7 @@ class AppDrawer extends StatelessWidget {
                 ],
               ),
             ),
-            const Padding(
-              padding: EdgeInsets.all(16),
-              child: Text(
-                '© 2026 MPorT',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: AppColors.textMuted, fontSize: 12),
-              ),
-            ),
+            const AppFooter(compact: true),
           ],
         ),
       ),
