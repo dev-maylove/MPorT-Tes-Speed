@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:math' as math;
 
 import 'package:connectivity_plus/connectivity_plus.dart';
@@ -14,6 +13,7 @@ import '../../../core/widgets/app_drawer.dart';
 import '../../server/screens/server_screen.dart';
 import '../../server/services/server_service.dart';
 import '../models/speed_test_state.dart';
+import '../services/asn_isp_service.dart';
 import '../services/history_service.dart';
 import '../services/realtime_service.dart';
 import '../services/speed_test_service.dart';
@@ -39,6 +39,7 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
   final HistoryService _historyService = HistoryService();
   final ServerService _serverService = ServerService.instance;
   final RealtimeService _realtime = RealtimeService.instance;
+  final AsnIspService _asnIsp = AsnIspService.instance;
 
   SpeedTestPhase phase = SpeedTestPhase.idle;
   double currentSpeed = 0;
@@ -51,6 +52,8 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
   double? upload;
   bool running = false;
   String? _ispName;
+  String? _publicIp;
+  String? _asn;
   String? _deviceNetworkName; // Wi-Fi SSID or mobile network label
   String? _serverDisplay;
   String _deviceModel = '—';
@@ -214,10 +217,16 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
   }
 
   Future<void> _fetchMeta() async {
-    // Auto-detect ISP from public IP lookup (multiple providers).
-    final isp = await _detectIspName();
-    if (isp != null && isp.isNotEmpty && mounted) {
-      setState(() => _ispName = isp);
+    // ISP/ASN: memory → disk cache (20 min) → remote API. No API on every test.
+    final result = await _asnIsp.lookup();
+    if (mounted) {
+      setState(() {
+        if (result.ispName != null && result.ispName!.isNotEmpty) {
+          _ispName = result.ispName;
+        }
+        _publicIp = result.publicIp;
+        _asn = result.asn;
+      });
     }
 
     final selected = _serverService.selected;
@@ -225,95 +234,6 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
         ? selected.name
         : (ServerConfig.serverName.isNotEmpty ? ServerConfig.serverName : 'HaaNSirO');
     if (mounted) setState(() => _serverDisplay = name);
-  }
-
-  /// Tries several free geo-IP endpoints until an ISP/org name is found.
-  /// Uses proper JSON parsing (previous regex used invalid \s escapes in a
-  /// non-raw string, so ISP lookup always failed).
-  Future<String?> _detectIspName() async {
-    final endpoints = <(String, List<String>)>[
-      // (url, json keys to try in order)
-      ('https://ipapi.co/json/', ['isp', 'org']),
-      ('https://ip-api.com/json/?fields=status,isp,org,as', ['isp', 'org', 'as']),
-      ('https://ipinfo.io/json', ['org', 'hostname']),
-    ];
-
-    for (final entry in endpoints) {
-      final url = entry.$1;
-      final keys = entry.$2;
-      try {
-        final r = await http
-            .get(Uri.parse(url), headers: const {'Accept': 'application/json'})
-            .timeout(const Duration(seconds: 5));
-        if (r.statusCode != 200) continue;
-        final dynamic decoded = jsonDecode(r.body);
-        if (decoded is! Map) continue;
-        final map = Map<String, dynamic>.from(decoded);
-        for (final key in keys) {
-          var raw = (map[key]?.toString() ?? '').trim();
-          if (raw.isEmpty) continue;
-          // ipinfo org / "as" often looks like "ASxxxxx Name"
-          if (key == 'as' || key == 'org') {
-            raw = raw.replaceFirst(RegExp(r'^AS\d+\s*'), '').trim();
-          }
-          final normalized = _normalizeIspName(raw);
-          if (normalized.isNotEmpty) return normalized;
-        }
-      } catch (_) {
-        // try next provider
-      }
-    }
-    return null;
-  }
-
-  String _normalizeIspName(String raw) {
-    final s = raw.trim();
-    if (s.isEmpty) return '';
-    final lower = s.toLowerCase();
-    if (lower.contains('telkom') ||
-        lower.contains('indihome') ||
-        lower.contains('tlkm') ||
-        lower.contains('telekomunikasi indonesia')) {
-      return 'Telkom / IndiHome';
-    }
-    if (lower.contains('xl axiata') ||
-        lower.contains('xl ') ||
-        lower == 'xl' ||
-        lower.contains('axis')) {
-      return 'XL Axiata';
-    }
-    if (lower.contains('indosat') ||
-        lower.contains('im3') ||
-        lower.contains('tri ') ||
-        lower.contains('hutchison')) {
-      return 'Indosat Ooredoo';
-    }
-    if (lower.contains('smartfren')) return 'Smartfren';
-    if (lower.contains('by.u') || lower.contains('byu')) return 'by.U';
-    if (lower.contains('biznet')) return 'Biznet';
-    if (lower.contains('first media') || lower.contains('fastnet')) {
-      return 'First Media';
-    }
-    if (lower.contains('myrepublic')) return 'MyRepublic';
-    if (lower.contains('cbn')) return 'CBN';
-    if (lower.contains('icon+') || lower.contains('icon plus')) return 'Icon+';
-    if (lower.contains('oxygen')) return 'Oxygen.id';
-    if (lower.contains('mnc')) return 'MNC Play';
-    if (lower.contains('haansiro') || lower.contains('haan siro')) {
-      return 'HaaNSirO';
-    }
-    if (lower.contains('arrab')) return 'ARRAB NETWORK';
-    if (lower.contains('jsn') || lower.contains('jaringanku')) {
-      return 'JSN Jaringanku';
-    }
-    if (lower.contains('three') || lower.contains('3 indonesia')) {
-      return 'Tri Indonesia';
-    }
-    if (lower.contains('bolt')) return 'BOLT';
-    if (lower.contains('orbit')) return 'Telkomsel Orbit';
-    if (lower.contains('telkomsel')) return 'Telkomsel';
-    // Keep original, trim length for UI
-    return s.length > 32 ? '${s.substring(0, 30)}…' : s;
   }
 
   Future<void> startTest() async {
@@ -511,7 +431,16 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
     return 'Network';
   }
 
-  String get _ispCode => _deviceModel;
+  /// Secondary network line: ASN when known, else device model.
+  String get _ispCode {
+    final asn = _asn?.trim();
+    if (asn != null && asn.isNotEmpty) {
+      final ip = _publicIp?.trim();
+      if (ip != null && ip.isNotEmpty) return '$asn · $ip';
+      return asn;
+    }
+    return _deviceModel;
+  }
 
   @override
   Widget build(BuildContext context) {
