@@ -1037,104 +1037,51 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
                     _qualityIcon(Icons.videocam_outlined, _qualityDots(upload)),
                   ],
                 ),
-                // Gauge: arc + MPorT GO logo background (standby button style)
+                // Gauge dial (screenshot style: ticks + needle + cyan rim)
                 Expanded(
                   child: Center(
                     child: SizedBox(
-                      width: 260,
-                      height: 260,
+                      width: 280,
+                      height: 280,
                       child: AnimatedBuilder(
                         animation: Listenable.merge([_pulseCtrl, _gaugeCtrl]),
                         builder: (context, child) {
-                          final pulse = running ? _pulseCtrl.value : 0.4;
-                          final glowBoost = 0.32 + (pulse * 0.14);
+                          final pulse = running ? _pulseCtrl.value : 0.35;
                           return Stack(
                             alignment: Alignment.center,
                             children: [
-                              // Outer soft glow (matches GO button)
+                              // Outer cyan glow
                               Container(
-                                width: 200,
-                                height: 200,
+                                width: 250,
+                                height: 250,
                                 decoration: BoxDecoration(
                                   shape: BoxShape.circle,
                                   boxShadow: [
                                     BoxShadow(
-                                      color: gold.withValues(alpha: glowBoost),
-                                      blurRadius: 36 + pulse * 14,
-                                      spreadRadius: 2 + pulse * 4,
+                                      color: gold.withValues(
+                                        alpha: 0.22 + pulse * 0.18,
+                                      ),
+                                      blurRadius: 28 + pulse * 16,
+                                      spreadRadius: 1,
                                     ),
                                     BoxShadow(
-                                      color: goldLight.withValues(
-                                        alpha: 0.10 + pulse * 0.06,
-                                      ),
-                                      blurRadius: 56,
-                                      spreadRadius: 6,
+                                      color: const Color(0xFF7B5CFF)
+                                          .withValues(alpha: 0.12 + pulse * 0.08),
+                                      blurRadius: 40,
+                                      spreadRadius: 2,
                                     ),
                                   ],
                                 ),
                               ),
-                              // MPorT GO logo (same asset as GO button)
-                              ClipOval(
-                                child: Image.asset(
-                                  'assets/images/mport_logo.png',
-                                  width: 168,
-                                  height: 168,
-                                  fit: BoxFit.cover,
-                                  filterQuality: FilterQuality.high,
-                                ),
-                              ),
-                              // Dark veil so speed digits stay readable
-                              Container(
-                                width: 168,
-                                height: 168,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: Colors.black.withValues(
-                                    alpha: running ||
-                                            phase == SpeedTestPhase.completed
-                                        ? 0.45
-                                        : 0.25,
-                                  ),
-                                ),
-                              ),
-                              // Glass ring
-                              IgnorePointer(
-                                child: Container(
-                                  width: 168,
-                                  height: 168,
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    border: Border.all(
-                                      color: Colors.white.withValues(alpha: 0.28),
-                                      width: 1.5,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              // Accent ring
-                              IgnorePointer(
-                                child: Container(
-                                  width: 176,
-                                  height: 176,
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    border: Border.all(
-                                      color: gold.withValues(
-                                        alpha: 0.35 + pulse * 0.25,
-                                      ),
-                                      width: 1.5,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              // Progress arc on top
                               CustomPaint(
-                                size: const Size(240, 240),
+                                size: const Size(280, 280),
                                 painter: _ArcGaugePainter(
                                   progress: _animProgress,
                                   gold: gold,
                                   goldLight: goldLight,
-                                  pulse: running ? _pulseCtrl.value : 0,
+                                  pulse: pulse,
+                                  showNeedle: running ||
+                                      phase == SpeedTestPhase.completed,
                                 ),
                               ),
                               child!,
@@ -1161,9 +1108,12 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
 
 
   Widget _gaugeCenterValue() {
-    final show = running || phase == SpeedTestPhase.completed;
-    if (!show) return const SizedBox.shrink();
-    final raw = running ? _animSpeed : (download ?? _animSpeed);
+    // Always show speed on dial (0.0 while waiting / idle of phase)
+    final raw = running
+        ? _animSpeed
+        : (phase == SpeedTestPhase.completed
+            ? (download ?? _animSpeed)
+            : _animSpeed);
     final value = _toDisplayUnit(raw);
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -1171,31 +1121,85 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
         Text(
           value.toStringAsFixed(1),
           style: TextStyle(
-            color: AppColors.textPrimary,
-            fontSize: 40,
+            color: Colors.white,
+            fontSize: 44,
             fontWeight: FontWeight.w800,
             height: 1,
+            letterSpacing: -0.5,
             shadows: [
               Shadow(
-                color: Colors.black.withValues(alpha: 0.75),
-                blurRadius: 12,
+                color: gold.withValues(alpha: 0.55),
+                blurRadius: 16,
               ),
-            ],
-          ),
-        ),
-        Text(
-          _unit,
-          style: TextStyle(
-            color: goldLight,
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-            shadows: [
-              Shadow(
-                color: Colors.black.withValues(alpha: 0.6),
+              const Shadow(
+                color: Colors.black87,
                 blurRadius: 8,
               ),
             ],
           ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          _unit,
+          style: TextStyle(
+            color: goldLight,
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 0.5,
+          ),
+        ),
+        const SizedBox(height: 10),
+        // Branding like screenshot: MPorT GO »»
+        Text.rich(
+          TextSpan(
+            children: [
+              TextSpan(
+                text: 'MPorT',
+                style: TextStyle(
+                  color: goldLight,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 0.5,
+                ),
+              ),
+              TextSpan(
+                text: ' GO',
+                style: TextStyle(
+                  color: gold,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.0,
+                ),
+              ),
+              TextSpan(
+                text: ' »»',
+                style: TextStyle(
+                  color: gold.withValues(alpha: 0.85),
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.bolt_rounded, size: 12, color: gold.withValues(alpha: 0.7)),
+            const SizedBox(width: 4),
+            Text(
+              'TEST SPEED',
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.45),
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 1.6,
+              ),
+            ),
+            const SizedBox(width: 4),
+            Icon(Icons.bolt_rounded, size: 12, color: gold.withValues(alpha: 0.7)),
+          ],
         ),
       ],
     );
@@ -1688,78 +1692,234 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
   }
 }
 
-/// Arc gauge (Gambar 3 style)
+/// Full dial gauge matching product screenshot:
+/// cyan rim, tick marks, needle, purple high-end accent.
 class _ArcGaugePainter extends CustomPainter {
   final double progress;
   final Color gold;
   final Color goldLight;
   final double pulse;
+  final bool showNeedle;
 
   _ArcGaugePainter({
     required this.progress,
     required this.gold,
     required this.goldLight,
     this.pulse = 0,
+    this.showNeedle = true,
   });
 
   @override
   void paint(Canvas canvas, Size size) {
     final center = Offset(size.width / 2, size.height / 2);
-    final radius = size.width / 2 - 16;
+    final outerR = size.width / 2 - 8;
+    final tickOuter = outerR - 6;
+    final tickInnerMajor = outerR - 22;
+    final tickInnerMinor = outerR - 14;
+    final trackR = outerR - 28;
+
+    // ── Dark dial face ──────────────────────────────────────────
+    final facePaint = Paint()
+      ..shader = RadialGradient(
+        colors: [
+          const Color(0xFF0A1220),
+          const Color(0xFF06080F),
+        ],
+      ).createShader(Rect.fromCircle(center: center, radius: outerR));
+    canvas.drawCircle(center, outerR - 2, facePaint);
+
+    // Subtle radial spokes
+    final spokePaint = Paint()
+      ..color = Colors.white.withValues(alpha: 0.03)
+      ..strokeWidth = 1;
+    for (var i = 0; i < 36; i++) {
+      final a = -math.pi / 2 + (i / 36) * math.pi * 2;
+      canvas.drawLine(
+        Offset(
+          center.dx + math.cos(a) * 28,
+          center.dy + math.sin(a) * 28,
+        ),
+        Offset(
+          center.dx + math.cos(a) * (trackR - 4),
+          center.dy + math.sin(a) * (trackR - 4),
+        ),
+        spokePaint,
+      );
+    }
+
+    // ── Tick marks (full circle) ────────────────────────────────
+    const tickCount = 60;
+    for (var i = 0; i < tickCount; i++) {
+      final t = i / tickCount;
+      final angle = -math.pi / 2 + t * math.pi * 2;
+      final isMajor = i % 5 == 0;
+      // Left half cyan, right half shifts to purple (screenshot look)
+      final tickColor = Color.lerp(
+        gold,
+        const Color(0xFF9B7BFF),
+        (t > 0.55 && t < 0.95) ? 0.55 : 0.0,
+      )!
+          .withValues(alpha: isMajor ? 0.95 : 0.45);
+
+      final inner = isMajor ? tickInnerMajor : tickInnerMinor;
+      final p1 = Offset(
+        center.dx + math.cos(angle) * inner,
+        center.dy + math.sin(angle) * inner,
+      );
+      final p2 = Offset(
+        center.dx + math.cos(angle) * tickOuter,
+        center.dy + math.sin(angle) * tickOuter,
+      );
+      canvas.drawLine(
+        p1,
+        p2,
+        Paint()
+          ..color = tickColor
+          ..strokeWidth = isMajor ? 2.2 : 1.1
+          ..strokeCap = StrokeCap.round,
+      );
+    }
+
+    // ── Outer cyan rim with glow ────────────────────────────────
+    final rimGlow = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 6 + pulse * 3
+      ..color = gold.withValues(alpha: 0.25 + pulse * 0.2)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10);
+    canvas.drawCircle(center, outerR, rimGlow);
+
+    final rim = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3.2
+      ..shader = SweepGradient(
+        startAngle: 0,
+        endAngle: math.pi * 2,
+        colors: [
+          gold,
+          goldLight,
+          const Color(0xFF7B5CFF),
+          gold,
+        ],
+        stops: const [0.0, 0.35, 0.7, 1.0],
+      ).createShader(Rect.fromCircle(center: center, radius: outerR));
+    canvas.drawCircle(center, outerR, rim);
+
+    // ── Progress arc (from bottom-left, 270° sweep like classic meters) ──
+    // Map progress 0..1 onto arc starting at ~225° (bottom-left) clockwise
+    const start = math.pi * 0.75; // 135° in standard math? 
+    // Flutter: 0 = right, positive = clockwise in drawArc? Actually counter-clockwise.
+    // Use start at bottom-left: pi * 0.75, sweep pi * 1.5 for 270°
+    const arcStart = math.pi * 0.75;
+    const arcSweep = math.pi * 1.5;
 
     final track = Paint()
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 18
+      ..strokeWidth = 5
       ..strokeCap = StrokeCap.round
-      ..color = Colors.white.withValues(alpha: 0.08);
-
-    final arc = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 18
-      ..strokeCap = StrokeCap.round
-      ..shader = SweepGradient(
-        startAngle: -math.pi * 0.75,
-        endAngle: math.pi * 0.75,
-        colors: [gold, goldLight, gold],
-      ).createShader(Rect.fromCircle(center: center, radius: radius));
-
-    const start = -math.pi * 0.75;
-    const sweep = math.pi * 1.5;
-
+      ..color = Colors.white.withValues(alpha: 0.06);
     canvas.drawArc(
-      Rect.fromCircle(center: center, radius: radius),
-      start,
-      sweep,
+      Rect.fromCircle(center: center, radius: trackR),
+      arcStart,
+      arcSweep,
       false,
       track,
     );
 
-    if (progress > 0) {
-      final glow = Paint()
+    final p = progress.clamp(0.0, 1.0);
+    if (p > 0.001) {
+      final progressPaint = Paint()
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 22 + pulse * 4
+        ..strokeWidth = 5.5
         ..strokeCap = StrokeCap.round
-        ..color = gold.withValues(alpha: 0.15)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8);
+        ..shader = SweepGradient(
+          startAngle: arcStart,
+          endAngle: arcStart + arcSweep,
+          colors: [gold, goldLight, const Color(0xFF9B7BFF)],
+        ).createShader(Rect.fromCircle(center: center, radius: trackR));
+
+      final progressGlow = Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 10
+        ..strokeCap = StrokeCap.round
+        ..color = gold.withValues(alpha: 0.2)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6);
 
       canvas.drawArc(
-        Rect.fromCircle(center: center, radius: radius),
-        start,
-        sweep * progress,
+        Rect.fromCircle(center: center, radius: trackR),
+        arcStart,
+        arcSweep * p,
         false,
-        glow,
+        progressGlow,
       );
       canvas.drawArc(
-        Rect.fromCircle(center: center, radius: radius),
-        start,
-        sweep * progress,
+        Rect.fromCircle(center: center, radius: trackR),
+        arcStart,
+        arcSweep * p,
         false,
-        arc,
+        progressPaint,
+      );
+    }
+
+    // ── Needle ──────────────────────────────────────────────────
+    if (showNeedle) {
+      final needleAngle = arcStart + arcSweep * p;
+      final needleLen = trackR - 10;
+      final tip = Offset(
+        center.dx + math.cos(needleAngle) * needleLen,
+        center.dy + math.sin(needleAngle) * needleLen,
+      );
+      final tail = Offset(
+        center.dx - math.cos(needleAngle) * 16,
+        center.dy - math.sin(needleAngle) * 16,
+      );
+
+      // Needle glow
+      canvas.drawLine(
+        tail,
+        tip,
+        Paint()
+          ..color = gold.withValues(alpha: 0.35)
+          ..strokeWidth = 5
+          ..strokeCap = StrokeCap.round
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4),
+      );
+      // Needle body
+      canvas.drawLine(
+        tail,
+        tip,
+        Paint()
+          ..shader = LinearGradient(
+            colors: [goldLight, Colors.white, gold],
+          ).createShader(Rect.fromPoints(tail, tip))
+          ..strokeWidth = 2.4
+          ..strokeCap = StrokeCap.round,
+      );
+
+      // Hub
+      canvas.drawCircle(
+        center,
+        7,
+        Paint()..color = const Color(0xFF0A1628),
+      );
+      canvas.drawCircle(
+        center,
+        7,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2
+          ..color = gold,
+      );
+      canvas.drawCircle(
+        center,
+        3,
+        Paint()..color = goldLight,
       );
     }
   }
 
   @override
   bool shouldRepaint(_ArcGaugePainter old) =>
-      old.progress != progress || old.pulse != pulse;
+      old.progress != progress ||
+      old.pulse != pulse ||
+      old.showNeedle != showNeedle;
 }
