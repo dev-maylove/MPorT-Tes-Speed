@@ -118,10 +118,12 @@ class HistoryScreenState extends State<HistoryScreen>
       final file = File('${dir.path}/mport_history_$stamp.csv');
       await file.writeAsString(csv, flush: true);
 
+      if (!mounted) return;
       final box = context.findRenderObject() as RenderBox?;
       final origin = box != null
           ? box.localToGlobal(Offset.zero) & box.size
           : null;
+      final count = history.length;
 
       await SharePlus.instance.share(
         ShareParams(
@@ -133,7 +135,7 @@ class HistoryScreenState extends State<HistoryScreen>
             ),
           ],
           subject: 'MPorT Go — Speed Test History',
-          text: 'Speed test history export (${history.length} results)',
+          text: 'Speed test history export ($count results)',
           sharePositionOrigin: origin,
         ),
       );
@@ -412,7 +414,6 @@ class _HistoryCard extends StatelessWidget {
     final ping = _number(data['ping']);
     final jitter = _number(data['jitter']);
     final avgPing = _number(data['avgPing']);
-    final maxPing = _number(data['maxPing']);
     final loss = _number(data['packetLossPercent']);
     final server = (data['server'] ?? '—').toString();
     final location = (data['serverLocation'] ?? '').toString();

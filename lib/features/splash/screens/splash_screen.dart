@@ -1,10 +1,7 @@
-import '../../../core/theme/app_colors.dart';
 import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:video_player/video_player.dart';
-
 import '../../speed_test/screens/main_screen.dart';
 
 /// MPorT Go splash screen — plays logo animation video, then navigates to MainScreen.
@@ -112,7 +109,6 @@ class _SplashScreenState extends State<SplashScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final p = AppPalette.of(context);
     return Scaffold(
       backgroundColor: Colors.black,
       body: Stack(

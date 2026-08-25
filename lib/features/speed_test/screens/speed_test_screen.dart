@@ -1,14 +1,13 @@
 import 'dart:async';
 import 'dart:math' as math;
-
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:network_info_plus/network_info_plus.dart';
-
 import '../../../core/constants/server_config.dart';
+import '../../../core/notifications/test_notification_service.dart';
 import '../../../core/permissions/app_permissions.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_drawer.dart';
@@ -20,8 +19,6 @@ import '../services/history_service.dart';
 import '../services/realtime_service.dart';
 import '../services/speed_test_service.dart';
 import 'main_screen.dart';
-import '../../../core/notifications/test_notification_service.dart';
-
 
 class SpeedTestScreen extends StatefulWidget {
   const SpeedTestScreen({super.key});
@@ -61,8 +58,6 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
   /// Bumps on cancel so an in-flight test cannot overwrite UI after cancel.
   int _testGeneration = 0;
   String? _ispName;
-  String? _publicIp;
-  String? _asn;
   String? _deviceNetworkName; // Wi-Fi SSID or mobile network label
   /// Active path: wifi | mobile | ethernet | none
   String _connectionKind = 'none';
@@ -371,8 +366,6 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
           _ispName = null;
         }
         // ASN & public IP intentionally not shown in UI
-        _publicIp = null;
-        _asn = null;
       });
     }
 

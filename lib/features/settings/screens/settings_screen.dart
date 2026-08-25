@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
-
 import '../../../core/constants/app_constants.dart';
 import '../../../core/permissions/app_permissions.dart';
 import '../../../core/theme/theme_controller.dart';
 import '../../../core/widgets/app_footer.dart';
 import '../../about/screens/about_screen.dart';
-import '../../privacy/screens/privacy_policy_screen.dart';
 import '../../downdetector/screens/downdetector_screen.dart';
+import '../../privacy/screens/privacy_policy_screen.dart';
 import '../widgets/settings_tile.dart';
 
 class SettingsScreen extends StatefulWidget {

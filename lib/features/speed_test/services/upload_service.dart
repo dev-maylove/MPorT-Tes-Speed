@@ -141,7 +141,7 @@ class UploadService {
     }
 
     final sampleTimer = Timer.periodic(
-      Duration(milliseconds: ServerConfig.sampleIntervalMs),
+      const Duration(milliseconds: ServerConfig.sampleIntervalMs),
       (_) {
         if (running && !_cancelled) sampleTick();
       },
