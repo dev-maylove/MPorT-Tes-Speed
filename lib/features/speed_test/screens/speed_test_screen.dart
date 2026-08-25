@@ -76,7 +76,7 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
 
   // Settings in sheet
   String _unit = 'Mbps';
-  int _scale = 1000;
+  int _scale = 100;
   bool _multiConnection = true;
 
   late final AnimationController _gaugeCtrl;
@@ -231,7 +231,9 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
     }
   }
 
-  void _animateGaugeTo(double speedMbps) {
+  void _animateGaugeTo(double speedMbps, {bool lock = false}) {
+    // Grow scale so the needle uses a meaningful portion of the dial.
+    _ensureScaleFor(speedMbps);
     final targetProgress = _speedToProgress(speedMbps);
     _speedTween = Tween<double>(begin: _animSpeed, end: speedMbps).animate(
       CurvedAnimation(parent: _gaugeCtrl, curve: Curves.easeOutCubic),
@@ -245,12 +247,47 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
             .clamp(220, 600),
       )
       ..forward(from: 0);
+    if (lock) {
+      // After the tween finishes, pin values so nothing can snap back to 0.
+      void listener(AnimationStatus status) {
+        if (status == AnimationStatus.completed) {
+          _gaugeCtrl.removeStatusListener(listener);
+          if (!mounted) return;
+          setState(() {
+            _animSpeed = speedMbps;
+            _animProgress = targetProgress;
+          });
+        }
+      }
+      _gaugeCtrl.addStatusListener(listener);
+    }
+  }
+
+  /// Raise gauge scale when measured speed approaches the current max.
+  void _ensureScaleFor(double speedMbps) {
+    if (speedMbps <= 0) return;
+    // Prefer user-selected scale, but auto-bump if needle would peg near the rim.
+    final thresholds = <int>[100, 200, 500, 1000, 2000, 5000];
+    var needed = _scale;
+    for (final t in thresholds) {
+      if (speedMbps <= t * 0.85) {
+        needed = t;
+        break;
+      }
+      needed = t;
+    }
+    // Never shrink below the user's explicit choice during an active test.
+    if (needed > _scale) {
+      _scale = needed;
+    }
   }
 
   double _speedToProgress(double s) {
-    final maxScale = _scale.toDouble();
+    final maxScale = _scale.toDouble().clamp(1.0, 1e9);
     if (s <= 0) return 0;
-    return math.min(s / maxScale, 1.0);
+    // Slight ease so modest speeds (e.g. 50 on a 100 scale) read clearly.
+    final linear = (s / maxScale).clamp(0.0, 1.0);
+    return math.sqrt(linear);
   }
 
   /// Convert internal Mbps value to the user-selected display unit.
@@ -377,6 +414,8 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
       // Cancelled while test was running — discard results.
       if (!mounted || gen != _testGeneration) return;
 
+      _ensureScaleFor(result.download);
+      final pinnedProgress = _speedToProgress(result.download);
       setState(() {
         ping = result.ping;
         jitter = result.jitter;
@@ -388,12 +427,14 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
         currentSpeed = result.download;
         phase = SpeedTestPhase.completed;
         running = false;
+        // Keep needle at final download — do not snap to 0.
+        _animSpeed = result.download;
+        _animProgress = pinnedProgress;
         // nextInt max must be <= 2^32; build a 10–13 digit Test ID safely
         _testId = _generateTestId();
       });
-      _animateGaugeTo(result.download);
-
-      // Keep final speed on the gauge (do not reset to 0).
+      // Smooth settle on the same value (no visual jump back to zero).
+      _animateGaugeTo(result.download, lock: true);
       // ignore: unawaited_futures
       _refreshServerStatus();
 
