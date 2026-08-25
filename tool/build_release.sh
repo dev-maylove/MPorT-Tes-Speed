@@ -25,7 +25,7 @@ case "$MODE" in
     ls -lh build/app/outputs/flutter-apk/*.apk 2>/dev/null || true
     ;;
   universal)
-    echo "==> build universal APK (arm only via abiFilters) + obfuscate"
+    echo "==> build universal APK (arm only via --target-platform) + obfuscate"
     flutter build apk --release \
       --obfuscate \
       --split-debug-info=build/debug-info \

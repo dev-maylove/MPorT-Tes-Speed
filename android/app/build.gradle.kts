@@ -49,11 +49,10 @@ android {
         versionCode = flutter.versionCode
         versionName = flutter.versionName
 
-        // Phone-first ABIs (drop x86/x86_64 — emulator-only).
-        // CI still uses --split-per-abi for even smaller per-device APKs.
-        ndk {
-            abiFilters += listOf("armeabi-v7a", "arm64-v8a")
-        }
+        // Do NOT set ndk.abiFilters here.
+        // Flutter --split-per-abi / --target-platform already controls ABIs.
+        // Combining both causes:
+        //   "Conflicting configuration … ndk abiFilters cannot be present when splits abi filters are set"
 
         // App UI is Indonesian/English only — drop unused locale resources from deps
         resourceConfigurations += listOf("en", "in", "id")

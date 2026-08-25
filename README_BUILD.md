@@ -22,7 +22,7 @@ Endpoints (OpenSpeedTest-style / Ookla-style depending on selected server):
 | `--split-per-abi` | Separate APK per CPU (arm64 ~half of fat APK) |
 | `--obfuscate` + R8 full mode | Smaller DEX, harder reverse-engineering |
 | `--tree-shake-icons` | Drop unused Material icons |
-| `abiFilters` arm only | No x86/x86_64 in APK |
+| `--target-platform=android-arm,android-arm64` | No x86/x86_64 (via Flutter flags, not ndk.abiFilters) |
 | `resourceConfigurations` en/id | Drop unused locale strings from deps |
 | `isMinifyEnabled` + `isShrinkResources` | Dead code & unused resources removed |
 | Compressed JNI (`useLegacyPackaging`) | Smaller native libs in APK |
