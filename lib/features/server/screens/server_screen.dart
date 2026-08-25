@@ -43,17 +43,17 @@ class _ServerScreenState extends State<ServerScreen> {
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-        title: const Text('Select Server'),
+        title: Text('Select Server'),
         actions: [
           IconButton(
             tooltip: 'Auto-select (nearest)',
-            icon: const Icon(Icons.my_location_outlined),
+            icon: Icon(Icons.my_location_outlined),
             onPressed:
                 _service.isProbing ? null : () => _service.selectNearest(force: true),
           ),
           IconButton(
             tooltip: 'Reload',
-            icon: const Icon(Icons.refresh_rounded),
+            icon: Icon(Icons.refresh_rounded),
             onPressed: _service.isLoading
                 ? null
                 : () => _service.loadServers(autoNearest: true),

@@ -40,15 +40,15 @@ class AboutScreen extends StatelessWidget {
           child: Column(
             children: [
               _buildHeader(),
-              const SizedBox(height: 24),
+              SizedBox(height: 24),
               _buildDescription(),
-              const SizedBox(height: 20),
+              SizedBox(height: 20),
               _buildFeatures(),
-              const SizedBox(height: 20),
+              SizedBox(height: 20),
               _buildAppInfo(),
-              const SizedBox(height: 20),
+              SizedBox(height: 20),
               _buildDeveloperCard(),
-              const SizedBox(height: 12),
+              SizedBox(height: 12),
               const AppFooter(),
             ],
           ),
@@ -81,8 +81,8 @@ class AboutScreen extends StatelessWidget {
             ),
           ),
         ),
-        const SizedBox(height: 18),
-        const Text(
+        SizedBox(height: 18),
+        Text(
           'MPorT Go',
           textAlign: TextAlign.center,
           style: TextStyle(
@@ -92,7 +92,7 @@ class AboutScreen extends StatelessWidget {
             letterSpacing: 0.2,
           ),
         ),
-        const SizedBox(height: 7),
+        SizedBox(height: 7),
         Text(
           'Internet Speed Test',
           style: TextStyle(
@@ -102,8 +102,8 @@ class AboutScreen extends StatelessWidget {
             letterSpacing: 1.1,
           ),
         ),
-        const SizedBox(height: 8),
-        const Text(
+        SizedBox(height: 8),
+        Text(
           'Measure your internet speed easily,\nquickly, and comfortably.',
           textAlign: TextAlign.center,
           style: TextStyle(
@@ -236,14 +236,14 @@ class AboutScreen extends StatelessWidget {
                     color: primaryColor.withValues(alpha: 0.35),
                   ),
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.person_rounded,
                   color: primaryColor,
                   size: 27,
                 ),
               ),
               const SizedBox(width: 14),
-              const Expanded(
+              Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -307,10 +307,10 @@ class AboutScreen extends StatelessWidget {
             size: 20,
           ),
         ),
-        const SizedBox(width: 11),
+        SizedBox(width: 11),
         Text(
           title,
-          style: const TextStyle(
+          style: TextStyle(
             color: Theme.of(context).colorScheme.onSurface,
             fontSize: 16,
             fontWeight: FontWeight.w700,
@@ -343,23 +343,23 @@ class AboutScreen extends StatelessWidget {
               size: 21,
             ),
           ),
-          const SizedBox(width: 13),
+          SizedBox(width: 13),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   title,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: Theme.of(context).colorScheme.onSurface,
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
-                const SizedBox(height: 4),
+                SizedBox(height: 4),
                 Text(
                   description,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
                     fontSize: 12,
                     height: 1.4,
@@ -385,18 +385,18 @@ class AboutScreen extends StatelessWidget {
           Expanded(
             child: Text(
               title,
-              style: const TextStyle(
+              style: TextStyle(
                 color: Theme.of(context).colorScheme.onSurfaceVariant,
                 fontSize: 13,
               ),
             ),
           ),
-          const SizedBox(width: 15),
+          SizedBox(width: 15),
           Flexible(
             child: Text(
               value,
               textAlign: TextAlign.right,
-              style: const TextStyle(
+              style: TextStyle(
                 color: Theme.of(context).colorScheme.onSurface,
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
