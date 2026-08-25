@@ -31,12 +31,13 @@ class SpeedTestScreen extends StatefulWidget {
 
 class _SpeedTestScreenState extends State<SpeedTestScreen>
     with TickerProviderStateMixin {
-  // MPorT palette (dipertahankan)
-  static const gold = Color(0xFF00E5A0);
-  static const goldLight = Color(0xFF5CFFC9);
-  static const background = Color(0xFF06080F);
-  static const sheetColor = Color(0xFF0F1420);
-  static const cardColor = Color(0xFF151B2B);
+  // Theme-aware palette (light + dark)
+  Color get gold => AppPalette.of(context).primary;
+  Color get goldLight => AppPalette.of(context).primaryLight;
+  Color get background => AppPalette.of(context).background;
+  Color get sheetColor => AppPalette.of(context).sheet;
+  Color get cardColor => AppPalette.of(context).card;
+  bool get _isDark => Theme.of(context).brightness == Brightness.dark;
 
   final SpeedTestService _service = SpeedTestService();
   final HistoryService _historyService = HistoryService();
@@ -1271,6 +1272,7 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
                                     goldLight: goldLight,
                                     pulse: running ? pulse : 0.2,
                                     showNeedle: true,
+                                    isDark: _isDark,
                                   ),
                                 ),
                                 _gaugeCenterValue(speedOverride: speed),
@@ -1322,7 +1324,7 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
             Text(
               value.toStringAsFixed(1),
               style: TextStyle(
-                color: Colors.white,
+                color: AppPalette.of(context).textPrimary,
                 fontSize: 42,
                 fontWeight: FontWeight.w800,
                 height: 1,
@@ -1994,6 +1996,7 @@ class _ArcGaugePainter extends CustomPainter {
   final Color goldLight;
   final double pulse;
   final bool showNeedle;
+  final bool isDark;
 
   _ArcGaugePainter({
     required this.progress,
@@ -2001,6 +2004,7 @@ class _ArcGaugePainter extends CustomPainter {
     required this.goldLight,
     this.pulse = 0,
     this.showNeedle = true,
+    this.isDark = true,
   });
 
   @override
@@ -2008,18 +2012,25 @@ class _ArcGaugePainter extends CustomPainter {
     final center = Offset(size.width / 2, size.height / 2);
     final outerR = size.width / 2 - 4;
 
-    // ── Dial face (deep navy radial) ────────────────────────────
+    // ── Dial face ───────────────────────────────────────────────
+    final faceColors = isDark
+        ? const [
+            Color(0xFF0E1828),
+            Color(0xFF080C16),
+            Color(0xFF05070E),
+          ]
+        : const [
+            Color(0xFFFFFFFF),
+            Color(0xFFF0F4F8),
+            Color(0xFFE2E8F0),
+          ];
     canvas.drawCircle(
       center,
       outerR - 1,
       Paint()
-        ..shader = const RadialGradient(
-          colors: [
-            Color(0xFF0E1828),
-            Color(0xFF080C16),
-            Color(0xFF05070E),
-          ],
-          stops: [0.0, 0.55, 1.0],
+        ..shader = RadialGradient(
+          colors: faceColors,
+          stops: const [0.0, 0.55, 1.0],
         ).createShader(Rect.fromCircle(center: center, radius: outerR)),
     );
 
@@ -2179,7 +2190,9 @@ class _ArcGaugePainter extends CustomPainter {
   bool shouldRepaint(_ArcGaugePainter old) =>
       old.progress != progress ||
       old.pulse != pulse ||
-      old.showNeedle != showNeedle;
+      old.showNeedle != showNeedle ||
+      old.isDark != isDark ||
+      old.gold != gold;
 }
 
 /// Tiny ECG / pulse decoration beside "TEST SPEED".

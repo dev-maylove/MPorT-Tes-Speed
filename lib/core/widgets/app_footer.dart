@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../theme/app_colors.dart';
+
 /// Shared footer matching MPorT branding (centered).
-///
-/// MPorT Go
-/// © 2026 MPorT. All rights reserved.
-/// Made with ❤️ in Kincir Tengah
 class AppFooter extends StatelessWidget {
   const AppFooter({
     super.key,
@@ -12,13 +10,12 @@ class AppFooter extends StatelessWidget {
     this.padding,
   });
 
-  /// When true, uses tighter spacing (e.g. drawer / short lists).
   final bool compact;
-
   final EdgeInsetsGeometry? padding;
 
   @override
   Widget build(BuildContext context) {
+    final p = AppPalette.of(context);
     final vertical = compact ? 12.0 : 18.0;
     return Padding(
       padding: padding ?? EdgeInsets.fromLTRB(16, vertical, 16, vertical),
@@ -31,35 +28,35 @@ class AppFooter extends StatelessWidget {
             Container(
               width: 40,
               height: 1,
-              color: Colors.white.withValues(alpha: 0.08),
+              color: p.divider,
             ),
             SizedBox(height: compact ? 12 : 16),
-            const Text(
+            Text(
               'MPorT Go',
               textAlign: TextAlign.center,
               style: TextStyle(
-                color: Colors.white70,
+                color: p.textSecondary,
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
               ),
             ),
             const SizedBox(height: 6),
-            const Text(
+            Text(
               '© 2026 MPorT. All rights reserved.',
               textAlign: TextAlign.center,
               style: TextStyle(
-                color: Color(0xFF9A9AA6),
+                color: p.textMuted,
                 fontSize: 12,
               ),
             ),
             const SizedBox(height: 5),
-            const Text.rich(
+            Text.rich(
               TextSpan(
                 style: TextStyle(
-                  color: Color(0xFF777783),
+                  color: p.textMuted,
                   fontSize: 11,
                 ),
-                children: [
+                children: const [
                   TextSpan(text: 'Made with '),
                   TextSpan(
                     text: '❤️',

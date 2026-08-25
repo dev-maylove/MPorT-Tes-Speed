@@ -33,6 +33,12 @@ class UploadService {
     _client = null;
   }
 
+  /// Drop cached upload body to free Dart heap (~2 MiB).
+  void releaseCache() {
+    _cachedPayload = null;
+    _warmInFlight = null;
+  }
+
   /// Pre-warm payload on a background isolate (non-blocking for UI).
   Future<void> warmUp({
     int megabytes = ServerConfig.uploadPayloadMegabytes,

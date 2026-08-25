@@ -15,37 +15,36 @@ class AppDrawer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = AppPalette.of(context);
     return Drawer(
-      backgroundColor: AppColors.surface,
+      backgroundColor: p.surface,
       child: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Container(
               padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
-              decoration: const BoxDecoration(
-                color: AppColors.background,
-                border: Border(
-                  bottom: BorderSide(color: Color(0xFF1A2030)),
-                ),
+              decoration: BoxDecoration(
+                color: p.background,
+                border: Border(bottom: BorderSide(color: p.divider)),
               ),
-              child: const Column(
+              child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(Icons.speed_rounded, color: AppColors.green, size: 36),
-                  SizedBox(height: 12),
+                  Icon(Icons.speed_rounded, color: p.primary, size: 36),
+                  const SizedBox(height: 12),
                   Text(
                     'MPorT Go',
                     style: TextStyle(
-                      color: AppColors.textPrimary,
+                      color: p.textPrimary,
                       fontSize: 18,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
-                  SizedBox(height: 4),
+                  const SizedBox(height: 4),
                   Text(
                     'Menu',
-                    style: TextStyle(color: AppColors.textMuted, fontSize: 13),
+                    style: TextStyle(color: p.textMuted, fontSize: 13),
                   ),
                 ],
               ),
@@ -56,12 +55,14 @@ class AppDrawer extends StatelessWidget {
                 children: [
                   _item(
                     context,
+                    p,
                     icon: Icons.dns_outlined,
                     title: 'Select Server',
                     onTap: () => _go(context, const ServerScreen()),
                   ),
                   _item(
                     context,
+                    p,
                     icon: Icons.report_problem_outlined,
                     title: 'Downdetector',
                     subtitle: 'Check service outages',
@@ -69,13 +70,15 @@ class AppDrawer extends StatelessWidget {
                   ),
                   _item(
                     context,
+                    p,
                     icon: Icons.settings_outlined,
                     title: 'Settings',
                     onTap: () => _go(context, const SettingsScreen()),
                   ),
-                  const Divider(color: Color(0xFF1A2030)),
+                  Divider(color: p.divider),
                   _item(
                     context,
+                    p,
                     icon: Icons.privacy_tip_outlined,
                     title: 'Privacy Policy',
                     subtitle: 'How we handle data',
@@ -83,6 +86,7 @@ class AppDrawer extends StatelessWidget {
                   ),
                   _item(
                     context,
+                    p,
                     icon: Icons.info_outline,
                     title: 'About',
                     onTap: () => _go(context, const AboutScreen()),
@@ -98,18 +102,19 @@ class AppDrawer extends StatelessWidget {
   }
 
   static Widget _item(
-    BuildContext context, {
+    BuildContext context,
+    AppPalette p, {
     required IconData icon,
     required String title,
     String? subtitle,
     required VoidCallback onTap,
   }) {
     return ListTile(
-      leading: Icon(icon, color: AppColors.greenLight),
+      leading: Icon(icon, color: p.icon),
       title: Text(
         title,
-        style: const TextStyle(
-          color: AppColors.textPrimary,
+        style: TextStyle(
+          color: p.textPrimary,
           fontWeight: FontWeight.w600,
         ),
       ),
@@ -117,14 +122,14 @@ class AppDrawer extends StatelessWidget {
           ? null
           : Text(
               subtitle,
-              style: const TextStyle(color: AppColors.textMuted, fontSize: 12),
+              style: TextStyle(color: p.textMuted, fontSize: 12),
             ),
       onTap: onTap,
     );
   }
 
   static void _go(BuildContext context, Widget page) {
-    Navigator.of(context).pop(); // close drawer
+    Navigator.of(context).pop();
     Navigator.of(context).push(
       MaterialPageRoute<void>(builder: (_) => page),
     );
@@ -133,6 +138,7 @@ class AppDrawer extends StatelessWidget {
 
 /// Standard hamburger button — opens the MainScreen drawer.
 Widget appMenuButton(BuildContext context) {
+  final p = AppPalette.of(context);
   return IconButton(
     tooltip: 'Menu',
     onPressed: () {
@@ -145,6 +151,6 @@ Widget appMenuButton(BuildContext context) {
         MaterialPageRoute<void>(builder: (_) => const SettingsScreen()),
       );
     },
-    icon: const Icon(Icons.menu, color: AppColors.textPrimary),
+    icon: Icon(Icons.menu, color: p.textPrimary),
   );
 }

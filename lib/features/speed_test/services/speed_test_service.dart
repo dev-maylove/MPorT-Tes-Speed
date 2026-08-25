@@ -119,6 +119,8 @@ class SpeedTestService {
     if (!_cancelled) {
       onProgress?.call(SpeedTestPhase.completed, 100);
     }
+    // Free upload buffer — re-warmed lazily on next test / warmUp.
+    _uploadService.releaseCache();
     return result;
   }
 }

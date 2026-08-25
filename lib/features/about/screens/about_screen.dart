@@ -1,35 +1,32 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/constants/app_constants.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_footer.dart';
 
 class AboutScreen extends StatelessWidget {
   const AboutScreen({super.key});
 
-  // Aligned with MPorT theme (green) + premium accent
-  static const Color primaryColor = Color(0xFF00E5A0);
-  static const Color primaryGold = Color(0xFFD4AF37);
-  static const Color darkBackground = Color(0xFF0B0B0F);
-  static const Color cardColor = Color(0xFF15151C);
-  static const Color secondaryText = Color(0xFF9A9AA6);
+  // Theme via AppPalette.of(context)
 
   @override
   Widget build(BuildContext context) {
+    final p = AppPalette.of(context);
     return Scaffold(
-      backgroundColor: darkBackground,
+      backgroundColor: p.background,
       appBar: AppBar(
-        backgroundColor: darkBackground,
+        backgroundColor: p.background,
         elevation: 0,
         centerTitle: true,
-        title: const Text(
+        title: Text(
           'About',
           style: TextStyle(
-            color: Colors.white,
+            color: p.textPrimary,
             fontSize: 19,
             fontWeight: FontWeight.w700,
           ),
         ),
-        iconTheme: const IconThemeData(color: Colors.white),
+        iconTheme: IconThemeData(color: p.textPrimary),
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -65,7 +62,7 @@ class AboutScreen extends StatelessWidget {
             borderRadius: BorderRadius.circular(28),
             boxShadow: [
               BoxShadow(
-                color: primaryColor.withValues(alpha: 0.25),
+                color: p.primary.withValues(alpha: 0.25),
                 blurRadius: 30,
                 spreadRadius: 3,
               ),
@@ -80,11 +77,11 @@ class AboutScreen extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 18),
-        const Text(
+        Text(
           'MPorT Go',
           textAlign: TextAlign.center,
           style: TextStyle(
-            color: Colors.white,
+            color: p.textPrimary,
             fontSize: 26,
             fontWeight: FontWeight.w800,
             letterSpacing: 0.2,
@@ -94,18 +91,18 @@ class AboutScreen extends StatelessWidget {
         Text(
           'Internet Speed Test',
           style: TextStyle(
-            color: primaryColor.withValues(alpha: 0.95),
+            color: p.primary.withValues(alpha: 0.95),
             fontSize: 14,
             fontWeight: FontWeight.w600,
             letterSpacing: 1.1,
           ),
         ),
         const SizedBox(height: 8),
-        const Text(
+        Text(
           'Measure your internet speed easily,\nquickly, and comfortably.',
           textAlign: TextAlign.center,
           style: TextStyle(
-            color: secondaryText,
+            color: p.textMuted,
             height: 1.5,
             fontSize: 14,
           ),
@@ -229,14 +226,14 @@ class AboutScreen extends StatelessWidget {
                 height: 52,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: primaryColor.withValues(alpha: 0.12),
+                  color: p.primary.withValues(alpha: 0.12),
                   border: Border.all(
-                    color: primaryColor.withValues(alpha: 0.35),
+                    color: p.primary.withValues(alpha: 0.35),
                   ),
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.person_rounded,
-                  color: primaryColor,
+                  color: p.primary,
                   size: 27,
                 ),
               ),
@@ -248,7 +245,7 @@ class AboutScreen extends StatelessWidget {
                     Text(
                       'DeV_MaYLoVe',
                       style: TextStyle(
-                        color: Colors.white,
+                        color: p.textPrimary,
                         fontSize: 16,
                         fontWeight: FontWeight.w700,
                       ),
@@ -257,7 +254,7 @@ class AboutScreen extends StatelessWidget {
                     Text(
                       'Developer & Technology',
                       style: TextStyle(
-                        color: secondaryText,
+                        color: p.textMuted,
                         fontSize: 13,
                       ),
                     ),
@@ -276,10 +273,10 @@ class AboutScreen extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: cardColor,
+        color: p.card,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: Colors.white.withValues(alpha: 0.06),
+          color: p.textPrimary.withValues(alpha: 0.06),
         ),
       ),
       child: child,
@@ -296,20 +293,20 @@ class AboutScreen extends StatelessWidget {
           width: 36,
           height: 36,
           decoration: BoxDecoration(
-            color: primaryColor.withValues(alpha: 0.12),
+            color: p.primary.withValues(alpha: 0.12),
             borderRadius: BorderRadius.circular(11),
           ),
           child: Icon(
             icon,
-            color: primaryColor,
+            color: p.primary,
             size: 20,
           ),
         ),
         const SizedBox(width: 11),
         Text(
           title,
-          style: const TextStyle(
-            color: Colors.white,
+          style: TextStyle(
+            color: p.textPrimary,
             fontSize: 16,
             fontWeight: FontWeight.w700,
           ),
@@ -332,12 +329,12 @@ class AboutScreen extends StatelessWidget {
             width: 42,
             height: 42,
             decoration: BoxDecoration(
-              color: primaryColor.withValues(alpha: 0.10),
+              color: p.primary.withValues(alpha: 0.10),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(
               icon,
-              color: primaryColor,
+              color: p.primary,
               size: 21,
             ),
           ),
@@ -348,8 +345,8 @@ class AboutScreen extends StatelessWidget {
               children: [
                 Text(
                   title,
-                  style: const TextStyle(
-                    color: Colors.white,
+                  style: TextStyle(
+                    color: p.textPrimary,
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
                   ),
@@ -357,8 +354,8 @@ class AboutScreen extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   description,
-                  style: const TextStyle(
-                    color: secondaryText,
+                  style: TextStyle(
+                    color: p.textMuted,
                     fontSize: 12,
                     height: 1.4,
                   ),
@@ -383,8 +380,8 @@ class AboutScreen extends StatelessWidget {
           Expanded(
             child: Text(
               title,
-              style: const TextStyle(
-                color: secondaryText,
+              style: TextStyle(
+                color: p.textMuted,
                 fontSize: 13,
               ),
             ),
@@ -394,8 +391,8 @@ class AboutScreen extends StatelessWidget {
             child: Text(
               value,
               textAlign: TextAlign.right,
-              style: const TextStyle(
-                color: Colors.white,
+              style: TextStyle(
+                color: p.textPrimary,
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
               ),

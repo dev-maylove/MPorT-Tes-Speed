@@ -1,8 +1,8 @@
 class AppConstants {
   static const String appName = 'MPorT Go';
   /// Keep in sync with pubspec.yaml version (name+build).
-  static const String appVersion = '1.9.3';
-  static const String appBuild = '22';
+  static const String appVersion = '1.9.5';
+  static const String appBuild = '24';
 
   static const String defaultSpeedUnit = 'Mbps';
   static const String defaultLatencyUnit = 'ms';
@@ -15,7 +15,7 @@ class AppConstants {
   /// Parallel connections (OpenSpeedTest-style).
   static const int parallelConnections = 4;
 
-  static const int maxHistoryItems = 100;
+  static const int maxHistoryItems = 50;
 
   static const Duration gaugeAnimationDuration = Duration(milliseconds: 800);
 }

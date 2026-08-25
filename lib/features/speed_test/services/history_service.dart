@@ -5,7 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// Persists speed-test results locally (max 100 entries).
 class HistoryService {
   static const String _key = 'speed_test_history_v2';
-  static const int maxItems = 100;
+  static const int maxItems = 50;
 
   Future<List<Map<String, dynamic>>> getHistory() async {
     try {

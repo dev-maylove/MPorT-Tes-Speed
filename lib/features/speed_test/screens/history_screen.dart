@@ -1,9 +1,16 @@
 import 'package:flutter/material.dart';
-
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_drawer.dart';
 import '../../../core/widgets/app_footer.dart';
 import '../services/history_service.dart';
+
+Color _bg(BuildContext c) => AppPalette.of(c).background;
+Color _card(BuildContext c) => AppPalette.of(c).card;
+Color _text(BuildContext c) => AppPalette.of(c).textPrimary;
+Color _muted(BuildContext c) => AppPalette.of(c).textMuted;
+Color _sec(BuildContext c) => AppPalette.of(c).textSecondary;
+Color _prim(BuildContext c) => AppPalette.of(c).primary;
+Color _primL(BuildContext c) => AppPalette.of(c).primaryLight;
 
 class HistoryScreen extends StatefulWidget {
   const HistoryScreen({super.key});
@@ -48,12 +55,12 @@ class HistoryScreenState extends State<HistoryScreen> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.card,
-        title: const Text('Hapus semua riwayat?',
-            style: TextStyle(color: AppColors.textPrimary)),
-        content: const Text(
+        backgroundColor: _card(ctx),
+        title: Text('Hapus semua riwayat?',
+            style: TextStyle(color: _text(ctx))),
+        content: Text(
           'Semua hasil tes yang tersimpan akan dihapus.',
-          style: TextStyle(color: AppColors.textSecondary),
+          style: TextStyle(color: _sec(ctx)),
         ),
         actions: [
           TextButton(
@@ -87,35 +94,35 @@ class HistoryScreenState extends State<HistoryScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: _bg(context),
       appBar: AppBar(
         title: const Text(
           'Riwayat Tes',
           style: TextStyle(
-            color: AppColors.textPrimary,
+            color: _text(context),
             fontWeight: FontWeight.w700,
           ),
         ),
-        backgroundColor: AppColors.background,
+        backgroundColor: _bg(context),
         automaticallyImplyLeading: false,
         actions: [
           if (history.isNotEmpty)
             IconButton(
               tooltip: 'Hapus semua',
               onPressed: _confirmClear,
-              icon: const Icon(Icons.delete_outline, color: AppColors.textPrimary),
+              icon: Icon(Icons.delete_outline, color: _text(context)),
             ),
           appMenuButton(context),
         ],
       ),
       body: loading
-          ? const Center(
-              child: CircularProgressIndicator(color: AppColors.green),
+          ? Center(
+              child: CircularProgressIndicator(color: _prim(context)),
             )
           : history.isEmpty
               ? const _EmptyHistory()
               : RefreshIndicator(
-                  color: AppColors.green,
+                  color: _prim(context),
                   onRefresh: reload,
                   child: ListView.builder(
                     padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
@@ -165,16 +172,16 @@ class _EmptyHistory extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.history_rounded, size: 72, color: AppColors.greenDim),
+          Icon(Icons.history_rounded, size: 72, color: _prim(context)Dim),
           SizedBox(height: 16),
           Text(
             'Belum ada riwayat tes',
-            style: TextStyle(color: AppColors.textSecondary, fontSize: 16),
+            style: TextStyle(color: _sec(context), fontSize: 16),
           ),
           SizedBox(height: 6),
           Text(
             'Jalankan tes speed, hasilnya akan muncul di sini',
-            style: TextStyle(color: AppColors.textMuted, fontSize: 12),
+            style: TextStyle(color: _muted(context), fontSize: 12),
           ),
         ],
       ),
@@ -205,35 +212,35 @@ class _SummaryHeader extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 14),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: AppColors.card,
+        color: _card(context),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.green.withValues(alpha: 0.25)),
+        border: Border.all(color: _prim(context).withValues(alpha: 0.25)),
       ),
       child: Row(
         children: [
-          _stat('Tes', '${history.length}', ''),
-          _stat('Avg ↓', avgDl.toStringAsFixed(1), 'Mbps'),
-          _stat('Avg ↑', avgUl.toStringAsFixed(1), 'Mbps'),
-          _stat('Avg Ping', avgPing.toStringAsFixed(0), 'ms'),
+          _stat(context, 'Tes', '${history.length}', ''),
+          _stat(context, 'Avg ↓', avgDl.toStringAsFixed(1), 'Mbps'),
+          _stat(context, 'Avg ↑', avgUl.toStringAsFixed(1), 'Mbps'),
+          _stat(context, 'Avg Ping', avgPing.toStringAsFixed(0), 'ms'),
         ],
       ),
     );
   }
 
-  Widget _stat(String label, String value, String unit) {
+  Widget _stat(BuildContext context, String label, String value, String unit) {
     return Expanded(
       child: Column(
         children: [
           Text(label,
-              style: const TextStyle(color: AppColors.textMuted, fontSize: 10)),
+              style: TextStyle(color: _muted(context), fontSize: 10)),
           const SizedBox(height: 4),
           Text.rich(
             TextSpan(
               children: [
                 TextSpan(
                   text: value,
-                  style: const TextStyle(
-                    color: AppColors.greenLight,
+                  style: TextStyle(
+                    color: _primL(context),
                     fontSize: 15,
                     fontWeight: FontWeight.w700,
                   ),
@@ -241,8 +248,8 @@ class _SummaryHeader extends StatelessWidget {
                 if (unit.isNotEmpty)
                   TextSpan(
                     text: ' $unit',
-                    style: const TextStyle(
-                      color: AppColors.textMuted,
+                    style: TextStyle(
+                      color: _muted(context),
                       fontSize: 9,
                     ),
                   ),
@@ -311,7 +318,7 @@ class _HistoryCard extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: AppColors.card,
+        color: _card(context),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
       ),
@@ -321,18 +328,18 @@ class _HistoryCard extends StatelessWidget {
           // Header: time + network
           Row(
             children: [
-              const Icon(Icons.access_time, size: 14, color: AppColors.textMuted),
+              Icon(Icons.access_time, size: 14, color: _muted(context)),
               const SizedBox(width: 6),
               Text(
                 _formatDate(timestamp),
                 style: const TextStyle(
-                  color: AppColors.textPrimary,
+                  color: _text(context),
                   fontSize: 12,
                   fontWeight: FontWeight.w500,
                 ),
               ),
               const Spacer(),
-              Icon(_connIcon(kind), size: 14, color: AppColors.green),
+              Icon(_connIcon(kind), size: 14, color: _prim(context)),
               const SizedBox(width: 4),
               Flexible(
                 child: Text(
@@ -340,7 +347,7 @@ class _HistoryCard extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    color: AppColors.greenLight,
+                    color: _primL(context),
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
                   ),
@@ -358,7 +365,7 @@ class _HistoryCard extends StatelessWidget {
                   label: 'Download',
                   value: download,
                   unit: 'Mbps',
-                  color: AppColors.greenLight,
+                  color: _primL(context),
                 ),
               ),
               const SizedBox(width: 10),
@@ -389,7 +396,7 @@ class _HistoryCard extends StatelessWidget {
           // Server / device footer
           Row(
             children: [
-              const Icon(Icons.dns_rounded, size: 13, color: AppColors.textMuted),
+              Icon(Icons.dns_rounded, size: 13, color: _muted(context)),
               const SizedBox(width: 4),
               Flexible(
                 child: Text(
@@ -397,14 +404,14 @@ class _HistoryCard extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    color: AppColors.textMuted,
+                    color: _muted(context),
                     fontSize: 11,
                   ),
                 ),
               ),
               if (device.isNotEmpty) ...[
                 const SizedBox(width: 8),
-                const Icon(Icons.smartphone, size: 13, color: AppColors.textMuted),
+                Icon(Icons.smartphone, size: 13, color: _muted(context)),
                 const SizedBox(width: 4),
                 Flexible(
                   child: Text(
@@ -412,7 +419,7 @@ class _HistoryCard extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
-                      color: AppColors.textMuted,
+                      color: _muted(context),
                       fontSize: 11,
                     ),
                   ),
@@ -425,7 +432,7 @@ class _HistoryCard extends StatelessWidget {
             Text(
               'ID: $testId',
               style: TextStyle(
-                color: AppColors.textMuted.withValues(alpha: 0.7),
+                color: _muted(context).withValues(alpha: 0.7),
                 fontSize: 10,
               ),
             ),
@@ -516,18 +523,18 @@ class _SmallValue extends StatelessWidget {
     return Column(
       children: [
         Text(title,
-            style: const TextStyle(color: AppColors.textMuted, fontSize: 9)),
+            style: TextStyle(color: _muted(context), fontSize: 9)),
         const SizedBox(height: 2),
         Text(
           value.toStringAsFixed(unit == '%' || unit == 'ms' ? 0 : 1),
           style: const TextStyle(
-            color: AppColors.textPrimary,
+            color: _text(context),
             fontSize: 13,
             fontWeight: FontWeight.w700,
           ),
         ),
         Text(unit,
-            style: const TextStyle(color: AppColors.greenDim, fontSize: 8)),
+            style: TextStyle(color: _prim(context)Dim, fontSize: 8)),
       ],
     );
   }

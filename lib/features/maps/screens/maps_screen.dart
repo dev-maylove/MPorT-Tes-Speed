@@ -1,10 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
-
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_drawer.dart';
 import '../../server/services/server_service.dart';
 import '../../speed_test/models/test_server.dart';
+
+Color _bg(BuildContext c) => AppPalette.of(c).background;
+Color _card(BuildContext c) => AppPalette.of(c).card;
+Color _text(BuildContext c) => AppPalette.of(c).textPrimary;
+Color _muted(BuildContext c) => AppPalette.of(c).textMuted;
+Color _sec(BuildContext c) => AppPalette.of(c).textSecondary;
+Color _prim(BuildContext c) => AppPalette.of(c).primary;
+Color _primL(BuildContext c) => AppPalette.of(c).primaryLight;
 
 /// Peta server — dioptimalkan:
 /// - Load HTML once (do not reload when switching tabs)
@@ -48,7 +55,7 @@ class _MapsScreenState extends State<MapsScreen>
 
     final controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..setBackgroundColor(AppColors.background)
+      ..setBackgroundColor(_bg(context))
       ..setNavigationDelegate(
         NavigationDelegate(
           onPageFinished: (_) {
@@ -178,19 +185,19 @@ window.panTo=function(lat,lon,z){
     super.build(context);
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: _bg(context),
       appBar: AppBar(
-        backgroundColor: AppColors.background,
+        backgroundColor: _bg(context),
         automaticallyImplyLeading: false,
         title: const Text(
           'Server Map',
           style: TextStyle(
-            color: AppColors.textPrimary,
+            color: _text(context),
             fontWeight: FontWeight.w700,
           ),
         ),
         actions: [appMenuButton(context)],
-        iconTheme: const IconThemeData(color: AppColors.greenLight),
+        iconTheme: IconThemeData(color: _primL(context)),
       ),
       body: Column(
         children: [
@@ -201,17 +208,17 @@ window.panTo=function(lat,lon,z){
                 if (_controller != null)
                   WebViewWidget(controller: _controller!)
                 else
-                  const ColoredBox(color: AppColors.background),
+                  ColoredBox(color: _bg(context)),
                 if (_loading)
                   const Center(
-                    child: CircularProgressIndicator(color: AppColors.green),
+                    child: CircularProgressIndicator(color: _prim(context)),
                   ),
               ],
             ),
           ),
           Container(
             height: 150,
-            color: AppColors.surface,
+            color: _card(context),
             child: ListView.separated(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               scrollDirection: Axis.horizontal,
@@ -226,12 +233,12 @@ window.panTo=function(lat,lon,z){
                     width: 170,
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: AppColors.card,
+                      color: _card(context),
                       borderRadius: BorderRadius.circular(14),
                       border: Border.all(
                         color: active
-                            ? AppColors.green
-                            : AppColors.green.withValues(alpha: 0.2),
+                            ? _prim(context)
+                            : _prim(context).withValues(alpha: 0.2),
                         width: active ? 1.5 : 1,
                       ),
                     ),
@@ -243,7 +250,7 @@ window.panTo=function(lat,lon,z){
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
-                            color: AppColors.textPrimary,
+                            color: _text(context),
                             fontWeight: FontWeight.w700,
                             fontSize: 13,
                           ),
@@ -252,7 +259,7 @@ window.panTo=function(lat,lon,z){
                         Text(
                           s.location,
                           style: const TextStyle(
-                            color: AppColors.textSecondary,
+                            color: _sec(context),
                             fontSize: 12,
                           ),
                         ),
@@ -262,7 +269,7 @@ window.panTo=function(lat,lon,z){
                               ? '${s.distanceKm} km'
                               : '',
                           style: const TextStyle(
-                            color: AppColors.greenDim,
+                            color: _prim(context)Dim,
                             fontSize: 11,
                           ),
                         ),

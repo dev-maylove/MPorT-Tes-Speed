@@ -46,6 +46,7 @@ class _MainScreenState extends State<MainScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final p = AppPalette.of(context);
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, result) async {
@@ -54,7 +55,7 @@ class _MainScreenState extends State<MainScreen> {
       },
       child: Scaffold(
         key: MainScreen.scaffoldKey,
-        backgroundColor: AppColors.background,
+        backgroundColor: p.background,
         drawer: const AppDrawer(),
         body: IndexedStack(
           index: currentIndex,
@@ -65,7 +66,7 @@ class _MainScreenState extends State<MainScreen> {
           ],
         ),
         bottomNavigationBar: NavigationBar(
-          backgroundColor: AppColors.background,
+          backgroundColor: p.background,
           selectedIndex: currentIndex,
           onDestinationSelected: (index) {
             setState(() => currentIndex = index);

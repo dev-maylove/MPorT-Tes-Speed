@@ -1,3 +1,4 @@
+import '../../../core/theme/app_colors.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -28,7 +29,8 @@ class _SplashScreenState extends State<SplashScreen> {
       const SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
         statusBarIconBrightness: Brightness.light,
-        systemNavigationBarColor: Colors.black,
+        // nav color set by MaterialApp theme
+
         systemNavigationBarIconBrightness: Brightness.light,
       ),
     );
@@ -110,6 +112,7 @@ class _SplashScreenState extends State<SplashScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final p = AppPalette.of(context);
     return Scaffold(
       backgroundColor: Colors.black,
       body: Stack(

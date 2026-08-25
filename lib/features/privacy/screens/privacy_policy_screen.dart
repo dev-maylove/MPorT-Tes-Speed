@@ -2,24 +2,19 @@ import 'package:flutter/material.dart';
 
 import '../../../core/constants/app_constants.dart';
 import '../../../core/widgets/app_footer.dart';
+import '../../../core/theme/app_colors.dart';
 
 /// Full in-app Privacy Policy for MPorT Go (English).
 class PrivacyPolicyScreen extends StatelessWidget {
   const PrivacyPolicyScreen({super.key});
 
-  static const _bg = Color(0xFF0B0B0F);
-  static const _card = Color(0xFF15151C);
-  static const _green = Color(0xFF00E5A0);
-  static const _muted = Color(0xFF9A9AA6);
-
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    final bg = isDark ? _bg : theme.scaffoldBackgroundColor;
-    final card = isDark ? _card : theme.cardColor;
-    final titleColor = isDark ? Colors.white : theme.colorScheme.onSurface;
-    final bodyColor = isDark ? _muted : theme.colorScheme.onSurfaceVariant;
+    final p = AppPalette.of(context);
+    final titleColor = p.textPrimary;
+    final bodyColor = p.textMuted;
+    final bg = p.background;
+    final card = p.card;
 
     return Scaffold(
       backgroundColor: bg,
@@ -225,20 +220,20 @@ class PrivacyPolicyScreen extends StatelessWidget {
       decoration: BoxDecoration(
         color: card,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: _green.withValues(alpha: 0.25)),
+        border: Border.all(color: p.primary.withValues(alpha: 0.25)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Row(
             children: [
-              Icon(Icons.privacy_tip_outlined, color: _green, size: 28),
+              Icon(Icons.privacy_tip_outlined, color: p.primary, size: 28),
               SizedBox(width: 10),
               Expanded(
                 child: Text(
                   'MPorT Go Privacy Policy',
                   style: TextStyle(
-                    color: _green,
+                    color: p.primary,
                     fontSize: 17,
                     fontWeight: FontWeight.w800,
                   ),
