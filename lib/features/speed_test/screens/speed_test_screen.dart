@@ -1080,8 +1080,7 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
                                   gold: gold,
                                   goldLight: goldLight,
                                   pulse: pulse,
-                                  showNeedle: running ||
-                                      phase == SpeedTestPhase.completed,
+                                  showNeedle: true,
                                 ),
                               ),
                               child!,
@@ -1186,22 +1185,31 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
         Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.bolt_rounded, size: 12, color: gold.withValues(alpha: 0.7)),
-            const SizedBox(width: 4),
+            _ecgDecor(gold.withValues(alpha: 0.55)),
+            const SizedBox(width: 6),
             Text(
               'TEST SPEED',
               style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.45),
+                color: Colors.white.withValues(alpha: 0.42),
                 fontSize: 10,
                 fontWeight: FontWeight.w600,
-                letterSpacing: 1.6,
+                letterSpacing: 2.0,
               ),
             ),
-            const SizedBox(width: 4),
-            Icon(Icons.bolt_rounded, size: 12, color: gold.withValues(alpha: 0.7)),
+            const SizedBox(width: 6),
+            _ecgDecor(gold.withValues(alpha: 0.55)),
           ],
         ),
       ],
+    );
+  }
+
+
+  Widget _ecgDecor(Color color) {
+    return SizedBox(
+      width: 28,
+      height: 10,
+      child: CustomPaint(painter: _EcgLinePainter(color: color)),
     );
   }
 
@@ -1692,6 +1700,7 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
   }
 }
 
+
 /// Full dial gauge matching product screenshot:
 /// cyan rim, tick marks, needle, purple high-end accent.
 class _ArcGaugePainter extends CustomPainter {
@@ -1712,54 +1721,49 @@ class _ArcGaugePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final center = Offset(size.width / 2, size.height / 2);
-    final outerR = size.width / 2 - 8;
-    final tickOuter = outerR - 6;
-    final tickInnerMajor = outerR - 22;
-    final tickInnerMinor = outerR - 14;
-    final trackR = outerR - 28;
+    final outerR = size.width / 2 - 6;
+    final tickOuter = outerR - 4;
+    final tickInnerMajor = outerR - 20;
+    final tickInnerMinor = outerR - 12;
+    final trackR = outerR - 30;
 
-    // ── Dark dial face ──────────────────────────────────────────
+    // Dark dial face
     final facePaint = Paint()
       ..shader = RadialGradient(
-        colors: [
-          const Color(0xFF0A1220),
-          const Color(0xFF06080F),
+        colors: const [
+          Color(0xFF0C1524),
+          Color(0xFF070B14),
+          Color(0xFF05070E),
         ],
+        stops: const [0.0, 0.65, 1.0],
       ).createShader(Rect.fromCircle(center: center, radius: outerR));
-    canvas.drawCircle(center, outerR - 2, facePaint);
+    canvas.drawCircle(center, outerR - 1, facePaint);
 
-    // Subtle radial spokes
-    final spokePaint = Paint()
-      ..color = Colors.white.withValues(alpha: 0.03)
-      ..strokeWidth = 1;
-    for (var i = 0; i < 36; i++) {
-      final a = -math.pi / 2 + (i / 36) * math.pi * 2;
-      canvas.drawLine(
-        Offset(
-          center.dx + math.cos(a) * 28,
-          center.dy + math.sin(a) * 28,
-        ),
-        Offset(
-          center.dx + math.cos(a) * (trackR - 4),
-          center.dy + math.sin(a) * (trackR - 4),
-        ),
-        spokePaint,
+    // Soft radial grid rings
+    for (final f in [0.35, 0.55, 0.75]) {
+      canvas.drawCircle(
+        center,
+        trackR * f,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1
+          ..color = Colors.white.withValues(alpha: 0.035),
       );
     }
 
-    // ── Tick marks (full circle) ────────────────────────────────
+    // Tick marks around full circle (cyan → purple on the right)
     const tickCount = 60;
     for (var i = 0; i < tickCount; i++) {
       final t = i / tickCount;
       final angle = -math.pi / 2 + t * math.pi * 2;
       final isMajor = i % 5 == 0;
-      // Left half cyan, right half shifts to purple (screenshot look)
+      final purpleBlend = (t > 0.5 && t < 0.92) ? ((t - 0.5) / 0.42).clamp(0.0, 1.0) : 0.0;
       final tickColor = Color.lerp(
         gold,
         const Color(0xFF9B7BFF),
-        (t > 0.55 && t < 0.95) ? 0.55 : 0.0,
+        purpleBlend * 0.85,
       )!
-          .withValues(alpha: isMajor ? 0.95 : 0.45);
+          .withValues(alpha: isMajor ? 0.95 : 0.40);
 
       final inner = isMajor ? tickInnerMajor : tickInnerMinor;
       final p1 = Offset(
@@ -1775,115 +1779,109 @@ class _ArcGaugePainter extends CustomPainter {
         p2,
         Paint()
           ..color = tickColor
-          ..strokeWidth = isMajor ? 2.2 : 1.1
+          ..strokeWidth = isMajor ? 2.4 : 1.15
           ..strokeCap = StrokeCap.round,
       );
     }
 
-    // ── Outer cyan rim with glow ────────────────────────────────
-    final rimGlow = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 6 + pulse * 3
-      ..color = gold.withValues(alpha: 0.25 + pulse * 0.2)
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10);
-    canvas.drawCircle(center, outerR, rimGlow);
+    // Outer neon rim + glow
+    canvas.drawCircle(
+      center,
+      outerR,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 8 + pulse * 4
+        ..color = gold.withValues(alpha: 0.22 + pulse * 0.18)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 12),
+    );
+    canvas.drawCircle(
+      center,
+      outerR,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 3.4
+        ..shader = SweepGradient(
+          colors: [
+            gold,
+            goldLight,
+            const Color(0xFF6EC8FF),
+            const Color(0xFF7B5CFF),
+            gold,
+          ],
+          stops: const [0.0, 0.25, 0.5, 0.75, 1.0],
+        ).createShader(Rect.fromCircle(center: center, radius: outerR)),
+    );
 
-    final rim = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 3.2
-      ..shader = SweepGradient(
-        startAngle: 0,
-        endAngle: math.pi * 2,
-        colors: [
-          gold,
-          goldLight,
-          const Color(0xFF7B5CFF),
-          gold,
-        ],
-        stops: const [0.0, 0.35, 0.7, 1.0],
-      ).createShader(Rect.fromCircle(center: center, radius: outerR));
-    canvas.drawCircle(center, outerR, rim);
-
-    // ── Progress arc (from bottom-left, 270° sweep like classic meters) ──
-    // Map progress 0..1 onto arc starting at ~225° (bottom-left) clockwise
-    const start = math.pi * 0.75; // 135° in standard math? 
-    // Flutter: 0 = right, positive = clockwise in drawArc? Actually counter-clockwise.
-    // Use start at bottom-left: pi * 0.75, sweep pi * 1.5 for 270°
+    // Progress track (270° classic meter)
     const arcStart = math.pi * 0.75;
     const arcSweep = math.pi * 1.5;
 
-    final track = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 5
-      ..strokeCap = StrokeCap.round
-      ..color = Colors.white.withValues(alpha: 0.06);
     canvas.drawArc(
       Rect.fromCircle(center: center, radius: trackR),
       arcStart,
       arcSweep,
       false,
-      track,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 4
+        ..strokeCap = StrokeCap.round
+        ..color = Colors.white.withValues(alpha: 0.05),
     );
 
     final p = progress.clamp(0.0, 1.0);
     if (p > 0.001) {
-      final progressPaint = Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 5.5
-        ..strokeCap = StrokeCap.round
-        ..shader = SweepGradient(
-          startAngle: arcStart,
-          endAngle: arcStart + arcSweep,
-          colors: [gold, goldLight, const Color(0xFF9B7BFF)],
-        ).createShader(Rect.fromCircle(center: center, radius: trackR));
-
-      final progressGlow = Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 10
-        ..strokeCap = StrokeCap.round
-        ..color = gold.withValues(alpha: 0.2)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6);
-
+      final rect = Rect.fromCircle(center: center, radius: trackR);
       canvas.drawArc(
-        Rect.fromCircle(center: center, radius: trackR),
+        rect,
         arcStart,
         arcSweep * p,
         false,
-        progressGlow,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 10
+          ..strokeCap = StrokeCap.round
+          ..color = gold.withValues(alpha: 0.22)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 7),
       );
       canvas.drawArc(
-        Rect.fromCircle(center: center, radius: trackR),
+        rect,
         arcStart,
         arcSweep * p,
         false,
-        progressPaint,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 5.5
+          ..strokeCap = StrokeCap.round
+          ..shader = SweepGradient(
+            startAngle: arcStart,
+            endAngle: arcStart + arcSweep,
+            colors: [gold, goldLight, const Color(0xFF9B7BFF)],
+          ).createShader(rect),
       );
     }
 
-    // ── Needle ──────────────────────────────────────────────────
+    // Needle (always visible; rests at 0)
     if (showNeedle) {
       final needleAngle = arcStart + arcSweep * p;
-      final needleLen = trackR - 10;
+      final needleLen = trackR - 8;
       final tip = Offset(
         center.dx + math.cos(needleAngle) * needleLen,
         center.dy + math.sin(needleAngle) * needleLen,
       );
       final tail = Offset(
-        center.dx - math.cos(needleAngle) * 16,
-        center.dy - math.sin(needleAngle) * 16,
+        center.dx - math.cos(needleAngle) * 18,
+        center.dy - math.sin(needleAngle) * 18,
       );
 
-      // Needle glow
       canvas.drawLine(
         tail,
         tip,
         Paint()
-          ..color = gold.withValues(alpha: 0.35)
-          ..strokeWidth = 5
+          ..color = gold.withValues(alpha: 0.4)
+          ..strokeWidth = 6
           ..strokeCap = StrokeCap.round
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4),
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5),
       );
-      // Needle body
       canvas.drawLine(
         tail,
         tip,
@@ -1891,29 +1889,21 @@ class _ArcGaugePainter extends CustomPainter {
           ..shader = LinearGradient(
             colors: [goldLight, Colors.white, gold],
           ).createShader(Rect.fromPoints(tail, tip))
-          ..strokeWidth = 2.4
+          ..strokeWidth = 2.6
           ..strokeCap = StrokeCap.round,
       );
 
       // Hub
+      canvas.drawCircle(center, 9, Paint()..color = const Color(0xFF0A1628));
       canvas.drawCircle(
         center,
-        7,
-        Paint()..color = const Color(0xFF0A1628),
-      );
-      canvas.drawCircle(
-        center,
-        7,
+        9,
         Paint()
           ..style = PaintingStyle.stroke
-          ..strokeWidth = 2
+          ..strokeWidth = 2.2
           ..color = gold,
       );
-      canvas.drawCircle(
-        center,
-        3,
-        Paint()..color = goldLight,
-      );
+      canvas.drawCircle(center, 3.5, Paint()..color = goldLight);
     }
   }
 
@@ -1922,4 +1912,34 @@ class _ArcGaugePainter extends CustomPainter {
       old.progress != progress ||
       old.pulse != pulse ||
       old.showNeedle != showNeedle;
+}
+
+/// Tiny ECG / pulse decoration beside "TEST SPEED".
+class _EcgLinePainter extends CustomPainter {
+  final Color color;
+  _EcgLinePainter({required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final path = Path()
+      ..moveTo(0, size.height * 0.55)
+      ..lineTo(size.width * 0.22, size.height * 0.55)
+      ..lineTo(size.width * 0.32, size.height * 0.15)
+      ..lineTo(size.width * 0.42, size.height * 0.9)
+      ..lineTo(size.width * 0.52, size.height * 0.35)
+      ..lineTo(size.width * 0.62, size.height * 0.55)
+      ..lineTo(size.width, size.height * 0.55);
+    canvas.drawPath(
+      path,
+      Paint()
+        ..color = color
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.4
+        ..strokeJoin = StrokeJoin.round
+        ..strokeCap = StrokeCap.round,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _EcgLinePainter old) => old.color != color;
 }
