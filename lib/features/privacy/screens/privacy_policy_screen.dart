@@ -194,7 +194,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
                 'For privacy questions about MPorT Go, contact the developer through the '
                 'official channels listed on the About page in the app, or via the '
                 'store/distribution channel where you downloaded the app.\n\n'
-                'Developer: HaaNSirO / MPorT Go\n'
+                'Developer: DeV_MaYLoVe\n'
                 'Application: ${AppConstants.appName}\n'
                 'Version: ${AppConstants.appVersion}+${AppConstants.appBuild}',
               ),
