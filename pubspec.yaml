@@ -1,7 +1,7 @@
 name: mport_test_speed
 description: MPorT Go - Accurate internet speed test application.
 publish_to: 'none'
-version: 1.9.6+25
+version: 1.9.7+26
 
 environment:
   sdk: '>=3.10.0 <4.0.0'
@@ -21,7 +21,7 @@ dependencies:
   network_info_plus: ^8.2.1
   permission_handler: ^11.4.0
   flutter_local_notifications: ^18.0.1
-  share_plus: ^10.1.4
+  share_plus: ^13.3.0
   path_provider: ^2.1.5
 
 dev_dependencies:

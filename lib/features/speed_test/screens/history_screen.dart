@@ -123,11 +123,19 @@ class HistoryScreenState extends State<HistoryScreen>
           ? box.localToGlobal(Offset.zero) & box.size
           : null;
 
-      await Share.shareXFiles(
-        [XFile(file.path, mimeType: 'text/csv', name: 'mport_history_$stamp.csv')],
-        subject: 'MPorT Go — Speed Test History',
-        text: 'Speed test history export (${history.length} results)',
-        sharePositionOrigin: origin,
+      await SharePlus.instance.share(
+        ShareParams(
+          files: [
+            XFile(
+              file.path,
+              mimeType: 'text/csv',
+              name: 'mport_history_$stamp.csv',
+            ),
+          ],
+          subject: 'MPorT Go — Speed Test History',
+          text: 'Speed test history export (${history.length} results)',
+          sharePositionOrigin: origin,
+        ),
       );
     } catch (e) {
       if (!mounted) return;

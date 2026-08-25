@@ -370,8 +370,9 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
         } else if (forceRefresh) {
           _ispName = null;
         }
-        _publicIp = result.publicIp;
-        _asn = result.asn;
+        // ASN & public IP intentionally not shown in UI
+        _publicIp = null;
+        _asn = null;
       });
     }
 
@@ -906,23 +907,23 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
   }
 
   Widget _sheetIspRow() {
-    // Recommended layout:
+    // Layout:
     //   Network
     //   <SSID or carrier>
-    //   ISP · ASN · IP  (ISP kept here so Wi-Fi SSID is not replaced by carrier brand)
-    final asn = _asn?.trim();
-    final ip = _publicIp?.trim();
+    //   ISP name only (no ASN / public IP)
     final isp = _ispName?.trim();
-    final parts = <String>[];
+    String subtitle = _deviceModel;
     if (_connectionKind == 'wifi' &&
         isp != null &&
         isp.isNotEmpty &&
         isp != _ispLabel) {
-      parts.add(isp);
+      subtitle = isp; // e.g. provider brand under SSID — without AS/IP
+    } else if (isp != null &&
+        isp.isNotEmpty &&
+        isp != _ispLabel &&
+        _connectionKind != 'wifi') {
+      subtitle = isp;
     }
-    if (asn != null && asn.isNotEmpty) parts.add(asn);
-    if (ip != null && ip.isNotEmpty) parts.add(ip);
-    final subtitle = parts.isNotEmpty ? parts.join(' · ') : _deviceModel;
 
     return Row(
       children: [
