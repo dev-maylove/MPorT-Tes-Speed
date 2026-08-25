@@ -92,12 +92,13 @@ jobs:
 
           chmod 600 android/app/mport-release-new.jks
 
-          cat > android/key.properties <<EOF2
-          storePassword=${KEYSTORE_PASSWORD}
-          keyPassword=${KEY_PASSWORD}
-          keyAlias=${KEY_ALIAS}
-          storeFile=app/mport-release-new.jks
-          EOF2
+          # No leading whitespace — Properties parser treats keys with spaces as invalid
+          printf '%s\n' \
+            "storePassword=${KEYSTORE_PASSWORD}" \
+            "keyPassword=${KEY_PASSWORD}" \
+            "keyAlias=${KEY_ALIAS}" \
+            "storeFile=app/mport-release-new.jks" \
+            > android/key.properties
 
           chmod 600 android/key.properties
 

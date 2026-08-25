@@ -237,6 +237,24 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
     return math.min(s / maxScale, 1.0);
   }
 
+  /// Convert internal Mbps value to the user-selected display unit.
+  /// Mbps stays as-is; MB/s = Mbps/8; kB/s = Mbps * 125.
+  double _toDisplayUnit(double mbps) {
+    switch (_unit) {
+      case 'MB/s':
+        return mbps / 8.0;
+      case 'kB/s':
+        return mbps * 125.0;
+      default:
+        return mbps;
+    }
+  }
+
+  String _formatSpeed(double? mbps, {int decimals = 1}) {
+    if (mbps == null) return '—';
+    return _toDisplayUnit(mbps).toStringAsFixed(decimals);
+  }
+
   @override
   void dispose() {
     _connectivitySub?.cancel();
@@ -318,6 +336,7 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
 
     try {
       final result = await _service.start(
+        multiConnection: _multiConnection,
         onProgress: (newPhase, value) {
           if (!mounted || gen != _testGeneration) return;
           setState(() {
@@ -1077,7 +1096,8 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
   Widget _gaugeCenterValue() {
     final show = running || phase == SpeedTestPhase.completed;
     if (!show) return const SizedBox.shrink();
-    final value = running ? _animSpeed : (download ?? _animSpeed);
+    final raw = running ? _animSpeed : (download ?? _animSpeed);
+    final value = _toDisplayUnit(raw);
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -1322,8 +1342,8 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text(
-                        'Download ${(download ?? 0).toStringAsFixed(1)} $_unit · '
-                        'Upload ${(upload ?? 0).toStringAsFixed(1)} $_unit · '
+                        'Download ${_formatSpeed(download)} $_unit · '
+                        'Upload ${_formatSpeed(upload)} $_unit · '
                         'Ping ${(ping ?? 0).toStringAsFixed(0)} ms · '
                         'Avg ${(avgPing ?? 0).toStringAsFixed(0)} ms · '
                         'Jitter ${(jitter ?? 0).toStringAsFixed(0)} ms · '
@@ -1397,7 +1417,7 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
-                value == null ? '—' : value.toStringAsFixed(1),
+                _formatSpeed(value),
                 style: const TextStyle(
                   color: AppColors.textPrimary,
                   fontSize: 26,

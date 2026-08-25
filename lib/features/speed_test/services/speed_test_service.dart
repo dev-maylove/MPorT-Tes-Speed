@@ -20,7 +20,13 @@ class SpeedTestService {
 
   Future<SpeedResult> start({
     void Function(SpeedTestPhase phase, double value)? onProgress,
+    bool multiConnection = true,
   }) async {
+    final downloadThreads =
+        multiConnection ? ServerConfig.downloadThreads : 1;
+    final uploadThreads =
+        multiConnection ? ServerConfig.uploadThreads : 1;
+
     onProgress?.call(SpeedTestPhase.ping, 0);
 
     final pingResult = await _pingService.test();
@@ -28,6 +34,7 @@ class SpeedTestService {
 
     onProgress?.call(SpeedTestPhase.download, 0);
     final downloadResult = await _downloadService.test(
+      threads: downloadThreads,
       onProgress: (speed) {
         onProgress?.call(SpeedTestPhase.download, speed);
       },
@@ -38,6 +45,7 @@ class SpeedTestService {
     onProgress?.call(SpeedTestPhase.upload, 0);
     try {
       final uploadResult = await _uploadService.test(
+        threads: uploadThreads,
         onProgress: (speed) {
           onProgress?.call(SpeedTestPhase.upload, speed);
         },
