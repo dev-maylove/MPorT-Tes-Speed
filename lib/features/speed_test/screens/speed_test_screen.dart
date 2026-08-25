@@ -431,8 +431,9 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
             }
           });
           // Animate outside setState to avoid rebuild/animation races.
-          if (gaugeTarget != null) {
-            _animateGaugeTo(gaugeTarget);
+          final target = gaugeTarget;
+          if (target != null) {
+            _animateGaugeTo(target);
           }
         },
       );
@@ -1934,7 +1935,7 @@ class _ArcGaugePainter extends CustomPainter {
     // Major every 30° (12 marks), minor every 6°
     const majorCount = 12;
     const minorPerMajor = 5;
-    final totalTicks = majorCount * minorPerMajor;
+    const totalTicks = majorCount * minorPerMajor;
     for (var i = 0; i < totalTicks; i++) {
       final t = i / totalTicks;
       // Start from top (-pi/2) going clockwise visually via Flutter CW angles

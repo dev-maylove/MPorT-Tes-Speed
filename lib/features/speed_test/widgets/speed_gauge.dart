@@ -20,7 +20,7 @@ class SpeedGauge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final gold = progressColor ?? const Color(0xFF00E5A0);
-    final goldLight = const Color(0xFF5CFFC9);
+    const goldLight = Color(0xFF5CFFC9);
     final progress = maxSpeed <= 0 ? 0.0 : (speedMbps / maxSpeed).clamp(0.0, 1.0);
 
     return SizedBox(
