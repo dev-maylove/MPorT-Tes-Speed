@@ -826,9 +826,9 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
             builder: (context, scrollController) {
               final expanded = _sheetSize > 0.28;
               return Container(
-                decoration: const BoxDecoration(
+                decoration: BoxDecoration(
                   color: sheetColor,
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
                 ),
                 child: ListView(
                   controller: scrollController,
@@ -1954,13 +1954,13 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
             )
           else
             const SizedBox(width: 48),
-          const Expanded(
+          Expanded(
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Icon(Icons.speed_rounded, color: gold, size: 20),
-                SizedBox(width: 6),
-                Text(
+                const SizedBox(width: 6),
+                const Text(
                   'MPorT',
                   style: TextStyle(
                     color: AppColors.textPrimary,

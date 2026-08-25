@@ -1,17 +1,10 @@
 import 'package:flutter/material.dart';
+
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_footer.dart';
 import '../../../core/widgets/loading_view.dart';
 import '../services/server_service.dart';
 import '../widgets/server_card.dart';
-
-Color _bg(BuildContext c) => AppPalette.of(c).background;
-Color _card(BuildContext c) => AppPalette.of(c).card;
-Color _text(BuildContext c) => AppPalette.of(c).textPrimary;
-Color _muted(BuildContext c) => AppPalette.of(c).textMuted;
-Color _sec(BuildContext c) => AppPalette.of(c).textSecondary;
-Color _prim(BuildContext c) => AppPalette.of(c).primary;
-Color _primL(BuildContext c) => AppPalette.of(c).primaryLight;
 
 class ServerScreen extends StatefulWidget {
   const ServerScreen({super.key});
@@ -44,12 +37,12 @@ class _ServerScreenState extends State<ServerScreen> {
 
   @override
   Widget build(BuildContext context) {
-    accent = _prim(context);
+    const accent = AppColors.green;
 
     return Scaffold(
-      backgroundColor: _bg(context),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: _bg(context),
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         title: const Text('Select Server'),
         actions: [
           IconButton(
@@ -74,7 +67,7 @@ class _ServerScreenState extends State<ServerScreen> {
                 if (_service.isProbing)
                   LinearProgressIndicator(
                     color: accent,
-                    backgroundColor: _prim(context).withValues(alpha: 0.1),
+                    backgroundColor: AppColors.green.withValues(alpha: 0.1),
                   ),
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
@@ -83,7 +76,7 @@ class _ServerScreenState extends State<ServerScreen> {
                       const Expanded(
                         child: Text(
                           'Nearest servers (Pati, Kudus, Jepara, …)',
-                          style: TextStyle(color: _muted(context), fontSize: 12),
+                          style: TextStyle(color: AppColors.textMuted, fontSize: 12),
                         ),
                       ),
                       TextButton.icon(

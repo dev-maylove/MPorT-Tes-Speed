@@ -1,18 +1,12 @@
 import 'dart:async';
 import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:webview_flutter/webview_flutter.dart';
+
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_footer.dart';
-
-Color _bg(BuildContext c) => AppPalette.of(c).background;
-Color _card(BuildContext c) => AppPalette.of(c).card;
-Color _text(BuildContext c) => AppPalette.of(c).textPrimary;
-Color _muted(BuildContext c) => AppPalette.of(c).textMuted;
-Color _sec(BuildContext c) => AppPalette.of(c).textSecondary;
-Color _prim(BuildContext c) => AppPalette.of(c).primary;
-Color _primL(BuildContext c) => AppPalette.of(c).primaryLight;
 
 /// Halaman Downdetector — daftar + sparkline realtime (probe latency).
 class DowndetectorScreen extends StatefulWidget {
@@ -275,7 +269,7 @@ class _DowndetectorScreenState extends State<DowndetectorScreen> {
     final url = 'https://downdetector.id/gangguan/${s.slug}/';
     final c = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..setBackgroundColor(_bg(context))
+      ..setBackgroundColor(AppColors.background)
       ..setNavigationDelegate(
         NavigationDelegate(
           onPageFinished: (_) {
@@ -311,14 +305,14 @@ class _DowndetectorScreenState extends State<DowndetectorScreen> {
     final showingWeb = _activeSlug != null;
 
     return Scaffold(
-      backgroundColor: _bg(context),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: _bg(context),
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         elevation: 0,
         leading: IconButton(
           icon: Icon(
             showingWeb ? Icons.arrow_back : Icons.close,
-            color: _text(context),
+            color: AppColors.textPrimary,
           ),
           onPressed: () {
             if (showingWeb) {
@@ -332,7 +326,7 @@ class _DowndetectorScreenState extends State<DowndetectorScreen> {
         title: Text(
           showingWeb ? (_activeName ?? 'Downdetector') : 'Downdetector',
           style: const TextStyle(
-            color: _text(context),
+            color: AppColors.textPrimary,
             fontWeight: FontWeight.w700,
             fontSize: 17,
           ),
@@ -348,10 +342,10 @@ class _DowndetectorScreenState extends State<DowndetectorScreen> {
                       height: 18,
                       child: CircularProgressIndicator(
                         strokeWidth: 2,
-                        color: _prim(context),
+                        color: AppColors.green,
                       ),
                     )
-                  : Icon(Icons.refresh, color: _primL(context)),
+                  : const Icon(Icons.refresh, color: AppColors.greenLight),
             ),
         ],
       ),
@@ -369,7 +363,7 @@ class _DowndetectorScreenState extends State<DowndetectorScreen> {
           child: Center(
             child: Text.rich(
               TextSpan(
-                style: TextStyle(fontSize: 13, color: _muted(context)),
+                style: TextStyle(fontSize: 13, color: AppColors.textMuted),
                 children: [
                   TextSpan(text: 'Powered by '),
                   TextSpan(
@@ -382,7 +376,7 @@ class _DowndetectorScreenState extends State<DowndetectorScreen> {
                   TextSpan(
                     text: 'detector',
                     style: TextStyle(
-                      color: _text(context),
+                      color: AppColors.textPrimary,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
@@ -402,10 +396,10 @@ class _DowndetectorScreenState extends State<DowndetectorScreen> {
                 height: 8,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: _probing ? _prim(context) : Color(0xFF4FC3F7),
+                  color: _probing ? AppColors.green : const Color(0xFF4FC3F7),
                   boxShadow: [
                     BoxShadow(
-                      color: (_probing ? _prim(context) : Color(0xFF4FC3F7))
+                      color: (_probing ? AppColors.green : const Color(0xFF4FC3F7))
                           .withValues(alpha: 0.5),
                       blurRadius: 6,
                     ),
@@ -416,7 +410,7 @@ class _DowndetectorScreenState extends State<DowndetectorScreen> {
               Text(
                 _liveLabel,
                 style: const TextStyle(
-                  color: _muted(context),
+                  color: AppColors.textMuted,
                   fontSize: 12,
                 ),
               ),
@@ -428,23 +422,23 @@ class _DowndetectorScreenState extends State<DowndetectorScreen> {
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
           child: TextField(
             controller: _searchCtrl,
-            style: TextStyle(color: _text(context), fontSize: 15),
-            cursorColor: _prim(context),
+            style: const TextStyle(color: AppColors.textPrimary, fontSize: 15),
+            cursorColor: AppColors.green,
             decoration: InputDecoration(
               hintText: 'Cari layanan…',
-              hintStyle: TextStyle(color: _muted(context)),
-              prefixIcon: Icon(Icons.search, color: _muted(context)),
+              hintStyle: const TextStyle(color: AppColors.textMuted),
+              prefixIcon: const Icon(Icons.search, color: AppColors.textMuted),
               suffixIcon: _query.isEmpty
                   ? null
                   : IconButton(
-                      icon: Icon(Icons.close, color: _muted(context)),
+                      icon: const Icon(Icons.close, color: AppColors.textMuted),
                       onPressed: () {
                         _searchCtrl.clear();
                         setState(() => _query = '');
                       },
                     ),
               filled: true,
-              fillColor: _card(context),
+              fillColor: AppColors.card,
               contentPadding: const EdgeInsets.symmetric(vertical: 12),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(28),
@@ -453,20 +447,20 @@ class _DowndetectorScreenState extends State<DowndetectorScreen> {
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(28),
                 borderSide: BorderSide(
-                  color: _prim(context).withValues(alpha: 0.12),
+                  color: AppColors.green.withValues(alpha: 0.12),
                 ),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(28),
                 borderSide:
-                    BorderSide(color: _prim(context), width: 1.2),
+                    const BorderSide(color: AppColors.green, width: 1.2),
               ),
             ),
           ),
         ),
         Expanded(
           child: RefreshIndicator(
-            color: _prim(context),
+            color: AppColors.green,
             onRefresh: _refreshAll,
             child: items.isEmpty
                 ? ListView(
@@ -475,7 +469,7 @@ class _DowndetectorScreenState extends State<DowndetectorScreen> {
                       Center(
                         child: Text(
                           'Tidak ada hasil',
-                          style: TextStyle(color: _muted(context)),
+                          style: TextStyle(color: AppColors.textMuted),
                         ),
                       ),
                     ],
@@ -514,7 +508,7 @@ class _DowndetectorScreenState extends State<DowndetectorScreen> {
                                   s.starred ? Icons.star : Icons.star_border,
                                   color: s.starred
                                       ? const Color(0xFF4FC3F7)
-                                      : _muted(context),
+                                      : AppColors.textMuted,
                                   size: 22,
                                 ),
                               ),
@@ -526,7 +520,7 @@ class _DowndetectorScreenState extends State<DowndetectorScreen> {
                                     Text(
                                       s.name,
                                       style: const TextStyle(
-                                        color: _text(context),
+                                        color: AppColors.textPrimary,
                                         fontSize: 16,
                                         fontWeight: FontWeight.w500,
                                       ),
@@ -535,7 +529,7 @@ class _DowndetectorScreenState extends State<DowndetectorScreen> {
                                       Text(
                                         '${s.lastMs!.toStringAsFixed(0)} ms',
                                         style: const TextStyle(
-                                          color: _muted(context),
+                                          color: AppColors.textMuted,
                                           fontSize: 11,
                                         ),
                                       ),
@@ -578,7 +572,7 @@ class _DowndetectorScreenState extends State<DowndetectorScreen> {
         if (_web != null) WebViewWidget(controller: _web!),
         if (_loadingWeb)
           const Center(
-            child: CircularProgressIndicator(color: _prim(context)),
+            child: CircularProgressIndicator(color: AppColors.green),
           ),
       ],
     );

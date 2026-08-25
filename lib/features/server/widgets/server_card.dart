@@ -1,14 +1,6 @@
 import 'package:flutter/material.dart';
-import '../../speed_test/models/test_server.dart';
-import '../../../core/theme/app_colors.dart';
 
-Color _bg(BuildContext c) => AppPalette.of(c).background;
-Color _card(BuildContext c) => AppPalette.of(c).card;
-Color _text(BuildContext c) => AppPalette.of(c).textPrimary;
-Color _muted(BuildContext c) => AppPalette.of(c).textMuted;
-Color _sec(BuildContext c) => AppPalette.of(c).textSecondary;
-Color _prim(BuildContext c) => AppPalette.of(c).primary;
-Color _primL(BuildContext c) => AppPalette.of(c).primaryLight;
+import '../../speed_test/models/test_server.dart';
 
 class ServerCard extends StatelessWidget {
   final TestServer server;
@@ -29,11 +21,11 @@ class ServerCard extends StatelessWidget {
 
     return Card(
       margin: const EdgeInsets.only(bottom: 10),
-      color: _card(context),
+      color: const Color(0xFF111111),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(14),
         side: BorderSide(
-          color: isSelected ? accent : _muted(context).withValues(alpha: 0.2),
+          color: isSelected ? accent : Colors.white12,
           width: isSelected ? 1.5 : 1,
         ),
       ),
@@ -68,7 +60,7 @@ class ServerCard extends StatelessWidget {
         title: Text(
           server.name,
           style: const TextStyle(
-            color: _text(context),
+            color: Colors.white,
             fontWeight: FontWeight.w600,
           ),
         ),
@@ -77,10 +69,10 @@ class ServerCard extends StatelessWidget {
           '${server.country.isNotEmpty ? ' · ${server.country}' : ''}\n'
           '${server.host}'
           '${(server.latitude != null && server.longitude != null) ? ' · ${server.latitude!.toStringAsFixed(2)}, ${server.longitude!.toStringAsFixed(2)}' : ''}',
-          style: const TextStyle(color: _text(context)54, fontSize: 12),
+          style: const TextStyle(color: Colors.white54, fontSize: 12),
         ),
         trailing: latency == null
-            ? const Text('—', style: TextStyle(color: _text(context)38))
+            ? const Text('—', style: TextStyle(color: Colors.white38))
             : Text(
                 '${latency.toStringAsFixed(0)} ms',
                 style: TextStyle(
