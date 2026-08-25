@@ -21,6 +21,8 @@ class ServerCard extends StatelessWidget {
     final accent = cs.primary;
     final latency = server.latencyMs;
     final borderIdle = cs.onSurface.withValues(alpha: 0.12);
+    final muted = cs.onSurface.withValues(alpha: 0.54);
+    final faint = cs.onSurface.withValues(alpha: 0.38);
 
     return Card(
       margin: const EdgeInsets.only(bottom: 10),
@@ -62,7 +64,7 @@ class ServerCard extends StatelessWidget {
         ),
         title: Text(
           server.name,
-          style: const TextStyle(
+          style: TextStyle(
             color: cs.onSurface,
             fontWeight: FontWeight.w600,
           ),
@@ -72,10 +74,10 @@ class ServerCard extends StatelessWidget {
           '${server.country.isNotEmpty ? ' · ${server.country}' : ''}\n'
           '${server.host}'
           '${(server.latitude != null && server.longitude != null) ? ' · ${server.latitude!.toStringAsFixed(2)}, ${server.longitude!.toStringAsFixed(2)}' : ''}',
-          style: TextStyle(color: cs.onSurface54, fontSize: 12),
+          style: TextStyle(color: muted, fontSize: 12),
         ),
         trailing: latency == null
-            ? Text('—', style: TextStyle(color: cs.onSurface38))
+            ? Text('—', style: TextStyle(color: faint))
             : Text(
                 '${latency.toStringAsFixed(0)} ms',
                 style: TextStyle(
