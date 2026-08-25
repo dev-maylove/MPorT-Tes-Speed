@@ -1,95 +1,58 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import 'core/theme/app_colors.dart';
+import 'app/app_theme.dart';
+import 'core/notifications/test_notification_service.dart';
+import 'core/theme/theme_controller.dart';
 import 'features/splash/screens/splash_screen.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  SystemChrome.setSystemUIOverlayStyle(
-    const SystemUiOverlayStyle(
-      statusBarColor: Colors.transparent,
-      statusBarIconBrightness: Brightness.light,
-    ),
-  );
+  await ThemeController.instance.load();
+  await TestNotificationService.instance.init();
 
-  runApp(const MporTApp());
+  runApp(const MPortApp());
 }
 
-class MporTApp extends StatelessWidget {
-  const MporTApp({super.key});
+class MPortApp extends StatelessWidget {
+  const MPortApp({super.key});
+
+  bool _isDark(ThemeMode mode) {
+    if (mode == ThemeMode.dark) return true;
+    if (mode == ThemeMode.light) return false;
+    return WidgetsBinding.instance.platformDispatcher.platformBrightness ==
+        Brightness.dark;
+  }
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      title: 'MPorT Go',
-      theme: ThemeData(
-        brightness: Brightness.dark,
-        useMaterial3: true,
-        scaffoldBackgroundColor: AppColors.background,
-        colorScheme: const ColorScheme.dark(
-          primary: AppColors.green,
-          secondary: AppColors.greenLight,
-          surface: AppColors.surface,
-          onPrimary: AppColors.textOnGreen,
-          onSurface: AppColors.textPrimary,
-        ),
-        textTheme: const TextTheme(
-          displayLarge: TextStyle(color: AppColors.textPrimary),
-          displayMedium: TextStyle(color: AppColors.textPrimary),
-          displaySmall: TextStyle(color: AppColors.textPrimary),
-          headlineLarge: TextStyle(color: AppColors.textPrimary),
-          headlineMedium: TextStyle(color: AppColors.textPrimary),
-          headlineSmall: TextStyle(color: AppColors.textPrimary),
-          titleLarge: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w700),
-          titleMedium: TextStyle(color: AppColors.textPrimary),
-          titleSmall: TextStyle(color: AppColors.textSecondary),
-          bodyLarge: TextStyle(color: AppColors.textPrimary),
-          bodyMedium: TextStyle(color: AppColors.textPrimary),
-          bodySmall: TextStyle(color: AppColors.textSecondary),
-          labelLarge: TextStyle(color: AppColors.textPrimary),
-          labelMedium: TextStyle(color: AppColors.textSecondary),
-          labelSmall: TextStyle(color: AppColors.textMuted),
-        ),
-        appBarTheme: const AppBarTheme(
-          backgroundColor: AppColors.background,
-          foregroundColor: AppColors.textPrimary,
-          elevation: 0,
-          centerTitle: true,
-          titleTextStyle: TextStyle(
-            color: AppColors.textPrimary,
-            fontSize: 18,
-            fontWeight: FontWeight.w700,
+    return ListenableBuilder(
+      listenable: ThemeController.instance,
+      builder: (context, _) {
+        final mode = ThemeController.instance.mode;
+        final dark = _isDark(mode);
+        SystemChrome.setSystemUIOverlayStyle(
+          SystemUiOverlayStyle(
+            statusBarColor: Colors.transparent,
+            statusBarIconBrightness:
+                dark ? Brightness.light : Brightness.dark,
+            systemNavigationBarColor:
+                dark ? const Color(0xFF06080F) : const Color(0xFFF4F7FA),
+            systemNavigationBarIconBrightness:
+                dark ? Brightness.light : Brightness.dark,
           ),
-          iconTheme: IconThemeData(color: AppColors.greenLight),
-        ),
-        navigationBarTheme: NavigationBarThemeData(
-          backgroundColor: AppColors.background,
-          indicatorColor: AppColors.green.withValues(alpha: 0.2),
-          labelTextStyle: WidgetStateProperty.resolveWith((states) {
-            if (states.contains(WidgetState.selected)) {
-              return const TextStyle(
-                color: AppColors.greenLight,
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-              );
-            }
-            return const TextStyle(
-              color: AppColors.textMuted,
-              fontSize: 12,
-            );
-          }),
-          iconTheme: WidgetStateProperty.resolveWith((states) {
-            if (states.contains(WidgetState.selected)) {
-              return const IconThemeData(color: AppColors.green);
-            }
-            return const IconThemeData(color: AppColors.textMuted);
-          }),
-        ),
-      ),
-      home: const SplashScreen(),
+        );
+
+        return MaterialApp(
+          title: 'MPorT Go',
+          debugShowCheckedModeBanner: false,
+          theme: AppTheme.lightTheme,
+          darkTheme: AppTheme.darkTheme,
+          themeMode: mode,
+          home: const SplashScreen(),
+        );
+      },
     );
   }
 }

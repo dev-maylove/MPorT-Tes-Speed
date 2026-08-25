@@ -19,6 +19,7 @@ import '../services/asn_isp_service.dart';
 import '../services/history_service.dart';
 import '../services/realtime_service.dart';
 import '../services/speed_test_service.dart';
+import '../../../core/notifications/test_notification_service.dart';
 
 
 class SpeedTestScreen extends StatefulWidget {
@@ -476,6 +477,15 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
         deviceModel: _deviceModel,
         testId: _testId,
         serverLocation: _serverService.selected.location,
+      );
+
+      // Local notification with results
+      // ignore: unawaited_futures
+      TestNotificationService.instance.showTestComplete(
+        downloadMbps: result.download,
+        uploadMbps: result.upload,
+        pingMs: result.ping,
+        jitterMs: result.jitter,
       );
     } catch (e) {
       if (!mounted || gen != _testGeneration) return;

@@ -4,12 +4,6 @@ import 'package:flutter/foundation.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 /// Runtime permissions needed by MPorT Go.
-///
-/// - **Location** (when-in-use): required by Android to read Wi-Fi SSID
-///   via [network_info_plus] (API ≤ 32). On API 33+ we also request
-///   [Permission.nearbyWifiDevices].
-/// - **Notification**: Android 13+ (POST_NOTIFICATIONS) for optional
-///   test-complete alerts.
 class AppPermissions {
   AppPermissions._();
 
@@ -26,20 +20,19 @@ class AppPermissions {
 
     final results = <Permission, PermissionStatus>{};
 
-    // Location — Wi-Fi SSID on Android ≤ 12, and general network context
     if (Platform.isAndroid || Platform.isIOS) {
       results[Permission.locationWhenInUse] =
           await Permission.locationWhenInUse.request();
     }
 
-    // Nearby Wi-Fi devices — Android 13+ (SSID without continuous location)
     if (Platform.isAndroid) {
       results[Permission.nearbyWifiDevices] =
           await Permission.nearbyWifiDevices.request();
+      results[Permission.notification] =
+          await Permission.notification.request();
     }
 
-    // Notifications — Android 13+ / iOS
-    if (Platform.isAndroid || Platform.isIOS) {
+    if (Platform.isIOS) {
       results[Permission.notification] =
           await Permission.notification.request();
     }
@@ -53,7 +46,6 @@ class AppPermissions {
     );
   }
 
-  /// Whether we can reliably read the Wi-Fi SSID.
   static Future<bool> canReadWifiSsid() async {
     if (kIsWeb) return false;
     if (Platform.isIOS) {
@@ -62,7 +54,6 @@ class AppPermissions {
     if (Platform.isAndroid) {
       final loc = await Permission.locationWhenInUse.isGranted;
       final nearby = await Permission.nearbyWifiDevices.isGranted;
-      // Either is enough depending on API level; accept if any granted.
       return loc || nearby;
     }
     return false;
@@ -74,8 +65,45 @@ class AppPermissions {
   static Future<bool> get isNotificationGranted async =>
       Permission.notification.isGranted;
 
-  /// Open the system app-settings page so the user can enable permissions.
+  /// Open the system app-settings page.
   static Future<bool> openSettings() => openAppSettings();
+
+  /// Request location, then open system settings so the user can enable it.
+  static Future<void> openLocationSettingsFlow() async {
+    if (kIsWeb) return;
+    try {
+      final status = await Permission.locationWhenInUse.status;
+      if (status.isDenied) {
+        final next = await Permission.locationWhenInUse.request();
+        if (next.isGranted || next.isLimited) return;
+      }
+      if (status.isGranted || status.isLimited) {
+        // Already granted — still open settings so user can toggle system location.
+        await openAppSettings();
+        return;
+      }
+      // Permanently denied / restricted → app settings
+      await openAppSettings();
+    } catch (_) {
+      await openAppSettings();
+    }
+  }
+
+  /// Request notification permission, then open system notification settings.
+  static Future<void> openNotificationSettingsFlow() async {
+    if (kIsWeb) return;
+    try {
+      final status = await Permission.notification.status;
+      if (status.isDenied) {
+        final next = await Permission.notification.request();
+        if (next.isGranted || next.isLimited) return;
+      }
+      // Open app settings (Android shows notification toggle there)
+      await openAppSettings();
+    } catch (_) {
+      await openAppSettings();
+    }
+  }
 }
 
 class AppPermissionResult {
@@ -89,8 +117,7 @@ class AppPermissionResult {
     required this.notification,
   });
 
-  bool get locationOk =>
-      location.isGranted || location.isLimited;
+  bool get locationOk => location.isGranted || location.isLimited;
 
   bool get notificationOk =>
       notification.isGranted || notification.isLimited;

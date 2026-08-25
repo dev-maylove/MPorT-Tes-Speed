@@ -1,101 +1,68 @@
 import 'package:flutter/material.dart';
 
+import '../core/theme/app_colors.dart';
+
 class AppTheme {
-  static const Color primaryColor = Color(0xFF00E5A0);
-  static const Color secondaryColor = Color(0xFF00C853);
-  static const Color accentColor = Color(0xFFFBBC05);
-  static const Color errorColor = Color(0xFFEA4335);
-
-  static const Color backgroundLight = Color(0xFFF5F7FA);
-  static const Color backgroundDark = Color(0xFF121212);
-  static const Color surfaceLight = Colors.white;
-  static const Color surfaceDark = Color(0xFF1E1E1E);
-
-  static const Color textPrimaryLight = Color(0xFF202124);
-  static const Color textSecondaryLight = Color(0xFF5F6368);
-  static const Color textPrimaryDark = Color(0xFFE8EAED);
-  static const Color textSecondaryDark = Color(0xFF9AA0A6);
-
   static ThemeData get lightTheme {
+    const primary = Color(0xFF00A86B);
+    const surface = Color(0xFFF4F7FA);
+    const card = Color(0xFFFFFFFF);
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.light,
-      primaryColor: primaryColor,
+      primaryColor: primary,
+      scaffoldBackgroundColor: surface,
       colorScheme: const ColorScheme.light(
-        primary: primaryColor,
-        secondary: secondaryColor,
-        tertiary: accentColor,
-        error: errorColor,
-        surface: surfaceLight,
+        primary: primary,
+        secondary: Color(0xFF00C853),
+        surface: surface,
         onPrimary: Colors.white,
-        onSecondary: Colors.white,
-        onSurface: textPrimaryLight,
+        onSurface: Color(0xFF0D1B2A),
+        onSurfaceVariant: Color(0xFF4A5568),
       ),
-      scaffoldBackgroundColor: backgroundLight,
       appBarTheme: const AppBarTheme(
-        backgroundColor: primaryColor,
-        foregroundColor: Colors.white,
+        backgroundColor: surface,
+        foregroundColor: Color(0xFF0D1B2A),
         elevation: 0,
         centerTitle: true,
         titleTextStyle: TextStyle(
-          fontSize: 20,
-          fontWeight: FontWeight.w600,
-          color: Colors.white,
+          color: Color(0xFF0D1B2A),
+          fontSize: 18,
+          fontWeight: FontWeight.w700,
         ),
+        iconTheme: IconThemeData(color: primary),
       ),
-      cardTheme: CardThemeData(
-        color: surfaceLight,
-        elevation: 2,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
-      ),
-      elevatedButtonTheme: ElevatedButtonThemeData(
-        style: ElevatedButton.styleFrom(
-          backgroundColor: primaryColor,
-          foregroundColor: Colors.white,
-          elevation: 2,
-          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(30),
-          ),
-          textStyle: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
+      cardColor: card,
+      dividerColor: const Color(0xFFE2E8F0),
+      listTileTheme: const ListTileThemeData(
+        iconColor: primary,
+        textColor: Color(0xFF0D1B2A),
       ),
       navigationBarTheme: NavigationBarThemeData(
-        indicatorColor: primaryColor.withValues(alpha: 0.15),
+        backgroundColor: card,
+        indicatorColor: primary.withValues(alpha: 0.15),
         labelTextStyle: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
             return const TextStyle(
+              color: primary,
               fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: primaryColor,
+              fontWeight: FontWeight.w700,
             );
           }
-          return const TextStyle(fontSize: 12, color: textSecondaryLight);
+          return const TextStyle(color: Color(0xFF718096), fontSize: 12);
+        }),
+        iconTheme: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return const IconThemeData(color: primary);
+          }
+          return const IconThemeData(color: Color(0xFF718096));
         }),
       ),
-      textTheme: const TextTheme(
-        headlineLarge: TextStyle(
-          fontSize: 32,
-          fontWeight: FontWeight.bold,
-          color: textPrimaryLight,
-        ),
-        headlineMedium: TextStyle(
-          fontSize: 24,
-          fontWeight: FontWeight.w600,
-          color: textPrimaryLight,
-        ),
-        titleLarge: TextStyle(
-          fontSize: 18,
-          fontWeight: FontWeight.w600,
-          color: textPrimaryLight,
-        ),
-        bodyLarge: TextStyle(fontSize: 16, color: textPrimaryLight),
-        bodyMedium: TextStyle(fontSize: 14, color: textSecondaryLight),
+      snackBarTheme: const SnackBarThemeData(
+        behavior: SnackBarBehavior.floating,
+      ),
+      dropdownMenuTheme: const DropdownMenuThemeData(
+        textStyle: TextStyle(color: Color(0xFF0D1B2A)),
       ),
     );
   }
@@ -104,82 +71,56 @@ class AppTheme {
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.dark,
-      primaryColor: primaryColor,
+      primaryColor: AppColors.green,
+      scaffoldBackgroundColor: AppColors.background,
       colorScheme: const ColorScheme.dark(
-        primary: primaryColor,
-        secondary: secondaryColor,
-        tertiary: accentColor,
-        error: errorColor,
-        surface: surfaceDark,
-        onPrimary: Colors.white,
-        onSecondary: Colors.white,
-        onSurface: textPrimaryDark,
+        primary: AppColors.green,
+        secondary: AppColors.greenLight,
+        surface: AppColors.surface,
+        onPrimary: AppColors.textOnGreen,
+        onSurface: AppColors.greenLight,
+        onSurfaceVariant: AppColors.textSecondary,
       ),
-      scaffoldBackgroundColor: backgroundDark,
       appBarTheme: const AppBarTheme(
-        backgroundColor: surfaceDark,
-        foregroundColor: textPrimaryDark,
+        backgroundColor: AppColors.background,
+        foregroundColor: AppColors.textPrimary,
         elevation: 0,
         centerTitle: true,
         titleTextStyle: TextStyle(
-          fontSize: 20,
-          fontWeight: FontWeight.w600,
-          color: textPrimaryDark,
+          color: AppColors.textPrimary,
+          fontSize: 18,
+          fontWeight: FontWeight.w700,
         ),
+        iconTheme: IconThemeData(color: AppColors.greenLight),
       ),
-      cardTheme: CardThemeData(
-        color: surfaceDark,
-        elevation: 2,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
-      ),
-      elevatedButtonTheme: ElevatedButtonThemeData(
-        style: ElevatedButton.styleFrom(
-          backgroundColor: primaryColor,
-          foregroundColor: Colors.white,
-          elevation: 2,
-          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(30),
-          ),
-          textStyle: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
+      cardColor: AppColors.card,
+      dividerColor: AppColors.greenDim.withValues(alpha: 0.3),
+      listTileTheme: const ListTileThemeData(
+        iconColor: AppColors.green,
+        textColor: AppColors.textPrimary,
       ),
       navigationBarTheme: NavigationBarThemeData(
-        indicatorColor: primaryColor.withValues(alpha: 0.25),
+        backgroundColor: AppColors.background,
+        indicatorColor: AppColors.green.withValues(alpha: 0.2),
         labelTextStyle: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
             return const TextStyle(
+              color: AppColors.greenLight,
               fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: primaryColor,
+              fontWeight: FontWeight.w700,
             );
           }
-          return const TextStyle(fontSize: 12, color: textSecondaryDark);
+          return const TextStyle(color: AppColors.textMuted, fontSize: 12);
+        }),
+        iconTheme: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return const IconThemeData(color: AppColors.green);
+          }
+          return const IconThemeData(color: AppColors.textMuted);
         }),
       ),
-      textTheme: const TextTheme(
-        headlineLarge: TextStyle(
-          fontSize: 32,
-          fontWeight: FontWeight.bold,
-          color: textPrimaryDark,
-        ),
-        headlineMedium: TextStyle(
-          fontSize: 24,
-          fontWeight: FontWeight.w600,
-          color: textPrimaryDark,
-        ),
-        titleLarge: TextStyle(
-          fontSize: 18,
-          fontWeight: FontWeight.w600,
-          color: textPrimaryDark,
-        ),
-        bodyLarge: TextStyle(fontSize: 16, color: textPrimaryDark),
-        bodyMedium: TextStyle(fontSize: 14, color: textSecondaryDark),
+      snackBarTheme: const SnackBarThemeData(
+        behavior: SnackBarBehavior.floating,
       ),
     );
   }
