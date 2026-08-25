@@ -235,20 +235,40 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
     // Grow scale so the needle uses a meaningful portion of the dial.
     _ensureScaleFor(speedMbps);
     final targetProgress = _speedToProgress(speedMbps);
-    _speedTween = Tween<double>(begin: _animSpeed, end: speedMbps).animate(
+
+    // Continue from the *current visual* position (even mid-tween) so the
+    // needle never jumps when progress updates arrive rapidly.
+    final beginSpeed =
+        _gaugeCtrl.isAnimating ? _speedTween.value : _animSpeed;
+    final beginProgress =
+        _gaugeCtrl.isAnimating ? _progressTween.value : _animProgress;
+
+    final speedDelta = (speedMbps - beginSpeed).abs();
+    final progressDelta = (targetProgress - beginProgress).abs();
+
+    // Ignore microscopic updates to avoid micro-jitter.
+    if (speedDelta < 0.15 && progressDelta < 0.004 && !lock) {
+      return;
+    }
+
+    _speedTween = Tween<double>(begin: beginSpeed, end: speedMbps).animate(
       CurvedAnimation(parent: _gaugeCtrl, curve: Curves.easeOutCubic),
     );
-    _progressTween = Tween<double>(begin: _animProgress, end: targetProgress)
-        .animate(CurvedAnimation(parent: _gaugeCtrl, curve: Curves.easeOutCubic));
+    _progressTween =
+        Tween<double>(begin: beginProgress, end: targetProgress).animate(
+      CurvedAnimation(parent: _gaugeCtrl, curve: Curves.easeOutCubic),
+    );
+
+    // Longer duration for bigger swings → smoother, more fluid motion.
+    final ms = (320 + progressDelta * 1100 + speedDelta * 2)
+        .round()
+        .clamp(320, 1400);
+
     _gaugeCtrl
-      ..duration = Duration(
-        milliseconds: (220 + (speedMbps - _animSpeed).abs().clamp(0, 80) * 4)
-            .round()
-            .clamp(220, 600),
-      )
+      ..duration = Duration(milliseconds: ms)
       ..forward(from: 0);
+
     if (lock) {
-      // After the tween finishes, pin values so nothing can snap back to 0.
       void listener(AnimationStatus status) {
         if (status == AnimationStatus.completed) {
           _gaugeCtrl.removeStatusListener(listener);
@@ -285,9 +305,7 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
   double _speedToProgress(double s) {
     final maxScale = _scale.toDouble().clamp(1.0, 1e9);
     if (s <= 0) return 0;
-    // Slight ease so modest speeds (e.g. 50 on a 100 scale) read clearly.
-    final linear = (s / maxScale).clamp(0.0, 1.0);
-    return math.sqrt(linear);
+    return (s / maxScale).clamp(0.0, 1.0);
   }
 
   /// Convert internal Mbps value to the user-selected display unit.
@@ -414,8 +432,6 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
       // Cancelled while test was running — discard results.
       if (!mounted || gen != _testGeneration) return;
 
-      _ensureScaleFor(result.download);
-      final pinnedProgress = _speedToProgress(result.download);
       setState(() {
         ping = result.ping;
         jitter = result.jitter;
@@ -427,14 +443,11 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
         currentSpeed = result.download;
         phase = SpeedTestPhase.completed;
         running = false;
-        // Keep needle at final download — do not snap to 0.
-        _animSpeed = result.download;
-        _animProgress = pinnedProgress;
         // nextInt max must be <= 2^32; build a 10–13 digit Test ID safely
         _testId = _generateTestId();
       });
-      // Smooth settle on the same value (no visual jump back to zero).
-      _animateGaugeTo(result.download, lock: true);
+      // After test finishes: reset needle to 0 (center still shows final Mbps).
+      _animateGaugeTo(0);
       // ignore: unawaited_futures
       _refreshServerStatus();
 
@@ -606,6 +619,95 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
     }
   }
 
+  String get _connectionKindLabel {
+    switch (_connectionKind) {
+      case 'wifi':
+        return 'Wi-Fi';
+      case 'mobile':
+        return 'Mobile';
+      case 'ethernet':
+        return 'Ethernet';
+      default:
+        return 'Offline';
+    }
+  }
+
+  Color get _connectionStatusColor {
+    switch (_connectionKind) {
+      case 'wifi':
+      case 'ethernet':
+        return gold;
+      case 'mobile':
+        return const Color(0xFF4DA3FF);
+      default:
+        return const Color(0xFFFF6B6B);
+    }
+  }
+
+  /// Compact connection status chip (Wi-Fi / Mobile / Offline + label).
+  Widget _connectionStatusChip({bool compact = false}) {
+    final color = _connectionStatusColor;
+    final kind = _connectionKindLabel;
+    final detail = _ispLabel;
+    final showDetail =
+        detail.isNotEmpty && detail != kind && detail != 'Network';
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 320),
+      curve: Curves.easeOutCubic,
+      padding: EdgeInsets.symmetric(
+        horizontal: compact ? 10 : 12,
+        vertical: compact ? 5 : 7,
+      ),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withValues(alpha: 0.35)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Live pulse dot
+          AnimatedBuilder(
+            animation: _pulseCtrl,
+            builder: (_, __) {
+              final p = _connectionKind == 'none' ? 0.35 : (0.55 + _pulseCtrl.value * 0.45);
+              return Container(
+                width: 7,
+                height: 7,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: color.withValues(alpha: p),
+                  boxShadow: [
+                    BoxShadow(
+                      color: color.withValues(alpha: 0.45 * p),
+                      blurRadius: 6,
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+          const SizedBox(width: 7),
+          Icon(_connectionIcon, size: compact ? 13 : 15, color: color),
+          const SizedBox(width: 5),
+          Flexible(
+            child: Text(
+              showDetail ? '$kind · $detail' : kind,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: color,
+                fontSize: compact ? 11 : 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final showTestUi = running ||
@@ -657,6 +759,13 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
         Column(
           children: [
             _topBar(showClose: false),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+              child: Align(
+                alignment: Alignment.center,
+                child: _connectionStatusChip(),
+              ),
+            ),
             Expanded(
               child: Center(
                 child: _goButton(),
@@ -1031,6 +1140,13 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
     return Column(
       children: [
         _topBar(showClose: true),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 2, 16, 6),
+          child: Align(
+            alignment: Alignment.center,
+            child: _connectionStatusChip(compact: true),
+          ),
+        ),
         Expanded(
           child: Container(
             margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
@@ -1188,34 +1304,35 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
             letterSpacing: 0.5,
           ),
         ),
-        const SizedBox(height: 10),
-        // Branding like screenshot: MPorT GO »»
+        const SizedBox(height: 8),
+        // Branding stacked like screenshot
+        Text(
+          'MPorT',
+          style: TextStyle(
+            color: goldLight,
+            fontSize: 15,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 0.8,
+            height: 1.05,
+          ),
+        ),
         Text.rich(
           TextSpan(
             children: [
               TextSpan(
-                text: 'MPorT',
-                style: TextStyle(
-                  color: goldLight,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 0.5,
-                ),
-              ),
-              TextSpan(
-                text: ' GO',
+                text: 'GO',
                 style: TextStyle(
                   color: gold,
-                  fontSize: 16,
+                  fontSize: 15,
                   fontWeight: FontWeight.w800,
-                  letterSpacing: 1.0,
+                  letterSpacing: 1.2,
                 ),
               ),
               TextSpan(
                 text: ' »»',
                 style: TextStyle(
-                  color: gold.withValues(alpha: 0.85),
-                  fontSize: 14,
+                  color: gold.withValues(alpha: 0.9),
+                  fontSize: 13,
                   fontWeight: FontWeight.w700,
                 ),
               ),
@@ -1742,8 +1859,9 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
 }
 
 
-/// Full dial gauge matching product screenshot:
-/// cyan rim, tick marks, needle, purple high-end accent.
+
+/// Full dial gauge — matches product screenshot exactly:
+/// full cyan rim, major/minor ticks (cyan→purple), needle from hub, dark face.
 class _ArcGaugePainter extends CustomPainter {
   final double progress;
   final Color gold;
@@ -1762,167 +1880,140 @@ class _ArcGaugePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final center = Offset(size.width / 2, size.height / 2);
-    final outerR = size.width / 2 - 6;
-    final tickOuter = outerR - 4;
-    final tickInnerMajor = outerR - 20;
-    final tickInnerMinor = outerR - 12;
-    final trackR = outerR - 30;
+    final outerR = size.width / 2 - 4;
 
-    // Dark dial face
-    final facePaint = Paint()
-      ..shader = RadialGradient(
-        colors: const [
-          Color(0xFF0C1524),
-          Color(0xFF070B14),
-          Color(0xFF05070E),
-        ],
-        stops: const [0.0, 0.65, 1.0],
-      ).createShader(Rect.fromCircle(center: center, radius: outerR));
-    canvas.drawCircle(center, outerR - 1, facePaint);
+    // ── Dial face (deep navy radial) ────────────────────────────
+    canvas.drawCircle(
+      center,
+      outerR - 1,
+      Paint()
+        ..shader = const RadialGradient(
+          colors: [
+            Color(0xFF0E1828),
+            Color(0xFF080C16),
+            Color(0xFF05070E),
+          ],
+          stops: [0.0, 0.55, 1.0],
+        ).createShader(Rect.fromCircle(center: center, radius: outerR)),
+    );
 
-    // Soft radial grid rings
-    for (final f in [0.35, 0.55, 0.75]) {
+    // Soft concentric rings (screenshot grid)
+    for (final f in [0.28, 0.48, 0.68, 0.86]) {
       canvas.drawCircle(
         center,
-        trackR * f,
+        outerR * f,
         Paint()
           ..style = PaintingStyle.stroke
           ..strokeWidth = 1
-          ..color = Colors.white.withValues(alpha: 0.035),
+          ..color = Colors.white.withValues(alpha: 0.04),
       );
     }
 
-    // Tick marks around full circle (cyan → purple on the right)
-    const tickCount = 60;
-    for (var i = 0; i < tickCount; i++) {
-      final t = i / tickCount;
+    // ── Tick marks around full circle ───────────────────────────
+    // Major every 30° (12 marks), minor every 6°
+    const majorCount = 12;
+    const minorPerMajor = 5;
+    final totalTicks = majorCount * minorPerMajor;
+    for (var i = 0; i < totalTicks; i++) {
+      final t = i / totalTicks;
+      // Start from top (-pi/2) going clockwise visually via Flutter CW angles
       final angle = -math.pi / 2 + t * math.pi * 2;
-      final isMajor = i % 5 == 0;
-      final purpleBlend = (t > 0.5 && t < 0.92) ? ((t - 0.5) / 0.42).clamp(0.0, 1.0) : 0.0;
+      final isMajor = i % minorPerMajor == 0;
+
+      // Left/top cyan, right side shifts purple (as in screenshot)
+      final purple = (t > 0.45 && t < 0.9)
+          ? ((t - 0.45) / 0.45).clamp(0.0, 1.0)
+          : 0.0;
       final tickColor = Color.lerp(
         gold,
         const Color(0xFF9B7BFF),
-        purpleBlend * 0.85,
+        purple * 0.9,
       )!
-          .withValues(alpha: isMajor ? 0.95 : 0.40);
+          .withValues(alpha: isMajor ? 1.0 : 0.55);
 
-      final inner = isMajor ? tickInnerMajor : tickInnerMinor;
+      final outer = outerR - 10;
+      final inner = outerR - (isMajor ? 28.0 : 18.0);
       final p1 = Offset(
         center.dx + math.cos(angle) * inner,
         center.dy + math.sin(angle) * inner,
       );
       final p2 = Offset(
-        center.dx + math.cos(angle) * tickOuter,
-        center.dy + math.sin(angle) * tickOuter,
+        center.dx + math.cos(angle) * outer,
+        center.dy + math.sin(angle) * outer,
       );
       canvas.drawLine(
         p1,
         p2,
         Paint()
           ..color = tickColor
-          ..strokeWidth = isMajor ? 2.4 : 1.15
+          ..strokeWidth = isMajor ? 3.0 : 1.4
           ..strokeCap = StrokeCap.round,
       );
     }
 
-    // Outer neon rim + glow
+    // ── Outer neon rim ──────────────────────────────────────────
+    // Glow
     canvas.drawCircle(
       center,
       outerR,
       Paint()
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 8 + pulse * 4
-        ..color = gold.withValues(alpha: 0.22 + pulse * 0.18)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 12),
+        ..strokeWidth = 10 + pulse * 4
+        ..color = gold.withValues(alpha: 0.28 + pulse * 0.15)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 14),
     );
+    // Solid gradient ring (cyan → purple → cyan)
     canvas.drawCircle(
       center,
       outerR,
       Paint()
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 3.4
+        ..strokeWidth = 3.6
         ..shader = SweepGradient(
+          startAngle: -math.pi / 2,
+          endAngle: math.pi * 1.5,
           colors: [
             gold,
             goldLight,
             const Color(0xFF6EC8FF),
-            const Color(0xFF7B5CFF),
+            const Color(0xFF8B6CFF),
             gold,
           ],
-          stops: const [0.0, 0.25, 0.5, 0.75, 1.0],
+          stops: const [0.0, 0.2, 0.45, 0.7, 1.0],
         ).createShader(Rect.fromCircle(center: center, radius: outerR)),
     );
 
-    // Progress track (270° classic meter)
-    const arcStart = math.pi * 0.75;
-    const arcSweep = math.pi * 1.5;
-
-    canvas.drawArc(
-      Rect.fromCircle(center: center, radius: trackR),
-      arcStart,
-      arcSweep,
-      false,
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 4
-        ..strokeCap = StrokeCap.round
-        ..color = Colors.white.withValues(alpha: 0.05),
-    );
-
+    // ── Needle (classic meter: 0 at bottom-left ~ 225° style) ───
+    // Map progress 0..1 onto arc from ~210° to ~-30° (270° sweep)
+    // Flutter angles: 0 = east, positive = clockwise
+    // Screenshot rest position ≈ lower-left (about 7–8 o'clock)
+    const arcStart = math.pi * 0.75; // SW
+    const arcSweep = math.pi * 1.5; // 270° CW toward SE via N
     final p = progress.clamp(0.0, 1.0);
-    if (p > 0.001) {
-      final rect = Rect.fromCircle(center: center, radius: trackR);
-      canvas.drawArc(
-        rect,
-        arcStart,
-        arcSweep * p,
-        false,
-        Paint()
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 10
-          ..strokeCap = StrokeCap.round
-          ..color = gold.withValues(alpha: 0.22)
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 7),
-      );
-      canvas.drawArc(
-        rect,
-        arcStart,
-        arcSweep * p,
-        false,
-        Paint()
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 5.5
-          ..strokeCap = StrokeCap.round
-          ..shader = SweepGradient(
-            startAngle: arcStart,
-            endAngle: arcStart + arcSweep,
-            colors: [gold, goldLight, const Color(0xFF9B7BFF)],
-          ).createShader(rect),
-      );
-    }
+    final needleAngle = arcStart + arcSweep * p;
+    final needleLen = outerR - 36;
 
-    // Needle (always visible; rests at 0)
     if (showNeedle) {
-      final needleAngle = arcStart + arcSweep * p;
-      final needleLen = trackR - 8;
       final tip = Offset(
         center.dx + math.cos(needleAngle) * needleLen,
         center.dy + math.sin(needleAngle) * needleLen,
       );
       final tail = Offset(
-        center.dx - math.cos(needleAngle) * 18,
-        center.dy - math.sin(needleAngle) * 18,
+        center.dx - math.cos(needleAngle) * 20,
+        center.dy - math.sin(needleAngle) * 20,
       );
 
+      // Glow
       canvas.drawLine(
         tail,
         tip,
         Paint()
-          ..color = gold.withValues(alpha: 0.4)
-          ..strokeWidth = 6
+          ..color = gold.withValues(alpha: 0.45)
+          ..strokeWidth = 7
           ..strokeCap = StrokeCap.round
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5),
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6),
       );
+      // Body
       canvas.drawLine(
         tail,
         tip,
@@ -1930,21 +2021,30 @@ class _ArcGaugePainter extends CustomPainter {
           ..shader = LinearGradient(
             colors: [goldLight, Colors.white, gold],
           ).createShader(Rect.fromPoints(tail, tip))
-          ..strokeWidth = 2.6
+          ..strokeWidth = 2.8
           ..strokeCap = StrokeCap.round,
       );
+      // Bright tip
+      canvas.drawCircle(
+        tip,
+        3.2,
+        Paint()
+          ..color = Colors.white
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2),
+      );
+      canvas.drawCircle(tip, 2.2, Paint()..color = goldLight);
 
       // Hub
-      canvas.drawCircle(center, 9, Paint()..color = const Color(0xFF0A1628));
+      canvas.drawCircle(center, 11, Paint()..color = const Color(0xFF0A1422));
       canvas.drawCircle(
         center,
-        9,
+        11,
         Paint()
           ..style = PaintingStyle.stroke
-          ..strokeWidth = 2.2
+          ..strokeWidth = 2.4
           ..color = gold,
       );
-      canvas.drawCircle(center, 3.5, Paint()..color = goldLight);
+      canvas.drawCircle(center, 4.0, Paint()..color = goldLight);
     }
   }
 
