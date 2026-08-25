@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../features/about/screens/about_screen.dart';
+import '../../features/privacy/screens/privacy_policy_screen.dart';
 import '../../features/downdetector/screens/downdetector_screen.dart';
 import '../../features/server/screens/server_screen.dart';
 import '../../features/settings/screens/settings_screen.dart';
@@ -31,28 +32,6 @@ class AppDrawer extends StatelessWidget {
               child: const Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(Icons.speed_rounded, color: AppColors.green, size: 36),
-                  SizedBox(height: 12),
-                  Text(
-                    'MPorT Go',
-                    style: TextStyle(
-                      color: AppColors.textPrimary,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  SizedBox(height: 4),
-                  Text(
-                    'Menu',
-                    style: TextStyle(color: AppColors.textMuted, fontSize: 13),
-                  ),
-                ],
-              ),
-            ),
-            Expanded(
-              child: ListView(
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                children: [
                   _item(
                     context,
                     icon: Icons.dns_outlined,
@@ -73,6 +52,13 @@ class AppDrawer extends StatelessWidget {
                     onTap: () => _go(context, const SettingsScreen()),
                   ),
                   const Divider(color: Color(0xFF1A2030)),
+                  _item(
+                    context,
+                    icon: Icons.privacy_tip_outlined,
+                    title: 'Privacy Policy',
+                    subtitle: 'Kebijakan privasi',
+                    onTap: () => _go(context, const PrivacyPolicyScreen()),
+                  ),
                   _item(
                     context,
                     icon: Icons.info_outline,

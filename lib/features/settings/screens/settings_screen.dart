@@ -5,6 +5,7 @@ import '../../../core/permissions/app_permissions.dart';
 import '../../../core/theme/theme_controller.dart';
 import '../../../core/widgets/app_footer.dart';
 import '../../about/screens/about_screen.dart';
+import '../../privacy/screens/privacy_policy_screen.dart';
 import '../../downdetector/screens/downdetector_screen.dart';
 import '../widgets/settings_tile.dart';
 
@@ -212,6 +213,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
             onTap: () {
               Navigator.of(context).push(
                 MaterialPageRoute<void>(builder: (_) => const AboutScreen()),
+              );
+            },
+          ),
+          SettingsTile(
+            icon: Icons.privacy_tip_outlined,
+            title: 'Privacy Policy',
+            subtitle: 'Kebijakan privasi & data',
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                    builder: (_) => const PrivacyPolicyScreen()),
               );
             },
           ),
