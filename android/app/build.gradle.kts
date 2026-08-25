@@ -16,13 +16,10 @@ if (keystorePropertiesFile.exists()) {
 }
 
 fun resolveKeystoreFile(storePath: String): File? {
-    // Relative to app module
     val inApp = file(storePath)
     if (inApp.exists()) return inApp
-    // Relative to android/
     val inRoot = rootProject.file(storePath)
     if (inRoot.exists()) return inRoot
-    // Explicit android/app/
     val inAppExplicit = rootProject.file("app/$storePath")
     if (inAppExplicit.exists()) return inAppExplicit
     return null
@@ -51,10 +48,18 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+
+        // Phone-first ABIs (drop x86/x86_64 — emulator-only).
+        // CI still uses --split-per-abi for even smaller per-device APKs.
+        ndk {
+            abiFilters += listOf("armeabi-v7a", "arm64-v8a")
+        }
+
+        // App UI is Indonesian/English only — drop unused locale resources from deps
+        resourceConfigurations += listOf("en", "in", "id")
     }
 
     signingConfigs {
-        // Only create release config when keystore file really exists
         if (hasValidKeystore) {
             create("release") {
                 keyAlias = keystoreProperties["keyAlias"] as String
@@ -70,19 +75,23 @@ android {
             signingConfig = if (hasValidKeystore) {
                 signingConfigs.getByName("release")
             } else {
-                // Fallback: unsigned/debug signing — avoids validateSigningRelease failure
+                // Fallback: debug signing — avoids validateSigningRelease failure
                 signingConfigs.getByName("debug")
             }
             isMinifyEnabled = true
             isShrinkResources = true
+            isDebuggable = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
             )
         }
+        debug {
+            isMinifyEnabled = false
+            isShrinkResources = false
+        }
     }
 
-    // Prefer smaller APKs; CI can also use --split-per-abi
     packaging {
         resources {
             excludes += setOf(
@@ -91,7 +100,15 @@ android {
                 "META-INF/AL2.0",
                 "META-INF/LGPL2.1",
                 "META-INF/*.kotlin_module",
+                "META-INF/DEPENDENCIES",
+                "META-INF/INDEX.LIST",
+                "**/kotlin-tooling-metadata.json",
+                "DebugProbesKt.bin",
             )
+        }
+        // Compress .so inside APK (smaller download; slight first-load cost)
+        jniLibs {
+            useLegacyPackaging = true
         }
     }
 }

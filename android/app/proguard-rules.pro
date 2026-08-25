@@ -1,4 +1,4 @@
-# Flutter
+# Flutter embedding / engine
 -keep class io.flutter.app.** { *; }
 -keep class io.flutter.plugin.** { *; }
 -keep class io.flutter.util.** { *; }
@@ -6,34 +6,44 @@
 -keep class io.flutter.** { *; }
 -keep class io.flutter.plugins.** { *; }
 
-# Keep native methods
+# Native methods
 -keepclasseswithmembernames class * {
     native <methods>;
 }
 
-# Gson / reflection (if used by plugins)
+# Reflection / annotations used by plugins
 -keepattributes Signature
 -keepattributes *Annotation*
 -keepattributes EnclosingMethod
 -keepattributes InnerClasses
+-keepattributes SourceFile,LineNumberTable
 
-# WebView / JS bridge
+# WebView / JS bridge (webview_flutter)
 -keepclassmembers class * {
     @android.webkit.JavascriptInterface <methods>;
 }
 
-# Don't warn about missing optional classes
+# Optional / transitive deps that may be missing at compile time
 -dontwarn javax.annotation.**
 -dontwarn org.codehaus.mojo.animal_sniffer.**
 -dontwarn org.bouncycastle.**
 -dontwarn org.conscrypt.**
 -dontwarn org.openjsse.**
-
-# Google Play Core — used by Flutter deferred components (optional, not bundled)
 -dontwarn com.google.android.play.core.**
 -dontwarn com.google.android.play.core.splitcompat.**
 -dontwarn com.google.android.play.core.splitinstall.**
 -dontwarn com.google.android.play.core.tasks.**
 
-# Flutter embedding references to Play Core
--keep class io.flutter.embedding.engine.deferredcomponents.** { *; }
+# Connectivity / network_info / device_info plugins — keep generated registrants
+-keep class io.flutter.plugins.** { *; }
+-keep class dev.fluttercommunity.** { *; }
+-keep class com.baseflow.** { *; }
+
+# Aggressive optimization (safe with Flutter when minify is on)
+-optimizations !code/simplification/arithmetic,!code/simplification/cast,!field/*,!class/merging/*
+-optimizationpasses 5
+-allowaccessmodification
+-repackageclasses ''
+
+# permission_handler
+-keep class com.baseflow.permissionhandler.** { *; }

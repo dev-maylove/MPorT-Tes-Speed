@@ -6,7 +6,7 @@ Endpoints (OpenSpeedTest-style / Ookla-style depending on selected server):
 - Download: `/downloading` or `/speedtest/download`
 - Upload: `/upload` or `/speedtest/upload.php`
 
-## Android Build Matrix (Flutter 3.47.x+)
+## Android Build Matrix (Flutter 3.x / AGP 9)
 
 | Component | Version | Notes |
 |-----------|---------|-------|
@@ -15,32 +15,59 @@ Endpoints (OpenSpeedTest-style / Ookla-style depending on selected server):
 | **Kotlin** | **Built-in (AGP 9)** | `android.builtInKotlin=true` |
 | **Java** | **17** | |
 
-### `android/gradle.properties` (important)
+## APK size optimizations (applied)
 
+| Optimization | Effect |
+|--------------|--------|
+| `--split-per-abi` | Separate APK per CPU (arm64 ~half of fat APK) |
+| `--obfuscate` + R8 full mode | Smaller DEX, harder reverse-engineering |
+| `--tree-shake-icons` | Drop unused Material icons |
+| `abiFilters` arm only | No x86/x86_64 in APK |
+| `resourceConfigurations` en/id | Drop unused locale strings from deps |
+| `isMinifyEnabled` + `isShrinkResources` | Dead code & unused resources removed |
+| Compressed JNI (`useLegacyPackaging`) | Smaller native libs in APK |
+| Logo/splash assets compressed | ~1.4 MB → ~61 KB logo |
+
+## Quick build
+
+```bash
+# Recommended: per-ABI APKs (smallest install size)
+./tool/build_release.sh split
+
+# Single universal APK (armv7 + arm64 only)
+./tool/build_release.sh universal
+
+# Play Store bundle
+./tool/build_release.sh appbundle
 ```
-android.newDsl=false
-android.builtInKotlin=true
-```
 
-- `android.builtInKotlin=true` — migrated to AGP built-in Kotlin (no separate `kotlin-android` plugin in the app module).
-- `android.newDsl=false` — kept for compatibility until all Flutter plugins fully support the new AGP DSL.
-
-### App module (`android/app/build.gradle.kts`)
-
-- Plugins: `com.android.application` + Flutter Gradle plugin only (no `kotlin-android`).
-- JVM target: set via `kotlin { compilerOptions { jvmTarget = JVM_17 } }`.
-
-## Build
+Manual equivalent:
 
 ```bash
 flutter clean
 flutter pub get
-flutter analyze
-flutter test
-flutter build apk --release
+flutter build apk --release \
+  --split-per-abi \
+  --obfuscate \
+  --split-debug-info=build/debug-info \
+  --tree-shake-icons \
+  --target-platform=android-arm,android-arm64
 ```
 
-APK output: `build/app/outputs/flutter-apk/app-release.apk`
+Outputs:
+- Split: `build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk`
+- Split: `build/app/outputs/flutter-apk/app-arm64-v8a-release.apk`
+- Universal: `build/app/outputs/flutter-apk/app-release.apk`
+
+## Gradle flags (`android/gradle.properties`)
+
+```
+android.builtInKotlin=true
+android.enableR8.fullMode=true
+android.nonTransitiveRClass=true
+org.gradle.parallel=true
+org.gradle.caching=true
+```
 
 ## Signing
 
@@ -48,26 +75,14 @@ See **KEYSTORE.md**.
 
 ## Migration notes (Built-in Kotlin)
 
-Followed: https://docs.flutter.dev/release/breaking-changes/migrate-to-built-in-kotlin/for-app-developers
-
 1. Removed `id("kotlin-android")` from the app plugins block.
-2. Kept / used the `kotlin { compilerOptions { ... } }` block.
-3. Set `android.builtInKotlin=true` in `gradle.properties`.
+2. JVM target via `kotlin { compilerOptions { ... } }`.
+3. `android.builtInKotlin=true` in `gradle.properties`.
 
 ## Fast analyze
-
-Full project:
-
-```bash
-flutter analyze --no-fatal-infos
-```
-
-Faster (lib only):
 
 ```bash
 flutter analyze --no-fatal-infos lib
 # or
 ./tool/fast_analyze.sh
 ```
-
-`analysis_options.yaml` excludes `build/`, `.dart_tool/`, platform folders, and generated `*.g.dart` files to keep analysis light.

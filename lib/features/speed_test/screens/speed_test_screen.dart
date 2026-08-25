@@ -9,6 +9,7 @@ import 'package:http/http.dart' as http;
 import 'package:network_info_plus/network_info_plus.dart';
 
 import '../../../core/constants/server_config.dart';
+import '../../../core/permissions/app_permissions.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_drawer.dart';
 import '../../server/screens/server_screen.dart';
@@ -58,6 +59,8 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
   String? _publicIp;
   String? _asn;
   String? _deviceNetworkName; // Wi-Fi SSID or mobile network label
+  /// Active path: wifi | mobile | ethernet | none
+  String _connectionKind = 'none';
   String? _serverDisplay;
   String _deviceModel = '—';
   String? _testId;
@@ -114,8 +117,21 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
     _realtime.connect();
     _fetchMeta();
     _loadDeviceModel();
-    _loadDeviceNetworkName();
     _listenConnectivity();
+    // Request location + notification (and nearby Wi-Fi) then refresh SSID label
+    // ignore: unawaited_futures
+    _bootstrapPermissions();
+  }
+
+  /// Ask for runtime permissions once, then re-read Wi-Fi SSID / connection kind.
+  Future<void> _bootstrapPermissions() async {
+    try {
+      await AppPermissions.requestAll();
+    } catch (_) {
+      // Permission dialog dismissed / plugin missing — still try SSID read
+    }
+    if (!mounted) return;
+    await _loadDeviceNetworkName();
   }
 
   /// Clears ASN/ISP cache when Wi-Fi ↔ mobile (or offline) so Network label
@@ -448,57 +464,105 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
 
 
   /// Active network name on the device (Wi-Fi SSID or mobile/other).
+  ///
+  /// Important: on Wi-Fi we must NOT surface the public-IP ISP brand alone
+  /// (e.g. "XL Axiata") — that looks like cellular even when the phone is on Wi-Fi.
   Future<void> _loadDeviceNetworkName() async {
     try {
       final list = await Connectivity().checkConnectivity();
+      // Prefer Wi-Fi when both Wi-Fi and mobile are reported (common on Android).
       final hasWifi = list.contains(ConnectivityResult.wifi);
-      final hasMobile = list.contains(ConnectivityResult.mobile);
       final hasEthernet = list.contains(ConnectivityResult.ethernet);
+      final hasMobile = list.contains(ConnectivityResult.mobile);
 
+      String kind = 'none';
       String? name;
+
       if (hasWifi) {
+        kind = 'wifi';
         try {
           final raw = await NetworkInfo().getWifiName();
-          if (raw != null && raw.trim().isNotEmpty) {
-            // Android may wrap SSID in quotes
-            name = raw.trim().replaceAll('"', '');
+          final cleaned = raw
+              ?.trim()
+              .replaceAll('"', '')
+              .replaceAll("'", '');
+          if (cleaned != null &&
+              cleaned.isNotEmpty &&
+              cleaned.toLowerCase() != '<unknown ssid>' &&
+              cleaned.toLowerCase() != 'unknown ssid' &&
+              cleaned.toLowerCase() != 'null') {
+            name = cleaned;
           } else {
+            // Location permission denied / restricted — still mark as Wi-Fi
             name = 'Wi-Fi';
           }
         } catch (_) {
           name = 'Wi-Fi';
         }
-      } else if (hasMobile) {
-        name = 'Mobile data';
       } else if (hasEthernet) {
+        kind = 'ethernet';
         name = 'Ethernet';
+      } else if (hasMobile) {
+        kind = 'mobile';
+        name = 'Mobile data';
       }
 
-      if (name != null && mounted) {
-        setState(() => _deviceNetworkName = name);
+      if (mounted) {
+        setState(() {
+          _connectionKind = kind;
+          if (name != null) _deviceNetworkName = name;
+        });
       }
     } catch (_) {
-      // keep previous / fall back to ISP
+      // keep previous
     }
   }
 
+  /// Primary network label shown in UI.
+  /// Wi-Fi → SSID (or "Wi-Fi"); Mobile → ISP/carrier; never show carrier as if it were Wi-Fi.
   String get _ispLabel {
-    // Prefer real ISP from public-IP lookup (SSID ≠ ISP name).
     final isp = _ispName?.trim();
-    if (isp != null && isp.isNotEmpty) return isp;
-
-    // Fall back to Wi-Fi SSID when it is a real network name (not generic).
     final deviceNet = _deviceNetworkName?.trim();
-    if (deviceNet != null &&
-        deviceNet.isNotEmpty &&
-        deviceNet != 'Wi-Fi' &&
-        deviceNet != 'Mobile data' &&
-        deviceNet != 'Ethernet') {
-      return deviceNet;
+    final kind = _connectionKind;
+
+    if (kind == 'wifi') {
+      if (deviceNet != null &&
+          deviceNet.isNotEmpty &&
+          deviceNet != 'Wi-Fi') {
+        return deviceNet; // real SSID
+      }
+      // No SSID (permission) — keep explicit Wi-Fi, do not replace with mobile ISP brand
+      return 'Wi-Fi';
     }
-    // Connection type / generic fallback
+
+    if (kind == 'ethernet') {
+      return 'Ethernet';
+    }
+
+    if (kind == 'mobile') {
+      if (isp != null && isp.isNotEmpty) return isp;
+      if (deviceNet != null && deviceNet.isNotEmpty) return deviceNet;
+      return 'Mobile data';
+    }
+
+    // Unknown path: prefer ISP, then device net
+    if (isp != null && isp.isNotEmpty) return isp;
     if (deviceNet != null && deviceNet.isNotEmpty) return deviceNet;
     return 'Network';
+  }
+
+  /// Icon for the active connection path (not the device form-factor).
+  IconData get _connectionIcon {
+    switch (_connectionKind) {
+      case 'wifi':
+        return Icons.wifi_rounded;
+      case 'ethernet':
+        return Icons.settings_ethernet_rounded;
+      case 'mobile':
+        return Icons.signal_cellular_alt_rounded;
+      default:
+        return Icons.lan_rounded;
+    }
   }
 
   @override
@@ -660,18 +724,21 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
   Widget _sheetIspRow() {
     // Recommended layout:
     //   Network
-    //   Telkom / IndiHome
-    //   AS7713 · 36.xxx.xxx.xxx
+    //   <SSID or carrier>
+    //   ISP · ASN · IP  (ISP kept here so Wi-Fi SSID is not replaced by carrier brand)
     final asn = _asn?.trim();
     final ip = _publicIp?.trim();
-    final hasAsnIp = (asn != null && asn.isNotEmpty) ||
-        (ip != null && ip.isNotEmpty);
-    final subtitle = hasAsnIp
-        ? [
-            if (asn != null && asn.isNotEmpty) asn,
-            if (ip != null && ip.isNotEmpty) ip,
-          ].join(' · ')
-        : _deviceModel;
+    final isp = _ispName?.trim();
+    final parts = <String>[];
+    if (_connectionKind == 'wifi' &&
+        isp != null &&
+        isp.isNotEmpty &&
+        isp != _ispLabel) {
+      parts.add(isp);
+    }
+    if (asn != null && asn.isNotEmpty) parts.add(asn);
+    if (ip != null && ip.isNotEmpty) parts.add(ip);
+    final subtitle = parts.isNotEmpty ? parts.join(' · ') : _deviceModel;
 
     return Row(
       children: [
@@ -682,7 +749,7 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
             shape: BoxShape.circle,
             border: Border.all(color: AppColors.greenDim),
           ),
-          child: const Icon(Icons.wifi_rounded, color: AppColors.textPrimary, size: 18),
+          child: Icon(_connectionIcon, color: AppColors.textPrimary, size: 18),
         ),
         const SizedBox(width: 12),
         Expanded(
@@ -1162,7 +1229,7 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
                       ),
                     ),
                     const SizedBox(width: 4),
-                    const Icon(Icons.phone_android_rounded,
+                    Icon(_connectionIcon,
                         color: AppColors.textMuted, size: 14),
                   ],
                 ),
@@ -1254,7 +1321,7 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
                           ),
                         ),
                         const SizedBox(width: 6),
-                        const Icon(Icons.phone_android_rounded,
+                        Icon(_connectionIcon,
                             color: AppColors.textMuted, size: 16),
                       ],
                     ),

@@ -153,7 +153,9 @@ jobs:
             --release \
             --split-per-abi \
             --obfuscate \
-            --split-debug-info=build/debug-info
+            --split-debug-info=build/debug-info \
+            --tree-shake-icons \
+            --target-platform=android-arm,android-arm64
 
       # ============================================================
       # VERIFY APK SIGNATURE

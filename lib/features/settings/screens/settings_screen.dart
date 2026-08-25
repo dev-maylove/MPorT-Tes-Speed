@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/constants/app_constants.dart';
+import '../../../core/permissions/app_permissions.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_footer.dart';
 import '../../about/screens/about_screen.dart';
@@ -18,6 +19,43 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   String _speedUnit = 'Mbps';
   ThemeMode _themeMode = ThemeMode.system;
+  bool _locGranted = false;
+  bool _notifGranted = false;
+  bool _permLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _refreshPermissionStatus();
+  }
+
+  Future<void> _refreshPermissionStatus() async {
+    final loc = await AppPermissions.isLocationGranted;
+    final notif = await AppPermissions.isNotificationGranted;
+    if (!mounted) return;
+    setState(() {
+      _locGranted = loc;
+      _notifGranted = notif;
+      _permLoading = false;
+    });
+  }
+
+  Future<void> _requestPermissions() async {
+    setState(() => _permLoading = true);
+    await AppPermissions.requestAll();
+    await _refreshPermissionStatus();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          _locGranted
+              ? 'Permissions updated'
+              : 'Some permissions still denied — open system settings if needed',
+        ),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -60,6 +98,32 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 if (v != null) setState(() => _themeMode = v);
               },
             ),
+          ),
+          const Divider(),
+          const _SectionHeader(title: 'Permissions'),
+          SettingsTile(
+            icon: Icons.location_on_outlined,
+            title: 'Location',
+            subtitle: _permLoading
+                ? 'Checking…'
+                : (_locGranted
+                    ? 'Granted — needed for Wi-Fi SSID'
+                    : 'Denied — Wi-Fi name may show as “Wi-Fi” only'),
+            onTap: _requestPermissions,
+          ),
+          SettingsTile(
+            icon: Icons.notifications_outlined,
+            title: 'Notifications',
+            subtitle: _permLoading
+                ? 'Checking…'
+                : (_notifGranted ? 'Granted' : 'Denied — enable for test alerts'),
+            onTap: _requestPermissions,
+          ),
+          SettingsTile(
+            icon: Icons.settings_applications_outlined,
+            title: 'Open system settings',
+            subtitle: 'Enable permissions manually if dialog was dismissed',
+            onTap: () => AppPermissions.openSettings(),
           ),
           const Divider(),
           const _SectionHeader(title: 'Network'),
