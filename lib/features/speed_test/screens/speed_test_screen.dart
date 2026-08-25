@@ -247,8 +247,8 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
     final speedDelta = (speedMbps - beginSpeed).abs();
     final progressDelta = (targetProgress - beginProgress).abs();
 
-    // Ignore microscopic updates to avoid micro-jitter.
-    if (speedDelta < 0.15 && progressDelta < 0.004 && !lock) {
+    // Ignore small updates — fewer tween restarts = smoother UI under load.
+    if (speedDelta < 0.8 && progressDelta < 0.012 && !lock) {
       return;
     }
 
@@ -261,9 +261,9 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
     );
 
     // Longer duration for bigger swings → smoother, more fluid motion.
-    final ms = (320 + progressDelta * 1100 + speedDelta * 2)
+    final ms = (260 + progressDelta * 700 + speedDelta * 1.5)
         .round()
-        .clamp(320, 1400);
+        .clamp(220, 900);
 
     _gaugeCtrl
       ..duration = Duration(milliseconds: ms)

@@ -16,12 +16,24 @@ class DownloadResult {
   });
 }
 
+/// Multi-connection download throughput test (UI-friendly).
+///
+/// Optimizations vs naive loop:
+/// - Shared [http.Client] (connection reuse / keep-alive)
+/// - Byte counting only on the hot path; Mbps computed on a timer
+/// - Progress callbacks throttled off the stream (no per-chunk UI math)
+/// - Response streams closed promptly on cancel / timeout
 class DownloadService {
   bool _cancelled = false;
+  http.Client? _client;
 
-  /// Abort an in-flight test as soon as possible.
   void cancel() {
     _cancelled = true;
+    // Closing the client aborts in-flight requests quickly.
+    try {
+      _client?.close();
+    } catch (_) {}
+    _client = null;
   }
 
   Future<DownloadResult> test({
@@ -32,6 +44,9 @@ class DownloadService {
     void Function(double mbps)? onProgress,
   }) async {
     _cancelled = false;
+    final client = http.Client();
+    _client = client;
+
     var totalBytes = 0;
     var graceBytes = 0;
     var running = true;
@@ -39,7 +54,7 @@ class DownloadService {
 
     final stopwatch = Stopwatch()..start();
     const grace = Duration(seconds: ServerConfig.gracePeriodSeconds);
-    var lastProgressMs = 0;
+    final threadCount = threads.clamp(1, 8);
 
     void endGraceIfNeeded() {
       if (!graceEnded && stopwatch.elapsed >= grace) {
@@ -48,8 +63,37 @@ class DownloadService {
       }
     }
 
+    double currentMbps() {
+      endGraceIfNeeded();
+      final measureBytes =
+          graceEnded ? (totalBytes - graceBytes) : totalBytes;
+      final measureSeconds = graceEnded
+          ? (stopwatch.elapsed - grace).inMicroseconds / 1e6
+          : stopwatch.elapsedMicroseconds / 1e6;
+      if (measureSeconds < 0.2 || measureBytes <= 0) return 0;
+      return measureBytes * 8 / measureSeconds / 1e6 * ServerConfig.overheadAdjustment;
+    }
+
+    // Progress on a fixed cadence — keeps UI smooth and off the byte path.
+    Timer? progressTimer;
+    if (onProgress != null) {
+      progressTimer = Timer.periodic(
+        Duration(milliseconds: ServerConfig.progressThrottleMs),
+        (_) {
+          if (!running || _cancelled) return;
+          final mbps = currentMbps();
+          if (mbps > 0) onProgress(mbps);
+        },
+      );
+    }
+
     Future<void> worker() async {
       while (running && !_cancelled) {
+        if (stopwatch.elapsed >= duration) {
+          running = false;
+          break;
+        }
+        http.StreamedResponse? response;
         try {
           final request = http.Request(
             'GET',
@@ -57,65 +101,56 @@ class DownloadService {
           );
           request.headers.addAll(ServerConfig.defaultHeaders);
 
-          final response = await request.send().timeout(
+          response = await client.send(request).timeout(
                 const Duration(seconds: ServerConfig.connectTimeoutSeconds),
               );
 
-          if (response.statusCode != 200) continue;
+          if (response.statusCode != 200) {
+            // Brief backoff on error to avoid tight fail loops
+            await Future<void>.delayed(const Duration(milliseconds: 40));
+            continue;
+          }
 
           await for (final chunk in response.stream) {
-            if (_cancelled || !running || stopwatch.elapsed >= duration) {
+            if (_cancelled || !running) break;
+            if (stopwatch.elapsed >= duration) {
               running = false;
               break;
             }
-
+            // Hot path: only count bytes (no floating math here)
             totalBytes += chunk.length;
-            endGraceIfNeeded();
-
-            final measureBytes =
-                graceEnded ? (totalBytes - graceBytes) : totalBytes;
-            final measureSeconds = graceEnded
-                ? (stopwatch.elapsed - grace).inMicroseconds / 1e6
-                : stopwatch.elapsedMicroseconds / 1e6;
-
-            if (measureSeconds > 0.3) {
-              final mbps = measureBytes *
-                  8 /
-                  measureSeconds /
-                  1e6 *
-                  ServerConfig.overheadAdjustment;
-
-              final now = stopwatch.elapsedMilliseconds;
-              if (now - lastProgressMs >= ServerConfig.progressThrottleMs) {
-                lastProgressMs = now;
-                onProgress?.call(mbps);
-              }
-            }
           }
         } catch (_) {
           if (!running || _cancelled) break;
+          await Future<void>.delayed(const Duration(milliseconds: 30));
         }
       }
     }
 
-    final workers = List.generate(threads, (_) => worker());
+    try {
+      final workers = List.generate(threadCount, (_) => worker());
+      await Future.any([
+        Future.wait(workers),
+        Future<void>.delayed(duration + const Duration(milliseconds: 400)),
+      ]);
+    } finally {
+      running = false;
+      progressTimer?.cancel();
+      stopwatch.stop();
+      endGraceIfNeeded();
+      try {
+        client.close();
+      } catch (_) {}
+      if (identical(_client, client)) _client = null;
+    }
 
-    // Wait for workers or overall timeout; cancel() sets _cancelled so workers exit.
-    await Future.any([
-      Future.wait(workers),
-      Future<void>.delayed(duration + const Duration(seconds: 1)),
-    ]);
-
-    running = false;
-    stopwatch.stop();
-    endGraceIfNeeded();
+    final measureBytes =
+        graceEnded ? (totalBytes - graceBytes) : totalBytes;
+    final measureSeconds = graceEnded
+        ? (stopwatch.elapsed - grace).inMicroseconds / 1e6
+        : stopwatch.elapsedMicroseconds / 1e6;
 
     if (_cancelled) {
-      final measureBytes =
-          graceEnded ? (totalBytes - graceBytes) : totalBytes;
-      final measureSeconds = graceEnded
-          ? (stopwatch.elapsed - grace).inMicroseconds / 1e6
-          : stopwatch.elapsedMicroseconds / 1e6;
       final sec = measureSeconds > 0.05
           ? measureSeconds
           : (stopwatch.elapsedMicroseconds / 1e6).clamp(0.05, 1e9);
@@ -129,20 +164,18 @@ class DownloadService {
       );
     }
 
-    final measureBytes =
-        graceEnded ? (totalBytes - graceBytes) : totalBytes;
-    final measureSeconds = graceEnded
-        ? (stopwatch.elapsed - grace).inMicroseconds / 1e6
-        : stopwatch.elapsedMicroseconds / 1e6;
-
     if (totalBytes == 0 || stopwatch.elapsedMicroseconds == 0) {
       throw Exception('Download failed — no data received');
     }
 
-    final sec = measureSeconds > 0.1
+    final sec = measureSeconds > 0.15
         ? measureSeconds
         : stopwatch.elapsedMicroseconds / 1e6;
-    final mbps = measureBytes * 8 / sec / 1e6 * ServerConfig.overheadAdjustment;
+    final mbps =
+        measureBytes * 8 / sec / 1e6 * ServerConfig.overheadAdjustment;
+
+    // Final progress tick
+    onProgress?.call(mbps);
 
     return DownloadResult(
       mbps: mbps,

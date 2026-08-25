@@ -31,7 +31,7 @@ class ServerConfig {
     final n = DateTime.now().microsecondsSinceEpoch;
     // Ookla-style vs OpenSpeedTest
     if (downloadPath.contains('speedtest')) {
-      return '$downloadUrl?size=25000000&n=$n';
+      return '$downloadUrl?size=20000000&n=$n';
     }
     return '$downloadUrl?ckSize=100&n=$n';
   }
@@ -60,13 +60,13 @@ class ServerConfig {
   }
 
   // ── Test duration (seconds) ─────────────────────────────
-  static const int downloadDurationSeconds = 15;
-  static const int uploadDurationSeconds = 15;
+  static const int downloadDurationSeconds = 12;
+  static const int uploadDurationSeconds = 12;
   static const int gracePeriodSeconds = 2;
 
   // ── Parallelism ─────────────────────────────────────────
-  static const int downloadThreads = 6;
-  static const int uploadThreads = 4;
+  static const int downloadThreads = 4;
+  static const int uploadThreads = 3;
 
   // ── Upload payload ──────────────────────────────────────
   static const int uploadPayloadMegabytes = 1;
@@ -98,7 +98,7 @@ class ServerConfig {
     'Content-Type': 'application/octet-stream',
   };
 
-  static const int progressThrottleMs = 150;
+  static const int progressThrottleMs = 280;
 
   const ServerConfig._();
 }
