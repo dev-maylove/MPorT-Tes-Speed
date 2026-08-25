@@ -47,3 +47,6 @@
 
 # permission_handler
 -keep class com.baseflow.permissionhandler.** { *; }
+
+# flutter_local_notifications
+-keep class com.dexterous.** { *; }
