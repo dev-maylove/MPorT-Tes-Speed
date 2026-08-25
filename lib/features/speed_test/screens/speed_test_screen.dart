@@ -1284,83 +1284,104 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        // Big speed number
-        Text(
-          value.toStringAsFixed(1),
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 46,
-            fontWeight: FontWeight.w800,
-            height: 1,
-            letterSpacing: -0.8,
-            shadows: [
-              Shadow(color: gold.withValues(alpha: 0.5), blurRadius: 18),
-              const Shadow(color: Colors.black87, blurRadius: 6),
-            ],
-          ),
+        // Speed + unit on one line: "39.3 Mbps"
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.baseline,
+          textBaseline: TextBaseline.alphabetic,
+          children: [
+            Text(
+              value.toStringAsFixed(1),
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 42,
+                fontWeight: FontWeight.w800,
+                height: 1,
+                letterSpacing: -0.8,
+                shadows: [
+                  Shadow(color: gold.withValues(alpha: 0.5), blurRadius: 18),
+                  const Shadow(color: Colors.black87, blurRadius: 6),
+                ],
+              ),
+            ),
+            const SizedBox(width: 6),
+            Text(
+              _unit,
+              style: TextStyle(
+                color: goldLight.withValues(alpha: 0.9),
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.3,
+                height: 1,
+              ),
+            ),
+          ],
         ),
-        const SizedBox(height: 1),
-        // Unit under the number
-        Text(
-          _unit,
-          style: TextStyle(
-            color: goldLight.withValues(alpha: 0.85),
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-            letterSpacing: 0.4,
-            height: 1.1,
-          ),
-        ),
-        const SizedBox(height: 6),
-        // Branding exactly like screenshot:
-        //   MPorT
-        //   GO »»
+
+        // Push branding below the needle hub so the pointer never covers it
+        const SizedBox(height: 36),
+
+        // MPorT GO — logo-style (image 2): bold cyan, motion feel
         Text(
           'MPorT',
           textAlign: TextAlign.center,
           style: TextStyle(
-            color: goldLight,
-            fontSize: 18,
+            color: const Color(0xFF7BFFF0),
+            fontSize: 22,
             fontWeight: FontWeight.w900,
-            letterSpacing: 1.4,
-            height: 1.0,
+            letterSpacing: 1.6,
+            height: 0.95,
             shadows: [
-              Shadow(color: gold.withValues(alpha: 0.55), blurRadius: 12),
+              Shadow(color: gold.withValues(alpha: 0.7), blurRadius: 14),
+              Shadow(
+                color: const Color(0xFF00B4FF).withValues(alpha: 0.45),
+                blurRadius: 10,
+                offset: const Offset(-2, 0),
+              ),
             ],
           ),
         ),
-        const SizedBox(height: 1),
+        const SizedBox(height: 2),
         Text.rich(
           TextSpan(
             children: [
               TextSpan(
                 text: 'GO',
                 style: TextStyle(
-                  color: gold,
-                  fontSize: 17,
+                  color: const Color(0xFF4DA3FF),
+                  fontSize: 20,
                   fontWeight: FontWeight.w900,
-                  letterSpacing: 2.0,
+                  letterSpacing: 3.0,
                   height: 1.0,
                   shadows: [
-                    Shadow(color: gold.withValues(alpha: 0.5), blurRadius: 10),
+                    Shadow(
+                      color: const Color(0xFF4DA3FF).withValues(alpha: 0.65),
+                      blurRadius: 12,
+                    ),
                   ],
                 ),
               ),
               TextSpan(
                 text: ' »»',
                 style: TextStyle(
-                  color: gold.withValues(alpha: 0.95),
-                  fontSize: 14,
+                  color: const Color(0xFF6EC8FF).withValues(alpha: 0.95),
+                  fontSize: 16,
                   fontWeight: FontWeight.w800,
-                  letterSpacing: 0.5,
+                  letterSpacing: 1.0,
                   height: 1.0,
+                  shadows: [
+                    Shadow(
+                      color: const Color(0xFF4DA3FF).withValues(alpha: 0.5),
+                      blurRadius: 8,
+                    ),
+                  ],
                 ),
               ),
             ],
           ),
           textAlign: TextAlign.center,
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 10),
         // ECG · TEST SPEED · ECG
         Row(
           mainAxisSize: MainAxisSize.min,
@@ -1370,14 +1391,14 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
             Text(
               'TEST SPEED',
               style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.40),
-                fontSize: 9.5,
+                color: Colors.white.withValues(alpha: 0.45),
+                fontSize: 9,
                 fontWeight: FontWeight.w600,
-                letterSpacing: 2.2,
+                letterSpacing: 2.4,
               ),
             ),
             const SizedBox(width: 6),
-            _ecgDecor(gold.withValues(alpha: 0.55)),
+            _ecgDecor(const Color(0xFF9B7BFF).withValues(alpha: 0.55)),
           ],
         ),
       ],
