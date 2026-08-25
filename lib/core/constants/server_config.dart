@@ -1,8 +1,4 @@
-/// Speed test server configuration (OpenSpeedTest-style).
-///
-/// Standard endpoints:
-/// - Download: GET  /downloading
-/// - Upload:   POST /upload
+/// Speed test server configuration (OpenSpeedTest / Ookla-style).
 ///
 /// Active server can be changed via [useServer] (multi-server / nearest).
 class ServerConfig {
@@ -23,15 +19,17 @@ class ServerConfig {
   /// Real-time WebSocket (status / latency).
   static String wsPath = '/ws';
   static String get wsUrl {
-    final base = baseUrl.replaceFirst('https://', 'wss://').replaceFirst('http://', 'ws://');
+    final base = baseUrl
+        .replaceFirst('https://', 'wss://')
+        .replaceFirst('http://', 'ws://');
     return '$base$wsPath';
   }
 
   static String downloadUrlBusted() {
     final n = DateTime.now().microsecondsSinceEpoch;
-    // Ookla-style vs OpenSpeedTest
+    // Ookla-style servers often accept size= (bytes to stream)
     if (downloadPath.contains('speedtest')) {
-      return '$downloadUrl?size=20000000&n=$n';
+      return '$downloadUrl?size=35000000&n=$n';
     }
     return '$downloadUrl?ckSize=100&n=$n';
   }
@@ -59,26 +57,33 @@ class ServerConfig {
     pingPath = ping;
   }
 
-  // ── Test duration (seconds) ─────────────────────────────
-  static const int downloadDurationSeconds = 12;
-  static const int uploadDurationSeconds = 12;
-  static const int gracePeriodSeconds = 2;
+  // ── Test duration (seconds) — similar to Ookla (~10–15s) ─
+  static const int downloadDurationSeconds = 15;
+  static const int uploadDurationSeconds = 15;
+  /// Ignore ramp-up (TCP slow-start) like Ookla / LibreSpeed.
+  static const int gracePeriodSeconds = 3;
 
-  // ── Parallelism ─────────────────────────────────────────
-  static const int downloadThreads = 4;
-  static const int uploadThreads = 3;
+  // ── Parallelism (Ookla uses multiple concurrent streams) ─
+  static const int downloadThreads = 6;
+  static const int uploadThreads = 4;
 
   // ── Upload payload ──────────────────────────────────────
-  static const int uploadPayloadMegabytes = 1;
+  static const int uploadPayloadMegabytes = 2;
 
-  // ── Ping (lightweight, aim for lowest result) ───────────
+  // ── Ping ────────────────────────────────────────────────
   static const int pingSamples = 16;
   static const int pingWarmup = 3;
-  static const int pingIntervalMs = 10;
+  static const int pingIntervalMs = 20;
   static const int pingTrimCount = 4;
 
-  // ── Overhead correction ─────────────────────────────────
-  static const double overheadAdjustment = 1.06;
+  // ── Overhead (HTTP framing / TCP) — mild, like commercial apps ─
+  static const double overheadAdjustment = 1.04;
+
+  // ── Throughput sampling (Ookla-style top-N%) ─────────────
+  /// Instantaneous sample interval for final result.
+  static const int sampleIntervalMs = 200;
+  /// Average the fastest [topSamplePercent]% of samples (Ookla ≈ top 10%).
+  static const double topSamplePercent = 0.10;
 
   // ── Timeout ─────────────────────────────────────────────
   static const int connectTimeoutSeconds = 10;
@@ -98,7 +103,8 @@ class ServerConfig {
     'Content-Type': 'application/octet-stream',
   };
 
-  static const int progressThrottleMs = 280;
+  /// UI progress throttle (ms) — independent of sample interval.
+  static const int progressThrottleMs = 250;
 
   const ServerConfig._();
 }

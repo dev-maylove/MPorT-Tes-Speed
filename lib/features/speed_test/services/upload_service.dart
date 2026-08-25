@@ -5,6 +5,7 @@ import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 
 import '../../../core/constants/server_config.dart';
+import '../utils/throughput_math.dart';
 
 class UploadResult {
   final double mbps;
@@ -35,10 +36,7 @@ class UploadService {
   Uint8List _payload(int megabytes) {
     final size = megabytes * 1024 * 1024;
     final cached = _cachedPayload;
-    if (cached != null && cached.length == size) {
-      return cached;
-    }
-    // Fill in larger strides — faster than byte-by-byte
+    if (cached != null && cached.length == size) return cached;
     final data = Uint8List(size);
     final rnd = _random.nextInt(255);
     for (var i = 0; i < size; i += 256) {
@@ -74,39 +72,49 @@ class UploadService {
     var successCount = 0;
     final threadCount = threads.clamp(1, 6);
 
+    final samples = <double>[];
+    var lastSampleBytes = 0;
+    var lastSampleMs = 0;
+    var smoothUi = 0.0;
+    var lastUiMs = 0;
+
     void endGraceIfNeeded() {
       if (!graceEnded && stopwatch.elapsed >= grace) {
         graceEnded = true;
         graceBytes = totalBytes;
+        lastSampleBytes = totalBytes;
+        lastSampleMs = stopwatch.elapsedMilliseconds;
       }
     }
 
-    double currentMbps() {
+    void sampleTick() {
       endGraceIfNeeded();
-      final measureBytes =
-          graceEnded ? (totalBytes - graceBytes) : totalBytes;
-      final measureSeconds = graceEnded
-          ? (stopwatch.elapsed - grace).inMicroseconds / 1e6
-          : stopwatch.elapsedMicroseconds / 1e6;
-      if (measureSeconds < 0.2 || measureBytes <= 0) return 0;
-      return measureBytes *
-          8 /
-          measureSeconds /
-          1e6 *
-          ServerConfig.overheadAdjustment;
+      if (!graceEnded || _cancelled) return;
+      final now = stopwatch.elapsedMilliseconds;
+      final dt = (now - lastSampleMs) / 1000.0;
+      if (dt < 0.08) return;
+      final dBytes = totalBytes - lastSampleBytes;
+      lastSampleBytes = totalBytes;
+      lastSampleMs = now;
+      if (dBytes <= 0) return;
+      final inst = dBytes * 8 / dt / 1e6 * ServerConfig.overheadAdjustment;
+      if (inst.isFinite && inst > 0) {
+        samples.add(inst);
+        smoothUi = ema(smoothUi, inst);
+        if (onProgress != null &&
+            now - lastUiMs >= ServerConfig.progressThrottleMs) {
+          lastUiMs = now;
+          onProgress(smoothUi);
+        }
+      }
     }
 
-    Timer? progressTimer;
-    if (onProgress != null) {
-      progressTimer = Timer.periodic(
-        Duration(milliseconds: ServerConfig.progressThrottleMs),
-        (_) {
-          if (!running || _cancelled) return;
-          final mbps = currentMbps();
-          if (mbps > 0) onProgress(mbps);
-        },
-      );
-    }
+    final sampleTimer = Timer.periodic(
+      Duration(milliseconds: ServerConfig.sampleIntervalMs),
+      (_) {
+        if (running && !_cancelled) sampleTick();
+      },
+    );
 
     Future<void> worker() async {
       while (running && !_cancelled) {
@@ -138,7 +146,7 @@ class UploadService {
           successCount++;
         } catch (_) {
           if (!running || _cancelled) break;
-          await Future<void>.delayed(const Duration(milliseconds: 30));
+          await Future<void>.delayed(const Duration(milliseconds: 40));
         }
       }
     }
@@ -147,11 +155,12 @@ class UploadService {
       final workers = List.generate(threadCount, (_) => worker());
       await Future.any([
         Future.wait(workers),
-        Future<void>.delayed(duration + const Duration(milliseconds: 400)),
+        Future<void>.delayed(duration + const Duration(milliseconds: 500)),
       ]);
     } finally {
       running = false;
-      progressTimer?.cancel();
+      sampleTimer.cancel();
+      sampleTick();
       stopwatch.stop();
       endGraceIfNeeded();
       try {
@@ -162,27 +171,29 @@ class UploadService {
 
     final measureBytes =
         graceEnded ? (totalBytes - graceBytes) : totalBytes;
-    final measureSeconds = graceEnded
-        ? (stopwatch.elapsed - grace).inMicroseconds / 1e6
-        : stopwatch.elapsedMicroseconds / 1e6;
 
-    if (totalBytes > 0 && stopwatch.elapsedMicroseconds > 0) {
-      final sec = measureSeconds > 0.1
-          ? measureSeconds
+    var mbps = ooklaStyleMbps(samples);
+    if (mbps <= 0 && measureBytes > 0) {
+      final sec = graceEnded
+          ? (stopwatch.elapsed - grace).inMicroseconds / 1e6
           : stopwatch.elapsedMicroseconds / 1e6;
-      final bytes = measureBytes > 0 ? measureBytes : totalBytes;
-      final mbps =
-          bytes * 8 / sec / 1e6 * ServerConfig.overheadAdjustment;
-      onProgress?.call(mbps);
-      return UploadResult(
-        mbps: mbps,
-        bytes: bytes,
-        duration: stopwatch.elapsed,
+      if (sec > 0.1) {
+        mbps = measureBytes * 8 / sec / 1e6 * ServerConfig.overheadAdjustment;
+      }
+    }
+
+    if (totalBytes == 0) {
+      throw Exception(
+        'Upload failed — server did not accept data ($successCount OK)',
       );
     }
 
-    throw Exception(
-      'Upload failed — server did not accept data ($successCount OK)',
+    if (mbps > 0) onProgress?.call(mbps);
+
+    return UploadResult(
+      mbps: mbps,
+      bytes: measureBytes,
+      duration: stopwatch.elapsed,
     );
   }
 }

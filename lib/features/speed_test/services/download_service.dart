@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:http/http.dart' as http;
 
 import '../../../core/constants/server_config.dart';
+import '../utils/throughput_math.dart';
 
 class DownloadResult {
   final double mbps;
@@ -16,20 +17,13 @@ class DownloadResult {
   });
 }
 
-/// Multi-connection download throughput test (UI-friendly).
-///
-/// Optimizations vs naive loop:
-/// - Shared [http.Client] (connection reuse / keep-alive)
-/// - Byte counting only on the hot path; Mbps computed on a timer
-/// - Progress callbacks throttled off the stream (no per-chunk UI math)
-/// - Response streams closed promptly on cancel / timeout
+/// Multi-connection download test with Ookla-style top-10% sampling.
 class DownloadService {
   bool _cancelled = false;
   http.Client? _client;
 
   void cancel() {
     _cancelled = true;
-    // Closing the client aborts in-flight requests quickly.
     try {
       _client?.close();
     } catch (_) {}
@@ -56,36 +50,51 @@ class DownloadService {
     const grace = Duration(seconds: ServerConfig.gracePeriodSeconds);
     final threadCount = threads.clamp(1, 8);
 
+    // Instantaneous samples after grace (for final Ookla-style score)
+    final samples = <double>[];
+    var lastSampleBytes = 0;
+    var lastSampleMs = 0;
+    var smoothUi = 0.0;
+    var lastUiMs = 0;
+
     void endGraceIfNeeded() {
       if (!graceEnded && stopwatch.elapsed >= grace) {
         graceEnded = true;
         graceBytes = totalBytes;
+        lastSampleBytes = totalBytes;
+        lastSampleMs = stopwatch.elapsedMilliseconds;
       }
     }
 
-    double currentMbps() {
+    void sampleTick() {
       endGraceIfNeeded();
-      final measureBytes =
-          graceEnded ? (totalBytes - graceBytes) : totalBytes;
-      final measureSeconds = graceEnded
-          ? (stopwatch.elapsed - grace).inMicroseconds / 1e6
-          : stopwatch.elapsedMicroseconds / 1e6;
-      if (measureSeconds < 0.2 || measureBytes <= 0) return 0;
-      return measureBytes * 8 / measureSeconds / 1e6 * ServerConfig.overheadAdjustment;
+      if (!graceEnded || _cancelled) return;
+      final now = stopwatch.elapsedMilliseconds;
+      final dt = (now - lastSampleMs) / 1000.0;
+      if (dt < 0.08) return;
+      final dBytes = totalBytes - lastSampleBytes;
+      lastSampleBytes = totalBytes;
+      lastSampleMs = now;
+      if (dBytes <= 0) return;
+      final inst = dBytes * 8 / dt / 1e6 * ServerConfig.overheadAdjustment;
+      if (inst.isFinite && inst > 0) {
+        samples.add(inst);
+        // Smooth for UI only
+        smoothUi = ema(smoothUi, inst);
+        if (onProgress != null &&
+            now - lastUiMs >= ServerConfig.progressThrottleMs) {
+          lastUiMs = now;
+          onProgress(smoothUi);
+        }
+      }
     }
 
-    // Progress on a fixed cadence — keeps UI smooth and off the byte path.
-    Timer? progressTimer;
-    if (onProgress != null) {
-      progressTimer = Timer.periodic(
-        Duration(milliseconds: ServerConfig.progressThrottleMs),
-        (_) {
-          if (!running || _cancelled) return;
-          final mbps = currentMbps();
-          if (mbps > 0) onProgress(mbps);
-        },
-      );
-    }
+    final sampleTimer = Timer.periodic(
+      Duration(milliseconds: ServerConfig.sampleIntervalMs),
+      (_) {
+        if (running && !_cancelled) sampleTick();
+      },
+    );
 
     Future<void> worker() async {
       while (running && !_cancelled) {
@@ -93,7 +102,6 @@ class DownloadService {
           running = false;
           break;
         }
-        http.StreamedResponse? response;
         try {
           final request = http.Request(
             'GET',
@@ -101,13 +109,12 @@ class DownloadService {
           );
           request.headers.addAll(ServerConfig.defaultHeaders);
 
-          response = await client.send(request).timeout(
+          final response = await client.send(request).timeout(
                 const Duration(seconds: ServerConfig.connectTimeoutSeconds),
               );
 
           if (response.statusCode != 200) {
-            // Brief backoff on error to avoid tight fail loops
-            await Future<void>.delayed(const Duration(milliseconds: 40));
+            await Future<void>.delayed(const Duration(milliseconds: 50));
             continue;
           }
 
@@ -117,12 +124,11 @@ class DownloadService {
               running = false;
               break;
             }
-            // Hot path: only count bytes (no floating math here)
             totalBytes += chunk.length;
           }
         } catch (_) {
           if (!running || _cancelled) break;
-          await Future<void>.delayed(const Duration(milliseconds: 30));
+          await Future<void>.delayed(const Duration(milliseconds: 40));
         }
       }
     }
@@ -131,11 +137,12 @@ class DownloadService {
       final workers = List.generate(threadCount, (_) => worker());
       await Future.any([
         Future.wait(workers),
-        Future<void>.delayed(duration + const Duration(milliseconds: 400)),
+        Future<void>.delayed(duration + const Duration(milliseconds: 500)),
       ]);
     } finally {
       running = false;
-      progressTimer?.cancel();
+      sampleTimer.cancel();
+      sampleTick(); // last sample
       stopwatch.stop();
       endGraceIfNeeded();
       try {
@@ -146,36 +153,23 @@ class DownloadService {
 
     final measureBytes =
         graceEnded ? (totalBytes - graceBytes) : totalBytes;
-    final measureSeconds = graceEnded
-        ? (stopwatch.elapsed - grace).inMicroseconds / 1e6
-        : stopwatch.elapsedMicroseconds / 1e6;
 
-    if (_cancelled) {
-      final sec = measureSeconds > 0.05
-          ? measureSeconds
-          : (stopwatch.elapsedMicroseconds / 1e6).clamp(0.05, 1e9);
-      final mbps = totalBytes > 0
-          ? measureBytes * 8 / sec / 1e6 * ServerConfig.overheadAdjustment
-          : 0.0;
-      return DownloadResult(
-        mbps: mbps,
-        bytes: measureBytes,
-        duration: stopwatch.elapsed,
-      );
+    // Prefer Ookla-style top samples; fall back to total/time.
+    var mbps = ooklaStyleMbps(samples);
+    if (mbps <= 0 && measureBytes > 0) {
+      final sec = graceEnded
+          ? (stopwatch.elapsed - grace).inMicroseconds / 1e6
+          : stopwatch.elapsedMicroseconds / 1e6;
+      if (sec > 0.1) {
+        mbps = measureBytes * 8 / sec / 1e6 * ServerConfig.overheadAdjustment;
+      }
     }
 
-    if (totalBytes == 0 || stopwatch.elapsedMicroseconds == 0) {
+    if (!_cancelled && totalBytes == 0) {
       throw Exception('Download failed — no data received');
     }
 
-    final sec = measureSeconds > 0.15
-        ? measureSeconds
-        : stopwatch.elapsedMicroseconds / 1e6;
-    final mbps =
-        measureBytes * 8 / sec / 1e6 * ServerConfig.overheadAdjustment;
-
-    // Final progress tick
-    onProgress?.call(mbps);
+    if (mbps > 0) onProgress?.call(mbps);
 
     return DownloadResult(
       mbps: mbps,
