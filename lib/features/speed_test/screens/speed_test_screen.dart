@@ -410,22 +410,30 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
         multiConnection: _multiConnection,
         onProgress: (newPhase, value) {
           if (!mounted || gen != _testGeneration) return;
+          // Skip completed phase here — final values applied after await.
+          if (newPhase == SpeedTestPhase.completed) return;
+
+          double? gaugeTarget;
           setState(() {
             phase = newPhase;
             if (newPhase == SpeedTestPhase.ping) {
               ping = value;
               currentSpeed = 0;
-              _animateGaugeTo(0);
+              gaugeTarget = 0;
             } else if (newPhase == SpeedTestPhase.download) {
               download = value;
               currentSpeed = value;
-              _animateGaugeTo(value);
+              gaugeTarget = value;
             } else if (newPhase == SpeedTestPhase.upload) {
               upload = value;
               currentSpeed = value;
-              _animateGaugeTo(value);
+              gaugeTarget = value;
             }
           });
+          // Animate outside setState to avoid rebuild/animation races.
+          if (gaugeTarget != null) {
+            _animateGaugeTo(gaugeTarget);
+          }
         },
       );
 
@@ -475,7 +483,10 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
   }
 
   void _cancelTest() {
-    _testGeneration++; // invalidate in-flight test callbacks/results
+    // Bump generation so in-flight onProgress is ignored.
+    _testGeneration++;
+    // Stop download/upload workers immediately.
+    _service.cancel();
     setState(() {
       running = false;
       phase = SpeedTestPhase.idle;
@@ -484,8 +495,6 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
     _animateGaugeTo(0);
   }
 
-
-  /// Safe Test ID (Random.nextInt max must be <= 2^32).
   String _generateTestId() {
     final now = DateTime.now().millisecondsSinceEpoch;
     final suffix = math.Random().nextInt(9000) + 1000; // 1000–9999
@@ -850,7 +859,7 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
                         options: const ['100', '500', '1000'],
                         selected: '$_scale',
                         onSelect: (v) =>
-                            setState(() => _scale = int.tryParse(v) ?? 1000),
+                            setState(() => _scale = int.tryParse(v) ?? 100),
                       ),
                       const SizedBox(height: 14),
                       _settingRow(

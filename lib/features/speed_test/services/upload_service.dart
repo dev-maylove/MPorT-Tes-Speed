@@ -21,6 +21,11 @@ class UploadResult {
 class UploadService {
   final Random _random = Random();
   Uint8List? _cachedPayload;
+  bool _cancelled = false;
+
+  void cancel() {
+    _cancelled = true;
+  }
 
   Uint8List _payload(int megabytes) {
     final size = megabytes * 1024 * 1024;
@@ -48,6 +53,7 @@ class UploadService {
     int payloadMegabytes = ServerConfig.uploadPayloadMegabytes,
     void Function(double mbps)? onProgress,
   }) async {
+    _cancelled = false;
     final payload = _payload(payloadMegabytes);
     final stopwatch = Stopwatch()..start();
     const grace = Duration(seconds: ServerConfig.gracePeriodSeconds);
@@ -67,7 +73,7 @@ class UploadService {
     }
 
     Future<void> worker() async {
-      while (running) {
+      while (running && !_cancelled) {
         if (stopwatch.elapsed >= duration) {
           running = false;
           break;
@@ -122,7 +128,7 @@ class UploadService {
             }
           }
         } catch (_) {
-          if (!running) break;
+          if (!running || _cancelled) break;
           // Continue with the next request
         }
       }

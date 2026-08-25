@@ -17,6 +17,13 @@ class DownloadResult {
 }
 
 class DownloadService {
+  bool _cancelled = false;
+
+  /// Abort an in-flight test as soon as possible.
+  void cancel() {
+    _cancelled = true;
+  }
+
   Future<DownloadResult> test({
     Duration duration = const Duration(
       seconds: ServerConfig.downloadDurationSeconds,
@@ -24,6 +31,7 @@ class DownloadService {
     int threads = ServerConfig.downloadThreads,
     void Function(double mbps)? onProgress,
   }) async {
+    _cancelled = false;
     var totalBytes = 0;
     var graceBytes = 0;
     var running = true;
@@ -41,7 +49,7 @@ class DownloadService {
     }
 
     Future<void> worker() async {
-      while (running) {
+      while (running && !_cancelled) {
         try {
           final request = http.Request(
             'GET',
@@ -56,7 +64,7 @@ class DownloadService {
           if (response.statusCode != 200) continue;
 
           await for (final chunk in response.stream) {
-            if (!running || stopwatch.elapsed >= duration) {
+            if (_cancelled || !running || stopwatch.elapsed >= duration) {
               running = false;
               break;
             }
@@ -85,21 +93,41 @@ class DownloadService {
             }
           }
         } catch (_) {
-          if (!running) break;
+          if (!running || _cancelled) break;
         }
       }
     }
 
     final workers = List.generate(threads, (_) => worker());
 
+    // Wait for workers or overall timeout; cancel() sets _cancelled so workers exit.
     await Future.any([
       Future.wait(workers),
-      Future<void>.delayed(duration),
+      Future<void>.delayed(duration + const Duration(seconds: 1)),
     ]);
 
     running = false;
     stopwatch.stop();
     endGraceIfNeeded();
+
+    if (_cancelled) {
+      final measureBytes =
+          graceEnded ? (totalBytes - graceBytes) : totalBytes;
+      final measureSeconds = graceEnded
+          ? (stopwatch.elapsed - grace).inMicroseconds / 1e6
+          : stopwatch.elapsedMicroseconds / 1e6;
+      final sec = measureSeconds > 0.05
+          ? measureSeconds
+          : (stopwatch.elapsedMicroseconds / 1e6).clamp(0.05, 1e9);
+      final mbps = totalBytes > 0
+          ? measureBytes * 8 / sec / 1e6 * ServerConfig.overheadAdjustment
+          : 0.0;
+      return DownloadResult(
+        mbps: mbps,
+        bytes: measureBytes,
+        duration: stopwatch.elapsed,
+      );
+    }
 
     final measureBytes =
         graceEnded ? (totalBytes - graceBytes) : totalBytes;
@@ -107,30 +135,19 @@ class DownloadService {
         ? (stopwatch.elapsed - grace).inMicroseconds / 1e6
         : stopwatch.elapsedMicroseconds / 1e6;
 
-    if (measureSeconds <= 0 || measureBytes <= 0) {
-      final sec = stopwatch.elapsedMicroseconds / 1e6;
-      if (sec <= 0 || totalBytes <= 0) {
-        throw Exception('Download failed');
-      }
-      final mbps =
-          totalBytes * 8 / sec / 1e6 * ServerConfig.overheadAdjustment;
-      return DownloadResult(
-        mbps: mbps,
-        bytes: totalBytes,
-        duration: stopwatch.elapsed,
-      );
+    if (totalBytes == 0 || stopwatch.elapsedMicroseconds == 0) {
+      throw Exception('Download failed — no data received');
     }
 
-    final mbps = measureBytes *
-        8 /
-        measureSeconds /
-        1e6 *
-        ServerConfig.overheadAdjustment;
+    final sec = measureSeconds > 0.1
+        ? measureSeconds
+        : stopwatch.elapsedMicroseconds / 1e6;
+    final mbps = measureBytes * 8 / sec / 1e6 * ServerConfig.overheadAdjustment;
 
     return DownloadResult(
       mbps: mbps,
       bytes: measureBytes,
-      duration: graceEnded ? stopwatch.elapsed - grace : stopwatch.elapsed,
+      duration: stopwatch.elapsed,
     );
   }
 }
