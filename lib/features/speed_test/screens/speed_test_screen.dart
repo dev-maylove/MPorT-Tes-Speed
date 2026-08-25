@@ -940,7 +940,7 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
+              Text(
                 'Network',
                 style: TextStyle(
                   color: textMut,
@@ -953,7 +953,7 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
                 _ispLabel,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
+                style: TextStyle(
                   color: textPri,
                   fontSize: 15,
                   fontWeight: FontWeight.w600,
@@ -996,7 +996,7 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
                 _serverDisplay ?? 'HaaNSirO Network',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
+                style: TextStyle(
                   color: textPri,
                   fontSize: 15,
                   fontWeight: FontWeight.w600,
@@ -1523,7 +1523,7 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
                         _ispLabel,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: textSec,
                           fontSize: 12,
                           fontWeight: FontWeight.w500,
@@ -1540,7 +1540,7 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
                   _deviceModel,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: textMut,
                     fontSize: 11,
                   ),
@@ -1555,7 +1555,7 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
                 Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
-                    const Icon(Icons.dns_rounded,
+                    Icon(Icons.dns_rounded,
                         color: textMut, size: 14),
                     const SizedBox(width: 4),
                     Flexible(
@@ -1564,7 +1564,7 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         textAlign: TextAlign.right,
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: textSec,
                           fontSize: 12,
                           fontWeight: FontWeight.w500,
@@ -1578,7 +1578,7 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
                   loc,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: textMut,
                     fontSize: 11,
                   ),
@@ -1615,7 +1615,7 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
                             _ispLabel,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
+                            style: TextStyle(
                               color: textSec,
                               fontSize: 12,
                               fontWeight: FontWeight.w500,
@@ -1632,7 +1632,7 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
                       _deviceModel,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: textMut,
                         fontSize: 12,
                       ),
@@ -1646,7 +1646,7 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Icon(Icons.dns_rounded,
+                        Icon(Icons.dns_rounded,
                             color: textMut, size: 16),
                         const SizedBox(width: 6),
                         Flexible(
@@ -1654,7 +1654,7 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
                             serverName,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
+                            style: TextStyle(
                               color: textSec,
                               fontSize: 12,
                               fontWeight: FontWeight.w500,
@@ -1668,7 +1668,7 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
                       loc,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: textMut,
                         fontSize: 12,
                       ),
@@ -1695,7 +1695,7 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
             ),
           Text(
             'Test ID: ${_testId ?? '—'}',
-            style: const TextStyle(
+            style: TextStyle(
               color: textMut,
               fontSize: 12,
               fontWeight: FontWeight.w500,
@@ -1761,7 +1761,7 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
               const SizedBox(width: 6),
               Text(
                 title,
-                style: const TextStyle(
+                style: TextStyle(
                   color: textPri,
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
@@ -1775,7 +1775,7 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
             children: [
               Text(
                 _formatSpeed(value),
-                style: const TextStyle(
+                style: TextStyle(
                   color: textPri,
                   fontSize: 26,
                   fontWeight: FontWeight.w800,
@@ -1832,7 +1832,7 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
           const SizedBox(height: 8),
           Text(
             'Max latency ${maxPing!.toStringAsFixed(0)} ms',
-            style: const TextStyle(
+            style: TextStyle(
               color: textMut,
               fontSize: 11,
             ),
@@ -1869,7 +1869,7 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
               const SizedBox(width: 4),
               Text(
                 label,
-                style: const TextStyle(
+                style: TextStyle(
                   color: textMut,
                   fontSize: 11,
                   fontWeight: FontWeight.w500,
@@ -1883,7 +1883,7 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
               children: [
                 TextSpan(
                   text: display,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: textPri,
                     fontSize: 16,
                     fontWeight: FontWeight.w700,
@@ -1892,7 +1892,7 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
                 ),
                 TextSpan(
                   text: ' $unit',
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: textMut,
                     fontSize: 11,
                     fontWeight: FontWeight.w500,
@@ -1959,7 +1959,7 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
               children: [
                 Icon(Icons.speed_rounded, color: gold, size: 20),
                 const SizedBox(width: 6),
-                const Text(
+                Text(
                   'MPorT',
                   style: TextStyle(
                     color: textPri,
