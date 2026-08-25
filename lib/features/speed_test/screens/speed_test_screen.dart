@@ -1204,66 +1204,72 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
                     _qualityIcon(Icons.videocam_outlined, _qualityDots(upload)),
                   ],
                 ),
-                // Gauge dial (screenshot style: ticks + needle + cyan rim)
-                Expanded(
-                  child: Center(
-                    child: SizedBox(
-                      width: 280,
-                      height: 280,
-                      child: AnimatedBuilder(
-                        animation: Listenable.merge([_pulseCtrl, _gaugeCtrl]),
-                        builder: (context, child) {
-                          final pulse = running ? _pulseCtrl.value : 0.35;
-                          return Stack(
-                            alignment: Alignment.center,
-                            children: [
-                              // Outer cyan glow
-                              Container(
-                                width: 250,
-                                height: 250,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: gold.withValues(
-                                        alpha: 0.22 + pulse * 0.18,
+                // Gauge while testing; hide after complete
+                if (phase != SpeedTestPhase.completed)
+                  Expanded(
+                    child: Center(
+                      child: SizedBox(
+                        width: 280,
+                        height: 280,
+                        child: AnimatedBuilder(
+                          animation: Listenable.merge([_pulseCtrl, _gaugeCtrl]),
+                          builder: (context, child) {
+                            final pulse = running ? _pulseCtrl.value : 0.35;
+                            return Stack(
+                              alignment: Alignment.center,
+                              children: [
+                                Container(
+                                  width: 250,
+                                  height: 250,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: gold.withValues(
+                                          alpha: 0.22 + pulse * 0.18,
+                                        ),
+                                        blurRadius: 28 + pulse * 16,
+                                        spreadRadius: 1,
                                       ),
-                                      blurRadius: 28 + pulse * 16,
-                                      spreadRadius: 1,
-                                    ),
-                                    BoxShadow(
-                                      color: const Color(0xFF7B5CFF)
-                                          .withValues(alpha: 0.12 + pulse * 0.08),
-                                      blurRadius: 40,
-                                      spreadRadius: 2,
-                                    ),
-                                  ],
+                                      BoxShadow(
+                                        color: const Color(0xFF7B5CFF)
+                                            .withValues(alpha: 0.12 + pulse * 0.08),
+                                        blurRadius: 40,
+                                        spreadRadius: 2,
+                                      ),
+                                    ],
+                                  ),
                                 ),
-                              ),
-                              CustomPaint(
-                                size: const Size(280, 280),
-                                painter: _ArcGaugePainter(
-                                  progress: _animProgress,
-                                  gold: gold,
-                                  goldLight: goldLight,
-                                  pulse: pulse,
-                                  showNeedle: true,
+                                CustomPaint(
+                                  size: const Size(280, 280),
+                                  painter: _ArcGaugePainter(
+                                    progress: _animProgress,
+                                    gold: gold,
+                                    goldLight: goldLight,
+                                    pulse: pulse,
+                                    showNeedle: true,
+                                  ),
                                 ),
-                              ),
-                              child!,
-                            ],
-                          );
-                        },
-                        child: _gaugeCenterValue(),
+                                child!,
+                              ],
+                            );
+                          },
+                          child: _gaugeCenterValue(),
+                        ),
+                      ),
+                    ),
+                  )
+                else
+                  // After test: no gauge — result panel fills the space
+                  Expanded(
+                    child: Center(
+                      child: SingleChildScrollView(
+                        child: _resultFooter(),
                       ),
                     ),
                   ),
-                ),
-                // Bottom: full result panel when done; ISP + device while running
-                if (phase == SpeedTestPhase.completed)
-                  _resultFooter()
-                else
-                  _testingIspServerRow(),
+                // ISP row only while test is running
+                if (phase != SpeedTestPhase.completed) _testingIspServerRow(),
               ],
             ),
           ),
