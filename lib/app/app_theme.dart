@@ -64,6 +64,13 @@ class AppTheme {
       dropdownMenuTheme: const DropdownMenuThemeData(
         textStyle: TextStyle(color: Color(0xFF0D1B2A)),
       ),
+      popupMenuTheme: const PopupMenuThemeData(
+        color: Color(0xFFFFFFFF),
+        textStyle: TextStyle(color: Color(0xFF0D1B2A)),
+      ),
+      dialogTheme: const DialogThemeData(
+        backgroundColor: Color(0xFFFFFFFF),
+      ),
     );
   }
 

@@ -1,6 +1,6 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// Wrapper SharedPreferences untuk penyimpanan lokal.
+/// SharedPreferences wrapper for local storage.
 class LocalStorage {
   SharedPreferences? _prefs;
 

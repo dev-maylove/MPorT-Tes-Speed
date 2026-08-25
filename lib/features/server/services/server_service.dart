@@ -66,7 +66,7 @@ class ServerService extends ChangeNotifier {
   /// 1) Urutkan by jarak
   /// 2) Probe paralel batch kecil (4 sekaligus)
   /// 3) 2 sampel per server, ambil minimum
-  /// 4) Early-stop jika latensi < 12 ms
+  /// 4) Early-stop if latency < 12 ms
   Future<TestServer> selectNearest({bool force = false}) async {
     if (_autoDone && !force && _selected.latencyMs != null) return _selected;
 
@@ -152,7 +152,7 @@ class ServerService extends ChangeNotifier {
       _autoDone = true;
       return _selected;
     } catch (e) {
-      _error = 'Gagal menguji server: $e';
+      _error = 'Server probe failed: $e';
       _autoDone = false;
       return _selected;
     } finally {

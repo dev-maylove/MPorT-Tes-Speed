@@ -8,7 +8,7 @@ import '../../speed_test/models/speed_result.dart';
 import '../models/history_item.dart';
 
 /// Repository alternatif berbasis LocalStorage (struktur feature history).
-/// UI utama memakai HistoryService di speed_test/services.
+/// Main UI uses HistoryService under speed_test/services.
 class HistoryRepository extends ChangeNotifier {
   static const String _key = 'mport_speed_history_v2';
   final LocalStorage _storage;

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../../core/constants/app_constants.dart';
 import '../../../core/permissions/app_permissions.dart';
 import '../../../core/theme/theme_controller.dart';
@@ -63,8 +64,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
       SnackBar(
         content: Text(
           _locGranted
-              ? 'Izin lokasi aktif'
-              : 'Buka pengaturan HP → aktifkan Lokasi untuk MPorT Go',
+              ? 'Location permission is on'
+              : 'Open phone settings → enable Location for MPorT Go',
         ),
         behavior: SnackBarBehavior.floating,
       ),
@@ -80,8 +81,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
       SnackBar(
         content: Text(
           _notifGranted
-              ? 'Izin notifikasi aktif'
-              : 'Buka pengaturan HP → aktifkan Notifikasi untuk MPorT Go',
+              ? 'Notification permission is on'
+              : 'Open phone settings → enable Notifications for MPorT Go',
         ),
         behavior: SnackBarBehavior.floating,
       ),
@@ -92,11 +93,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final themeMode = ThemeController.instance.mode;
+    final cs = theme.colorScheme;
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
         title: const Text('Settings'),
+        backgroundColor: theme.scaffoldBackgroundColor,
+        foregroundColor: cs.onSurface,
       ),
       body: ListView(
         children: [
@@ -106,73 +110,53 @@ class _SettingsScreenState extends State<SettingsScreen> {
             icon: Icons.speed_rounded,
             title: 'Speed Unit',
             subtitle: _speedUnit,
-            trailing: DropdownButton<String>(
-              value: _speedUnit,
-              underline: const SizedBox.shrink(),
-              dropdownColor: theme.cardColor,
-              items: const [
-                DropdownMenuItem(value: 'Mbps', child: Text('Mbps')),
-                DropdownMenuItem(value: 'MB/s', child: Text('MB/s')),
-                DropdownMenuItem(value: 'kB/s', child: Text('kB/s')),
-              ],
-              onChanged: (v) {
-                if (v != null) setState(() => _speedUnit = v);
-              },
+            trailing: DropdownButtonHideUnderline(
+              child: DropdownButton<String>(
+                value: _speedUnit,
+                dropdownColor: theme.cardColor,
+                style: TextStyle(color: cs.onSurface, fontSize: 14),
+                items: const [
+                  DropdownMenuItem(value: 'Mbps', child: Text('Mbps')),
+                  DropdownMenuItem(value: 'MB/s', child: Text('MB/s')),
+                  DropdownMenuItem(value: 'kB/s', child: Text('kB/s')),
+                ],
+                onChanged: (v) {
+                  if (v != null) setState(() => _speedUnit = v);
+                },
+              ),
             ),
           ),
+          // Theme: dropdown only (no duplicate Light/Dark chips)
           SettingsTile(
             icon: Icons.palette_outlined,
             title: 'Theme',
             subtitle: _themeLabel(themeMode),
-            trailing: DropdownButton<ThemeMode>(
-              value: themeMode,
-              underline: const SizedBox.shrink(),
-              dropdownColor: theme.cardColor,
-              items: const [
-                DropdownMenuItem(
-                  value: ThemeMode.system,
-                  child: Text('System'),
-                ),
-                DropdownMenuItem(
-                  value: ThemeMode.light,
-                  child: Text('Light'),
-                ),
-                DropdownMenuItem(
-                  value: ThemeMode.dark,
-                  child: Text('Dark'),
-                ),
-              ],
-              onChanged: (v) {
-                if (v != null) _setTheme(v);
-              },
+            trailing: DropdownButtonHideUnderline(
+              child: DropdownButton<ThemeMode>(
+                value: themeMode,
+                dropdownColor: theme.cardColor,
+                style: TextStyle(color: cs.onSurface, fontSize: 14),
+                items: const [
+                  DropdownMenuItem(
+                    value: ThemeMode.system,
+                    child: Text('System'),
+                  ),
+                  DropdownMenuItem(
+                    value: ThemeMode.light,
+                    child: Text('Light'),
+                  ),
+                  DropdownMenuItem(
+                    value: ThemeMode.dark,
+                    child: Text('Dark'),
+                  ),
+                ],
+                onChanged: (v) {
+                  if (v != null) _setTheme(v);
+                },
+              ),
             ),
           ),
-          // Quick light / dark toggle chips
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-            child: Row(
-              children: [
-                Expanded(
-                  child: _ThemeChip(
-                    label: 'Light',
-                    icon: Icons.light_mode_rounded,
-                    selected: themeMode == ThemeMode.light,
-                    onTap: () => _setTheme(ThemeMode.light),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: _ThemeChip(
-                    label: 'Dark',
-                    icon: Icons.dark_mode_rounded,
-                    selected: themeMode == ThemeMode.dark,
-                    onTap: () => _setTheme(ThemeMode.dark),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const Divider(),
+          Divider(color: theme.dividerColor),
           const _SectionHeader(title: 'Permissions'),
           SettingsTile(
             icon: Icons.location_on_outlined,
@@ -180,8 +164,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
             subtitle: _permLoading
                 ? 'Checking…'
                 : (_locGranted
-                    ? 'Aktif — dibutuhkan untuk nama Wi-Fi (SSID)'
-                    : 'Nonaktif — ketuk untuk buka pengaturan lokasi HP'),
+                    ? 'On — required for Wi-Fi name (SSID)'
+                    : 'Off — tap to open location settings'),
             onTap: _onLocationTap,
           ),
           SettingsTile(
@@ -190,20 +174,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
             subtitle: _permLoading
                 ? 'Checking…'
                 : (_notifGranted
-                    ? 'Aktif — notifikasi hasil tes'
-                    : 'Nonaktif — ketuk untuk buka pengaturan notifikasi HP'),
+                    ? 'On — test result notifications'
+                    : 'Off — tap to open notification settings'),
             onTap: _onNotificationTap,
           ),
           SettingsTile(
             icon: Icons.settings_applications_outlined,
             title: 'Open app settings',
-            subtitle: 'Semua izin aplikasi di sistem',
-            onTap: () async {
-              await AppPermissions.openSettings();
-              await _refreshPermissionStatus();
-            },
+            subtitle: 'All app permissions in system settings',
+            onTap: () => AppPermissions.openSettings(),
           ),
-          const Divider(),
+          Divider(color: theme.dividerColor),
           const _SectionHeader(title: 'About'),
           SettingsTile(
             icon: Icons.info_outline_rounded,
@@ -222,7 +203,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
             onTap: () {
               Navigator.of(context).push(
                 MaterialPageRoute<void>(
-                    builder: (_) => const PrivacyPolicyScreen()),
+                  builder: (_) => const PrivacyPolicyScreen(),
+                ),
               );
             },
           ),
@@ -232,7 +214,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
             onTap: () {
               Navigator.of(context).push(
                 MaterialPageRoute<void>(
-                    builder: (_) => const DowndetectorScreen()),
+                  builder: (_) => const DowndetectorScreen(),
+                ),
               );
             },
           ),
@@ -245,82 +228,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 }
 
-class _ThemeChip extends StatelessWidget {
-  final String label;
-  final IconData icon;
-  final bool selected;
-  final VoidCallback onTap;
-
-  const _ThemeChip({
-    required this.label,
-    required this.icon,
-    required this.selected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final primary = theme.colorScheme.primary;
-    return Material(
-      color: selected
-          ? primary.withValues(alpha: 0.15)
-          : theme.cardColor,
-      borderRadius: BorderRadius.circular(12),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: selected
-                  ? primary
-                  : theme.dividerColor.withValues(alpha: 0.5),
-            ),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon,
-                  size: 18,
-                  color: selected
-                      ? primary
-                      : theme.colorScheme.onSurfaceVariant),
-              const SizedBox(width: 8),
-              Text(
-                label,
-                style: TextStyle(
-                  fontWeight: FontWeight.w600,
-                  color: selected
-                      ? primary
-                      : theme.colorScheme.onSurface,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 class _SectionHeader extends StatelessWidget {
   final String title;
   const _SectionHeader({required this.title});
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 6),
       child: Text(
         title.toUpperCase(),
         style: TextStyle(
-          fontSize: 11,
+          color: cs.primary,
+          fontSize: 12,
           fontWeight: FontWeight.w700,
-          letterSpacing: 1.2,
-          color: Theme.of(context).colorScheme.onSurfaceVariant,
+          letterSpacing: 1.1,
         ),
       ),
     );

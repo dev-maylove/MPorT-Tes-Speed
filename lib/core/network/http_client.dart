@@ -5,7 +5,7 @@ import 'package:http/http.dart' as http;
 import '../constants/app_constants.dart';
 import '../constants/server_config.dart';
 
-/// HTTP client untuk kebutuhan speed test.
+/// HTTP client for speed-test requests.
 class HttpClient {
   final http.Client _client;
   final Duration timeout;

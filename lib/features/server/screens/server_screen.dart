@@ -37,7 +37,7 @@ class _ServerScreenState extends State<ServerScreen> {
 
   @override
   Widget build(BuildContext context) {
-    const accent = AppColors.green;
+    final accent = Theme.of(context).colorScheme.primary;
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -52,7 +52,7 @@ class _ServerScreenState extends State<ServerScreen> {
                 _service.isProbing ? null : () => _service.selectNearest(force: true),
           ),
           IconButton(
-            tooltip: 'Muat ulang',
+            tooltip: 'Reload',
             icon: const Icon(Icons.refresh_rounded),
             onPressed: _service.isLoading
                 ? null
@@ -61,30 +61,33 @@ class _ServerScreenState extends State<ServerScreen> {
         ],
       ),
       body: _service.isLoading
-          ? const LoadingView(message: 'Memuat server...')
+          ? LoadingView(message: 'Loading servers...')
           : Column(
               children: [
                 if (_service.isProbing)
                   LinearProgressIndicator(
                     color: accent,
-                    backgroundColor: AppColors.green.withValues(alpha: 0.1),
+                    backgroundColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
                   ),
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
                   child: Row(
                     children: [
-                      const Expanded(
+                      Expanded(
                         child: Text(
                           'Nearest servers (Pati, Kudus, Jepara, …)',
-                          style: TextStyle(color: AppColors.textMuted, fontSize: 12),
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                            fontSize: 12,
+                          ),
                         ),
                       ),
                       TextButton.icon(
                         onPressed: _service.isProbing
                             ? null
                             : () => _service.selectNearest(force: true),
-                        icon: const Icon(Icons.speed, size: 18, color: accent),
-                        label: const Text('Otomatis', style: TextStyle(color: accent)),
+                        icon: Icon(Icons.speed, size: 18, color: accent),
+                        label: Text('Auto', style: TextStyle(color: accent)),
                       ),
                     ],
                   ),

@@ -19,7 +19,7 @@ class DowndetectorScreen extends StatefulWidget {
 class _ServiceItem {
   final String name;
   final String slug;
-  /// Host untuk probe realtime (opsional).
+  /// Host for realtime probe (optional).
   final String? probeHost;
   final List<double> series; // 0..1
   bool warning;
@@ -238,7 +238,7 @@ class _DowndetectorScreenState extends State<DowndetectorScreen> {
         s.warning = ms > 1500;
       }
     } catch (_) {
-      // Timeout / gagal koneksi → titik tinggi di grafik
+      // Timeout / connection failure → high point on chart
       ms = null;
       sample = 0.9 + math.Random().nextDouble() * 0.08;
       s.warning = true;
@@ -425,7 +425,7 @@ class _DowndetectorScreenState extends State<DowndetectorScreen> {
             style: const TextStyle(color: AppColors.textPrimary, fontSize: 15),
             cursorColor: AppColors.green,
             decoration: InputDecoration(
-              hintText: 'Cari layanan…',
+              hintText: 'Search services…',
               hintStyle: const TextStyle(color: AppColors.textMuted),
               prefixIcon: const Icon(Icons.search, color: AppColors.textMuted),
               suffixIcon: _query.isEmpty
@@ -468,7 +468,7 @@ class _DowndetectorScreenState extends State<DowndetectorScreen> {
                       SizedBox(height: 80),
                       Center(
                         child: Text(
-                          'Tidak ada hasil',
+                          'No results',
                           style: TextStyle(color: AppColors.textMuted),
                         ),
                       ),

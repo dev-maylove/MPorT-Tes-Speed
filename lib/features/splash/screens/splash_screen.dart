@@ -137,7 +137,7 @@ class _SplashScreenState extends State<SplashScreen> {
               ),
             )
           else
-            // Fallback jika error: logo statis singkat
+            // Fallback on error: brief static logo
             Center(
               child: Column(
                 mainAxisSize: MainAxisSize.min,

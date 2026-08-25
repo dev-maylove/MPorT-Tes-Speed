@@ -84,7 +84,7 @@ class TestServer {
     required int distance,
     bool isDefault = false,
   }) {
-    // Bersihkan host prod.hosts.ooklaserver.net jika ada — tetap pakai host asli dari field host
+    // Strip prod.hosts.ooklaserver.net host if present — keep original host field
     final cleanHost = host.contains('.prod.hosts.ooklaserver.net')
         ? host.replaceAll('.prod.hosts.ooklaserver.net', '')
         : host;

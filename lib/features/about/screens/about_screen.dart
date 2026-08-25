@@ -14,21 +14,24 @@ class AboutScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
     return Scaffold(
-      backgroundColor: darkBackground,
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: darkBackground,
+        backgroundColor: theme.scaffoldBackgroundColor,
         elevation: 0,
         centerTitle: true,
-        title: const Text(
+        foregroundColor: cs.onSurface,
+        title: Text(
           'About',
           style: TextStyle(
-            color: Colors.white,
+            color: cs.onSurface,
             fontSize: 19,
             fontWeight: FontWeight.w700,
           ),
         ),
-        iconTheme: const IconThemeData(color: Colors.white),
+        iconTheme: IconThemeData(color: cs.onSurface),
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -83,7 +86,7 @@ class AboutScreen extends StatelessWidget {
           'MPorT Go',
           textAlign: TextAlign.center,
           style: TextStyle(
-            color: Colors.white,
+            color: Theme.of(context).colorScheme.onSurface,
             fontSize: 26,
             fontWeight: FontWeight.w800,
             letterSpacing: 0.2,
@@ -104,7 +107,7 @@ class AboutScreen extends StatelessWidget {
           'Measure your internet speed easily,\nquickly, and comfortably.',
           textAlign: TextAlign.center,
           style: TextStyle(
-            color: secondaryText,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
             height: 1.5,
             fontSize: 14,
           ),
@@ -247,7 +250,7 @@ class AboutScreen extends StatelessWidget {
                     Text(
                       'DeV_MaYLoVe',
                       style: TextStyle(
-                        color: Colors.white,
+                        color: Theme.of(context).colorScheme.onSurface,
                         fontSize: 16,
                         fontWeight: FontWeight.w700,
                       ),
@@ -256,7 +259,7 @@ class AboutScreen extends StatelessWidget {
                     Text(
                       'Developer & Technology',
                       style: TextStyle(
-                        color: secondaryText,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                         fontSize: 13,
                       ),
                     ),
@@ -275,7 +278,7 @@ class AboutScreen extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: cardColor,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
           color: Colors.white.withValues(alpha: 0.06),
@@ -308,7 +311,7 @@ class AboutScreen extends StatelessWidget {
         Text(
           title,
           style: const TextStyle(
-            color: Colors.white,
+            color: Theme.of(context).colorScheme.onSurface,
             fontSize: 16,
             fontWeight: FontWeight.w700,
           ),
@@ -348,7 +351,7 @@ class AboutScreen extends StatelessWidget {
                 Text(
                   title,
                   style: const TextStyle(
-                    color: Colors.white,
+                    color: Theme.of(context).colorScheme.onSurface,
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
                   ),
@@ -357,7 +360,7 @@ class AboutScreen extends StatelessWidget {
                 Text(
                   description,
                   style: const TextStyle(
-                    color: secondaryText,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                     fontSize: 12,
                     height: 1.4,
                   ),
@@ -383,7 +386,7 @@ class AboutScreen extends StatelessWidget {
             child: Text(
               title,
               style: const TextStyle(
-                color: secondaryText,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
                 fontSize: 13,
               ),
             ),
@@ -394,7 +397,7 @@ class AboutScreen extends StatelessWidget {
               value,
               textAlign: TextAlign.right,
               style: const TextStyle(
-                color: Colors.white,
+                color: Theme.of(context).colorScheme.onSurface,
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
               ),

@@ -6,11 +6,11 @@ import '../../../core/widgets/app_drawer.dart';
 import '../../server/services/server_service.dart';
 import '../../speed_test/models/test_server.dart';
 
-/// Peta server — dioptimalkan:
+/// Server map — optimized:
 /// - Load HTML once (do not reload when switching tabs)
 /// - pan via JavaScript
-/// - marker digabung per koordinat
-/// - tile ringan + preferCanvas
+/// - markers merged per coordinate
+/// - lightweight tiles + preferCanvas
 class MapsScreen extends StatefulWidget {
   const MapsScreen({super.key});
 
@@ -68,7 +68,7 @@ class _MapsScreenState extends State<MapsScreen>
     await controller.loadHtmlString(_mapHtml(lat, lon));
   }
 
-  /// Gabungkan server di koordinat yang sama → lebih sedikit marker
+  /// Merge servers at the same coordinates → fewer markers
   List<Map<String, dynamic>> _clusteredPoints() {
     final map = <String, Map<String, dynamic>>{};
     for (final s in _servers) {

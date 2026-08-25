@@ -16,16 +16,19 @@ class ServerCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const accent = Color(0xFF00E5A0);
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final accent = cs.primary;
     final latency = server.latencyMs;
+    final borderIdle = cs.onSurface.withValues(alpha: 0.12);
 
     return Card(
       margin: const EdgeInsets.only(bottom: 10),
-      color: const Color(0xFF111111),
+      color: theme.cardColor,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(14),
         side: BorderSide(
-          color: isSelected ? accent : Colors.white12,
+          color: isSelected ? accent : borderIdle,
           width: isSelected ? 1.5 : 1,
         ),
       ),
@@ -60,7 +63,7 @@ class ServerCard extends StatelessWidget {
         title: Text(
           server.name,
           style: const TextStyle(
-            color: Colors.white,
+            color: cs.onSurface,
             fontWeight: FontWeight.w600,
           ),
         ),
@@ -69,10 +72,10 @@ class ServerCard extends StatelessWidget {
           '${server.country.isNotEmpty ? ' · ${server.country}' : ''}\n'
           '${server.host}'
           '${(server.latitude != null && server.longitude != null) ? ' · ${server.latitude!.toStringAsFixed(2)}, ${server.longitude!.toStringAsFixed(2)}' : ''}',
-          style: const TextStyle(color: Colors.white54, fontSize: 12),
+          style: TextStyle(color: cs.onSurface54, fontSize: 12),
         ),
         trailing: latency == null
-            ? const Text('—', style: TextStyle(color: Colors.white38))
+            ? Text('—', style: TextStyle(color: cs.onSurface38))
             : Text(
                 '${latency.toStringAsFixed(0)} ms',
                 style: TextStyle(

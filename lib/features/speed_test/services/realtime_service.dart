@@ -8,14 +8,14 @@ import '../../../core/constants/server_config.dart';
 
 enum RealtimeStatus { disconnected, connecting, connected, error }
 
-/// Koneksi WebSocket real-time ke server HaaNSirO.
+/// Real-time WebSocket connection to HaaNSirO server.
 ///
 /// Protokol ringan (JSON text):
 /// - client → server: `{"type":"ping","t":<ms>}`
 /// - server → client: `{"type":"pong","t":<ms>}` atau pesan status lain
 ///
 /// If the WS endpoint is unavailable, the service stays safe (error status)
-/// dan app lanjut memakai HTTP seperti biasa.
+/// and the app continues with plain HTTP as usual.
 class RealtimeService extends ChangeNotifier {
   RealtimeService._();
   static final RealtimeService instance = RealtimeService._();

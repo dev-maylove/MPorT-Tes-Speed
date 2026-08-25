@@ -55,7 +55,7 @@ class SpeedGauge extends StatelessWidget {
               const SizedBox(height: 2),
               Text(
                 label,
-                style: TextStyle(
+                style: const TextStyle(
                   color: goldLight,
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
@@ -65,7 +65,7 @@ class SpeedGauge extends StatelessWidget {
               Text.rich(
                 TextSpan(
                   children: [
-                    TextSpan(
+                    const TextSpan(
                       text: 'MPorT',
                       style: TextStyle(
                         color: goldLight,
