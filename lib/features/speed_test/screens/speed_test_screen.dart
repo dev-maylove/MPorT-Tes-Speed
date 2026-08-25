@@ -1319,92 +1319,146 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
         ),
 
         // Push branding below the needle hub so the pointer never covers it
-        const SizedBox(height: 36),
+        const SizedBox(height: 32),
 
-        // MPorT GO — logo-style (image 2): bold cyan, motion feel
-        Text(
-          'MPorT',
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            color: const Color(0xFF7BFFF0),
-            fontSize: 22,
-            fontWeight: FontWeight.w900,
-            letterSpacing: 1.6,
-            height: 0.95,
-            shadows: [
-              Shadow(color: gold.withValues(alpha: 0.7), blurRadius: 14),
-              Shadow(
-                color: const Color(0xFF00B4FF).withValues(alpha: 0.45),
-                blurRadius: 10,
-                offset: const Offset(-2, 0),
+        // MPorT GO — match logo art (gradient, glow, motion streaks)
+        _mportGoLogoBrand(),
+      ],
+    );
+  }
+
+
+
+  /// Logo-faithful "MPorT / GO »» / TEST SPEED" wordmark (matches brand art).
+  Widget _mportGoLogoBrand() {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // MPorT with cyan→white metallic gradient + left motion streaks
+        SizedBox(
+          height: 28,
+          child: Stack(
+            alignment: Alignment.center,
+            clipBehavior: Clip.none,
+            children: [
+              Positioned(
+                left: -36,
+                child: CustomPaint(
+                  size: const Size(40, 22),
+                  painter: _MotionStreakPainter(
+                    color: const Color(0xFF4DA3FF).withValues(alpha: 0.55),
+                  ),
+                ),
+              ),
+              ShaderMask(
+                blendMode: BlendMode.srcIn,
+                shaderCallback: (bounds) => const LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    Color(0xFFFFFFFF),
+                    Color(0xFFB8F3FF),
+                    Color(0xFF5CE1FF),
+                    Color(0xFF2BB8FF),
+                  ],
+                  stops: [0.0, 0.35, 0.7, 1.0],
+                ).createShader(bounds),
+                child: Text(
+                  'MPorT',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 24,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 1.8,
+                    height: 1,
+                    shadows: [
+                      Shadow(
+                        color: const Color(0xFF00E5FF).withValues(alpha: 0.75),
+                        blurRadius: 16,
+                      ),
+                      Shadow(
+                        color: const Color(0xFF2BB8FF).withValues(alpha: 0.45),
+                        blurRadius: 8,
+                        offset: const Offset(-2, 0),
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ],
           ),
         ),
         const SizedBox(height: 2),
-        Text.rich(
-          TextSpan(
-            children: [
-              TextSpan(
-                text: 'GO',
+        // GO »» blue neon
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            ShaderMask(
+              blendMode: BlendMode.srcIn,
+              shaderCallback: (bounds) => const LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Color(0xFF9BD4FF),
+                  Color(0xFF3B9EFF),
+                  Color(0xFF1A6FE0),
+                ],
+              ).createShader(bounds),
+              child: const Text(
+                'GO',
                 style: TextStyle(
-                  color: const Color(0xFF4DA3FF),
+                  color: Colors.white,
                   fontSize: 20,
                   fontWeight: FontWeight.w900,
-                  letterSpacing: 3.0,
-                  height: 1.0,
-                  shadows: [
-                    Shadow(
-                      color: const Color(0xFF4DA3FF).withValues(alpha: 0.65),
-                      blurRadius: 12,
-                    ),
-                  ],
+                  letterSpacing: 3.2,
+                  height: 1,
                 ),
               ),
-              TextSpan(
-                text: ' »»',
+            ),
+            const SizedBox(width: 4),
+            ShaderMask(
+              blendMode: BlendMode.srcIn,
+              shaderCallback: (bounds) => const LinearGradient(
+                colors: [Color(0xFF6EC8FF), Color(0xFF3B9EFF)],
+              ).createShader(bounds),
+              child: const Text(
+                '»»',
                 style: TextStyle(
-                  color: const Color(0xFF6EC8FF).withValues(alpha: 0.95),
-                  fontSize: 16,
+                  color: Colors.white,
+                  fontSize: 18,
                   fontWeight: FontWeight.w800,
-                  letterSpacing: 1.0,
-                  height: 1.0,
-                  shadows: [
-                    Shadow(
-                      color: const Color(0xFF4DA3FF).withValues(alpha: 0.5),
-                      blurRadius: 8,
-                    ),
-                  ],
+                  letterSpacing: -2,
+                  height: 1,
                 ),
               ),
-            ],
-          ),
-          textAlign: TextAlign.center,
+            ),
+          ],
         ),
         const SizedBox(height: 10),
-        // ECG · TEST SPEED · ECG
+        // ECG cyan · TEST SPEED · ECG purple
         Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            _ecgDecor(gold.withValues(alpha: 0.55)),
+            _ecgDecor(const Color(0xFF5CE1FF).withValues(alpha: 0.7)),
             const SizedBox(width: 6),
             Text(
               'TEST SPEED',
               style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.45),
+                color: Colors.white.withValues(alpha: 0.55),
                 fontSize: 9,
                 fontWeight: FontWeight.w600,
-                letterSpacing: 2.4,
+                letterSpacing: 2.6,
               ),
             ),
             const SizedBox(width: 6),
-            _ecgDecor(const Color(0xFF9B7BFF).withValues(alpha: 0.55)),
+            _ecgDecor(const Color(0xFFB07BFF).withValues(alpha: 0.7)),
           ],
         ),
       ],
     );
   }
-
 
   Widget _ecgDecor(Color color) {
     return SizedBox(
@@ -2126,4 +2180,33 @@ class _EcgLinePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _EcgLinePainter old) => old.color != color;
+}
+
+/// Horizontal speed lines behind "MPorT" (logo motion effect).
+class _MotionStreakPainter extends CustomPainter {
+  final Color color;
+  _MotionStreakPainter({required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = 1.6
+      ..strokeCap = StrokeCap.round
+      ..style = PaintingStyle.stroke;
+    final ys = [size.height * 0.25, size.height * 0.5, size.height * 0.75];
+    final lens = [size.width * 0.55, size.width * 0.95, size.width * 0.7];
+    for (var i = 0; i < ys.length; i++) {
+      final y = ys[i];
+      final len = lens[i];
+      canvas.drawLine(
+        Offset(size.width - len, y),
+        Offset(size.width, y),
+        paint..color = color.withValues(alpha: 0.25 + i * 0.2),
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _MotionStreakPainter old) => old.color != color;
 }
