@@ -95,10 +95,10 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
       vsync: this,
       duration: const Duration(milliseconds: 480),
     )..addListener(() {
-        setState(() {
-          _animSpeed = _speedTween.value;
-          _animProgress = _progressTween.value;
-        });
+        // Update values only — AnimatedBuilder rebuilds the gauge.
+        // Avoid setState here: full-tree rebuild every frame makes start-test feel laggy.
+        _animSpeed = _speedTween.value;
+        _animProgress = _progressTween.value;
       });
     _pulseCtrl = AnimationController(
       vsync: this,
@@ -122,6 +122,11 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
     // Request location + notification (and nearby Wi-Fi) then refresh SSID label
     // ignore: unawaited_futures
     _bootstrapPermissions();
+    // After first frame: pre-allocate upload buffer so start-test stays snappy
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _service.warmUp();
+    });
   }
 
   /// Ask for runtime permissions once, then re-read Wi-Fi SSID / connection kind.
@@ -399,12 +404,10 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
       _serverStatus = 'Checking…';
     });
     _animateGaugeTo(0);
+    // Lightweight status only — avoid stacking geo-IP / SSID work on test start
+    // (already loaded in initState). Keeps UI responsive when user taps GO.
     // ignore: unawaited_futures
     _refreshServerStatus();
-    // ignore: unawaited_futures
-    _loadDeviceNetworkName();
-    // ignore: unawaited_futures
-    _fetchMeta();
 
     try {
       final result = await _service.start(
@@ -1229,48 +1232,51 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
                         height: 280,
                         child: AnimatedBuilder(
                           animation: Listenable.merge([_pulseCtrl, _gaugeCtrl]),
-                          builder: (context, child) {
+                          builder: (context, _) {
                             final pulse = running ? _pulseCtrl.value : 0.35;
+                            // Read tween values here so center text tracks the needle
+                            // without full-screen setState on every frame.
+                            final progress = _gaugeCtrl.isAnimating
+                                ? _progressTween.value
+                                : _animProgress;
+                            final speed = _gaugeCtrl.isAnimating
+                                ? _speedTween.value
+                                : _animSpeed;
                             return Stack(
                               alignment: Alignment.center,
                               children: [
-                                Container(
-                                  width: 250,
-                                  height: 250,
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: gold.withValues(
-                                          alpha: 0.22 + pulse * 0.18,
+                                // Soft glow — cheaper when not testing
+                                if (running)
+                                  Container(
+                                    width: 250,
+                                    height: 250,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: gold.withValues(
+                                            alpha: 0.18 + pulse * 0.14,
+                                          ),
+                                          blurRadius: 22 + pulse * 10,
+                                          spreadRadius: 1,
                                         ),
-                                        blurRadius: 28 + pulse * 16,
-                                        spreadRadius: 1,
-                                      ),
-                                      BoxShadow(
-                                        color: const Color(0xFF7B5CFF)
-                                            .withValues(alpha: 0.12 + pulse * 0.08),
-                                        blurRadius: 40,
-                                        spreadRadius: 2,
-                                      ),
-                                    ],
+                                      ],
+                                    ),
                                   ),
-                                ),
                                 CustomPaint(
                                   size: const Size(280, 280),
                                   painter: _ArcGaugePainter(
-                                    progress: _animProgress,
+                                    progress: progress,
                                     gold: gold,
                                     goldLight: goldLight,
-                                    pulse: pulse,
+                                    pulse: running ? pulse : 0.2,
                                     showNeedle: true,
                                   ),
                                 ),
-                                child!,
+                                _gaugeCenterValue(speedOverride: speed),
                               ],
                             );
                           },
-                          child: _gaugeCenterValue(),
                         ),
                       ),
                     ),
@@ -1295,13 +1301,14 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
   }
 
 
-  Widget _gaugeCenterValue() {
+  Widget _gaugeCenterValue({double? speedOverride}) {
     // Always show speed on dial (0.0 while waiting / idle of phase)
-    final raw = running
-        ? _animSpeed
-        : (phase == SpeedTestPhase.completed
-            ? (download ?? _animSpeed)
-            : _animSpeed);
+    final raw = speedOverride ??
+        (running
+            ? _animSpeed
+            : (phase == SpeedTestPhase.completed
+                ? (download ?? _animSpeed)
+                : _animSpeed));
     final value = _toDisplayUnit(raw);
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -2071,15 +2078,16 @@ class _ArcGaugePainter extends CustomPainter {
     }
 
     // ── Outer neon rim ──────────────────────────────────────────
-    // Glow
+    // Glow — lighter blur when pulse is low (cheaper during idle / start)
+    final glowBlur = pulse > 0.4 ? 12.0 : 6.0;
     canvas.drawCircle(
       center,
       outerR,
       Paint()
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 10 + pulse * 4
-        ..color = gold.withValues(alpha: 0.28 + pulse * 0.15)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 14),
+        ..strokeWidth = 8 + pulse * 3
+        ..color = gold.withValues(alpha: 0.22 + pulse * 0.12)
+        ..maskFilter = MaskFilter.blur(BlurStyle.normal, glowBlur),
     );
     // Solid gradient ring (cyan → purple → cyan)
     canvas.drawCircle(

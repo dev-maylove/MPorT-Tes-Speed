@@ -1,10 +1,10 @@
 import 'dart:async';
-import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
 
 import '../../../core/constants/server_config.dart';
+import '../utils/isolate_workers.dart';
 import '../utils/throughput_math.dart';
 
 class UploadResult {
@@ -20,8 +20,8 @@ class UploadResult {
 }
 
 class UploadService {
-  final Random _random = Random();
   Uint8List? _cachedPayload;
+  Future<Uint8List>? _warmInFlight;
   bool _cancelled = false;
   http.Client? _client;
 
@@ -33,20 +33,36 @@ class UploadService {
     _client = null;
   }
 
-  Uint8List _payload(int megabytes) {
+  /// Pre-warm payload on a background isolate (non-blocking for UI).
+  Future<void> warmUp({
+    int megabytes = ServerConfig.uploadPayloadMegabytes,
+  }) async {
+    try {
+      await _payloadAsync(megabytes);
+    } catch (_) {}
+  }
+
+  Future<Uint8List> _payloadAsync(int megabytes) async {
     final size = megabytes * 1024 * 1024;
     final cached = _cachedPayload;
     if (cached != null && cached.length == size) return cached;
-    final data = Uint8List(size);
-    final rnd = _random.nextInt(255);
-    for (var i = 0; i < size; i += 256) {
-      final end = (i + 256).clamp(0, size);
-      for (var j = i; j < end; j++) {
-        data[j] = (rnd + j) & 0xFF;
+
+    // Coalesce concurrent warmUp + test calls.
+    final inflight = _warmInFlight;
+    if (inflight != null) return inflight;
+
+    final future = generateUploadPayload(megabytes).then((data) {
+      _cachedPayload = data;
+      return data;
+    });
+    _warmInFlight = future;
+    try {
+      return await future;
+    } finally {
+      if (identical(_warmInFlight, future)) {
+        _warmInFlight = null;
       }
     }
-    _cachedPayload = data;
-    return data;
   }
 
   Future<UploadResult> test({
@@ -61,7 +77,16 @@ class UploadService {
     final client = http.Client();
     _client = client;
 
-    final payload = _payload(payloadMegabytes);
+    // Build / reuse payload off the UI isolate.
+    final payload = await _payloadAsync(payloadMegabytes);
+    if (_cancelled) {
+      try {
+        client.close();
+      } catch (_) {}
+      if (identical(_client, client)) _client = null;
+      return const UploadResult(mbps: 0, bytes: 0, duration: Duration.zero);
+    }
+
     final stopwatch = Stopwatch()..start();
     const grace = Duration(seconds: ServerConfig.gracePeriodSeconds);
 
@@ -171,16 +196,19 @@ class UploadService {
 
     final measureBytes =
         graceEnded ? (totalBytes - graceBytes) : totalBytes;
+    final measureSec = graceEnded
+        ? (stopwatch.elapsed - grace).inMicroseconds / 1e6
+        : stopwatch.elapsedMicroseconds / 1e6;
 
-    var mbps = ooklaStyleMbps(samples);
-    if (mbps <= 0 && measureBytes > 0) {
-      final sec = graceEnded
-          ? (stopwatch.elapsed - grace).inMicroseconds / 1e6
-          : stopwatch.elapsedMicroseconds / 1e6;
-      if (sec > 0.1) {
-        mbps = measureBytes * 8 / sec / 1e6 * ServerConfig.overheadAdjustment;
-      }
-    }
+    final mbps = await computeOoklaMbps(
+      OoklaScoreArgs(
+        samples: List<double>.from(samples),
+        topSamplePercent: ServerConfig.topSamplePercent,
+        overhead: ServerConfig.overheadAdjustment,
+        measureBytes: measureBytes,
+        measureSeconds: measureSec,
+      ),
+    );
 
     if (totalBytes == 0) {
       throw Exception(

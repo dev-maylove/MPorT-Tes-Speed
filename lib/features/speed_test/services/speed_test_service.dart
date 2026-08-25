@@ -19,6 +19,13 @@ class SpeedTestService {
         _downloadService = downloadService ?? DownloadService(),
         _uploadService = uploadService ?? UploadService();
 
+  /// Call once after first frame — payload built on a background isolate.
+  Future<void> warmUp() async {
+    try {
+      await _uploadService.warmUp();
+    } catch (_) {}
+  }
+
   /// Stop in-flight download/upload workers.
   void cancel() {
     _cancelled = true;

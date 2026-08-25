@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:http/http.dart' as http;
 
 import '../../../core/constants/server_config.dart';
+import '../utils/isolate_workers.dart';
 import '../utils/throughput_math.dart';
 
 class DownloadResult {
@@ -153,17 +154,20 @@ class DownloadService {
 
     final measureBytes =
         graceEnded ? (totalBytes - graceBytes) : totalBytes;
+    final measureSec = graceEnded
+        ? (stopwatch.elapsed - grace).inMicroseconds / 1e6
+        : stopwatch.elapsedMicroseconds / 1e6;
 
-    // Prefer Ookla-style top samples; fall back to total/time.
-    var mbps = ooklaStyleMbps(samples);
-    if (mbps <= 0 && measureBytes > 0) {
-      final sec = graceEnded
-          ? (stopwatch.elapsed - grace).inMicroseconds / 1e6
-          : stopwatch.elapsedMicroseconds / 1e6;
-      if (sec > 0.1) {
-        mbps = measureBytes * 8 / sec / 1e6 * ServerConfig.overheadAdjustment;
-      }
-    }
+    // Final score may sort many samples — offload when list is large.
+    final mbps = await computeOoklaMbps(
+      OoklaScoreArgs(
+        samples: List<double>.from(samples),
+        topSamplePercent: ServerConfig.topSamplePercent,
+        overhead: ServerConfig.overheadAdjustment,
+        measureBytes: measureBytes,
+        measureSeconds: measureSec,
+      ),
+    );
 
     if (!_cancelled && totalBytes == 0) {
       throw Exception('Download failed — no data received');

@@ -104,7 +104,7 @@ class ServerConfig {
   };
 
   /// UI progress throttle (ms) — independent of sample interval.
-  static const int progressThrottleMs = 250;
+  static const int progressThrottleMs = 320;
 
   const ServerConfig._();
 }
