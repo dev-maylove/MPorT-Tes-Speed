@@ -1274,48 +1274,52 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
+        // Big speed number
         Text(
           value.toStringAsFixed(1),
           style: TextStyle(
             color: Colors.white,
-            fontSize: 44,
+            fontSize: 46,
             fontWeight: FontWeight.w800,
             height: 1,
-            letterSpacing: -0.5,
+            letterSpacing: -0.8,
             shadows: [
-              Shadow(
-                color: gold.withValues(alpha: 0.55),
-                blurRadius: 16,
-              ),
-              const Shadow(
-                color: Colors.black87,
-                blurRadius: 8,
-              ),
+              Shadow(color: gold.withValues(alpha: 0.5), blurRadius: 18),
+              const Shadow(color: Colors.black87, blurRadius: 6),
             ],
           ),
         ),
-        const SizedBox(height: 2),
+        const SizedBox(height: 1),
+        // Unit under the number
         Text(
           _unit,
           style: TextStyle(
-            color: goldLight,
-            fontSize: 13,
+            color: goldLight.withValues(alpha: 0.85),
+            fontSize: 12,
             fontWeight: FontWeight.w600,
-            letterSpacing: 0.5,
+            letterSpacing: 0.4,
+            height: 1.1,
           ),
         ),
-        const SizedBox(height: 8),
-        // Branding stacked like screenshot
+        const SizedBox(height: 6),
+        // Branding exactly like screenshot:
+        //   MPorT
+        //   GO »»
         Text(
           'MPorT',
+          textAlign: TextAlign.center,
           style: TextStyle(
             color: goldLight,
-            fontSize: 15,
-            fontWeight: FontWeight.w800,
-            letterSpacing: 0.8,
-            height: 1.05,
+            fontSize: 18,
+            fontWeight: FontWeight.w900,
+            letterSpacing: 1.4,
+            height: 1.0,
+            shadows: [
+              Shadow(color: gold.withValues(alpha: 0.55), blurRadius: 12),
+            ],
           ),
         ),
+        const SizedBox(height: 1),
         Text.rich(
           TextSpan(
             children: [
@@ -1323,23 +1327,31 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
                 text: 'GO',
                 style: TextStyle(
                   color: gold,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 1.2,
+                  fontSize: 17,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 2.0,
+                  height: 1.0,
+                  shadows: [
+                    Shadow(color: gold.withValues(alpha: 0.5), blurRadius: 10),
+                  ],
                 ),
               ),
               TextSpan(
                 text: ' »»',
                 style: TextStyle(
-                  color: gold.withValues(alpha: 0.9),
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
+                  color: gold.withValues(alpha: 0.95),
+                  fontSize: 14,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 0.5,
+                  height: 1.0,
                 ),
               ),
             ],
           ),
+          textAlign: TextAlign.center,
         ),
         const SizedBox(height: 8),
+        // ECG · TEST SPEED · ECG
         Row(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -1348,10 +1360,10 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
             Text(
               'TEST SPEED',
               style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.42),
-                fontSize: 10,
+                color: Colors.white.withValues(alpha: 0.40),
+                fontSize: 9.5,
                 fontWeight: FontWeight.w600,
-                letterSpacing: 2.0,
+                letterSpacing: 2.2,
               ),
             ),
             const SizedBox(width: 6),
