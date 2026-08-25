@@ -219,7 +219,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           SettingsTile(
             icon: Icons.privacy_tip_outlined,
             title: 'Privacy Policy',
-            subtitle: 'Kebijakan privasi & data',
+            subtitle: 'How we handle your data',
             onTap: () {
               Navigator.of(context).push(
                 MaterialPageRoute<void>(

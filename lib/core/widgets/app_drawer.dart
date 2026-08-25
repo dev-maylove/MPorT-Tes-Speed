@@ -56,7 +56,7 @@ class AppDrawer extends StatelessWidget {
                     context,
                     icon: Icons.privacy_tip_outlined,
                     title: 'Privacy Policy',
-                    subtitle: 'Kebijakan privasi',
+                    subtitle: 'How we handle data',
                     onTap: () => _go(context, const PrivacyPolicyScreen()),
                   ),
                   _item(

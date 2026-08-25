@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/widgets/app_footer.dart';
 
-/// Full in-app Privacy Policy for MPorT Go.
+/// Full in-app Privacy Policy for MPorT Go (English).
 class PrivacyPolicyScreen extends StatelessWidget {
   const PrivacyPolicyScreen({super.key});
 
@@ -44,170 +44,170 @@ class PrivacyPolicyScreen extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _header(card, titleColor, bodyColor),
+              _header(card, bodyColor),
               const SizedBox(height: 20),
               _section(
                 card,
                 titleColor,
                 bodyColor,
                 '1. Introduction',
-                'MPorT Go (“Aplikasi”, “kami”) adalah aplikasi pengujian kecepatan internet '
-                'yang dikembangkan untuk mengukur latency (ping), download, dan upload '
-                'pada perangkat Anda.\n\n'
-                'Kebijakan Privasi ini menjelaskan data apa yang kami proses, untuk tujuan '
-                'apa, bagaimana data disimpan, dan hak Anda sebagai pengguna. Dengan '
-                'menginstal dan menggunakan MPorT Go, Anda menyetujui praktik yang '
-                'dijelaskan di sini.\n\n'
-                'Terakhir diperbarui: 25 Agustus 2026\n'
-                'Versi aplikasi: ${AppConstants.appVersion}+${AppConstants.appBuild}',
+                'MPorT Go (“App”, “we”, “us”) is an internet speed testing application '
+                'designed to measure latency (ping), download, and upload performance '
+                'on your device.\n\n'
+                'This Privacy Policy explains what data we process, for what purposes, '
+                'how data is stored, and your rights as a user. By installing and using '
+                'MPorT Go, you acknowledge the practices described in this policy.\n\n'
+                'Last updated: August 25, 2026\n'
+                'App version: ${AppConstants.appVersion}+${AppConstants.appBuild}',
               ),
               _section(
                 card,
                 titleColor,
                 bodyColor,
-                '2. Data yang Kami Proses',
-                'MPorT Go dirancang dengan prinsip minimalisasi data. Kami tidak membuat '
-                'akun pengguna dan tidak mengharuskan login.\n\n'
-                '2.1 Data yang diproses di perangkat (lokal)\n'
-                '• Hasil tes kecepatan: ping, jitter, download, upload, packet loss, '
-                'waktu tes, dan server yang dipilih.\n'
-                '• Preferensi aplikasi: unit kecepatan, skala gauge, mode multi-koneksi, '
-                'tema (light/dark/system).\n'
-                '• Riwayat tes: disimpan di penyimpanan lokal perangkat (SharedPreferences) '
-                'maksimal sekitar 100 entri.\n\n'
-                '2.2 Data jaringan teknis (untuk menjalankan tes)\n'
-                '• Alamat IP publik Anda dapat terdeteksi oleh server tes saat koneksi '
-                'HTTP dilakukan (sifat dasar internet).\n'
-                '• Nama jaringan Wi‑Fi (SSID) dapat dibaca di perangkat jika izin lokasi '
-                'atau Nearby Wi‑Fi Devices diberikan, semata-mata untuk menampilkan label '
-                'koneksi di layar tes. SSID tidak dikirim ke server MPorT untuk pemasaran.\n'
-                '• Jenis koneksi (Wi‑Fi / mobile / ethernet) dideteksi lewat API sistem.\n\n'
-                '2.3 Data perangkat\n'
-                '• Model perangkat (mis. dari device_info) dapat ditampilkan di UI dan '
-                'disimpan di riwayat lokal.\n\n'
-                '2.4 Data yang TIDAK kami kumpulkan\n'
-                '• Kami tidak mengumpulkan nama, email, nomor telepon, atau identitas '
-                'pribadi lainnya.\n'
-                '• Kami tidak menjual data pengguna.\n'
-                '• Kami tidak menampilkan iklan pihak ketiga di dalam alur tes inti.\n'
-                '• Kami tidak merekam lokasi GPS presisi untuk pelacakan pergerakan.',
+                '2. Data We Process',
+                'MPorT Go is built with data minimization in mind. We do not require a '
+                'user account or login.\n\n'
+                '2.1 Data processed on your device (local only)\n'
+                '• Speed test results: ping, jitter, download, upload, packet loss, '
+                'test time, and selected server.\n'
+                '• App preferences: speed unit, gauge scale, multi-connection mode, '
+                'theme (light / dark / system).\n'
+                '• Test history: stored in local device storage (SharedPreferences), '
+                'limited to about 100 entries.\n\n'
+                '2.2 Technical network data (required to run tests)\n'
+                '• Your public IP address may be visible to the test server when HTTP '
+                'connections are made (normal internet behavior).\n'
+                '• Wi‑Fi network name (SSID) may be read on the device if location or '
+                'Nearby Wi‑Fi Devices permission is granted, solely to show a connection '
+                'label on the test screen. SSID is not sent to MPorT servers for marketing.\n'
+                '• Connection type (Wi‑Fi / mobile / ethernet) is detected via system APIs.\n\n'
+                '2.3 Device data\n'
+                '• Device model (e.g. from device_info) may be shown in the UI and stored '
+                'in local history.\n\n'
+                '2.4 Data we do NOT collect\n'
+                '• We do not collect your name, email, phone number, or other personal '
+                'identity details.\n'
+                '• We do not sell user data.\n'
+                '• We do not show third-party ads in the core test flow.\n'
+                '• We do not record precise GPS location for movement tracking.',
               ),
               _section(
                 card,
                 titleColor,
                 bodyColor,
-                '3. Izin yang Diminta',
-                '3.1 Internet & status jaringan\n'
-                'Diperlukan untuk mengirim/menerima data tes kecepatan ke server uji.\n\n'
-                '3.2 Lokasi (saat digunakan) / Nearby Wi‑Fi Devices\n'
-                'Di Android, membaca SSID Wi‑Fi memerlukan izin lokasi atau '
-                'NEARBY_WIFI_DEVICES (bergantung versi OS). Izin ini hanya dipakai untuk '
-                'menampilkan nama jaringan di UI. Anda dapat menolak izin; aplikasi tetap '
-                'berfungsi, tetapi label Wi‑Fi mungkin diganti teks generik “Wi‑Fi”.\n\n'
-                '3.3 Notifikasi\n'
-                'Opsional. Jika diberikan, aplikasi dapat menampilkan notifikasi lokal '
-                'saat tes selesai, berisi ringkasan hasil (download, upload, ping). '
-                'Notifikasi dibuat di perangkat; tidak memerlukan akun cloud.\n\n'
-                '3.4 Wake lock (opsional teknis)\n'
-                'Digunakan sementara selama tes agar pengukuran tidak terganggu saat '
-                'layar redup pada beberapa perangkat.',
+                '3. Permissions We Request',
+                '3.1 Internet & network state\n'
+                'Required to send and receive speed-test traffic to the test server.\n\n'
+                '3.2 Location (while in use) / Nearby Wi‑Fi Devices\n'
+                'On Android, reading the Wi‑Fi SSID requires location permission or '
+                'NEARBY_WIFI_DEVICES (depending on OS version). This permission is used '
+                'only to display the network name in the UI. You may deny it; the app '
+                'still works, but the Wi‑Fi label may fall back to a generic “Wi‑Fi” text.\n\n'
+                '3.3 Notifications\n'
+                'Optional. If granted, the app may show a local notification when a test '
+                'finishes, including a short summary of results (download, upload, ping). '
+                'Notifications are generated on-device and do not require a cloud account.\n\n'
+                '3.4 Wake lock (technical)\n'
+                'Used temporarily during a test so measurement is less likely to be '
+                'interrupted when the screen dims on some devices.',
               ),
               _section(
                 card,
                 titleColor,
                 bodyColor,
-                '4. Cara Kerja Tes & Pihak Ketiga',
-                'Saat Anda menjalankan tes, perangkat mengirim permintaan jaringan ke '
-                'server uji yang dikonfigurasi di aplikasi (endpoint download/upload/ping).\n\n'
-                'Server uji dan infrastruktur jaringan yang dilalui (ISP, CDN, dll.) '
-                'secara teknis dapat melihat metadata koneksi seperti IP, waktu, dan '
-                'volume data — sama seperti saat Anda membuka situs web biasa.\n\n'
-                'Jika fitur lookup ISP/ASN diaktifkan, aplikasi dapat memanggil layanan '
-                'geo-IP/ASN publik untuk menampilkan nama ISP. Respons dapat di-cache '
-                'secara lokal di perangkat untuk mengurangi panggilan berulang.\n\n'
-                'Kami tidak mengontrol kebijakan privasi server atau layanan pihak ketiga '
-                'di luar kendali pengembang. Gunakan jaringan yang Anda percayai.',
+                '4. How Tests Work & Third Parties',
+                'When you run a test, your device sends network requests to the test '
+                'server configured in the app (download / upload / ping endpoints).\n\n'
+                'Test servers and intermediate networks (your ISP, CDNs, etc.) may '
+                'technically observe connection metadata such as IP address, timing, and '
+                'data volume — the same as when you open any website.\n\n'
+                'If ISP/ASN lookup is enabled, the app may call a public geo-IP/ASN '
+                'service to display your ISP name. Responses may be cached locally on '
+                'the device to reduce repeated calls.\n\n'
+                'We do not control the privacy policies of third-party servers or '
+                'services outside the developer’s control. Use networks you trust.',
               ),
               _section(
                 card,
                 titleColor,
                 bodyColor,
-                '5. Penyimpanan & Keamanan',
-                '• Riwayat dan preferensi disimpan lokal di perangkat Anda.\n'
-                '• Data lokal dapat hilang jika aplikasi di-uninstall atau data aplikasi '
-                'dihapus dari pengaturan sistem.\n'
-                '• Kami menerapkan praktik wajar pada klien (timeout, penanganan error), '
-                'tetapi tidak ada transmisi internet yang 100% bebas risiko.\n'
-                '• Disarankan menjaga OS dan aplikasi tetap diperbarui.',
+                '5. Storage & Security',
+                '• History and preferences are stored locally on your device.\n'
+                '• Local data may be lost if you uninstall the app or clear app data '
+                'from system settings.\n'
+                '• We apply reasonable client-side practices (timeouts, error handling), '
+                'but no internet transmission is 100% risk-free.\n'
+                '• Keep your OS and the app updated when possible.',
               ),
               _section(
                 card,
                 titleColor,
                 bodyColor,
-                '6. Retensi Data',
-                '• Riwayat tes disimpan sampai Anda menghapusnya di tab History, atau '
-                'menghapus data aplikasi / uninstall.\n'
-                '• Jumlah entri dibatasi (sekitar 100) agar penyimpanan tetap ringan.\n'
-                '• Cache ISP/ASN lokal bersifat sementara dan dapat diperbarui saat '
-                'jaringan berubah.',
+                '6. Data Retention',
+                '• Test history is kept until you delete it in the History tab, or clear '
+                'app data / uninstall the app.\n'
+                '• Entry count is capped (about 100) to keep storage light.\n'
+                '• Local ISP/ASN cache is temporary and may refresh when the network '
+                'changes.',
               ),
               _section(
                 card,
                 titleColor,
                 bodyColor,
-                '7. Hak Anda',
-                'Anda dapat:\n'
-                '• Menolak atau mencabut izin lokasi dan notifikasi kapan saja melalui '
-                'pengaturan sistem perangkat.\n'
-                '• Menghapus riwayat tes di dalam aplikasi.\n'
-                '• Menghapus seluruh data aplikasi lewat pengaturan Android/iOS.\n'
-                '• Berhenti menggunakan aplikasi dengan meng-uninstallnya.\n\n'
-                'Karena kami tidak mengoperasikan akun pengguna terpusat, permintaan '
-                '“hapus akun cloud” tidak berlaku; kontrol utama ada di perangkat Anda.',
+                '7. Your Rights',
+                'You may:\n'
+                '• Deny or revoke location and notification permissions at any time via '
+                'your device system settings.\n'
+                '• Delete test history inside the app.\n'
+                '• Clear all app data via Android/iOS system settings.\n'
+                '• Stop using the app by uninstalling it.\n\n'
+                'Because we do not operate a centralized user account system, “delete my '
+                'cloud account” requests do not apply; primary control remains on your '
+                'device.',
               ),
               _section(
                 card,
                 titleColor,
                 bodyColor,
-                '8. Anak-Anak',
-                'Aplikasi tidak ditujukan untuk anak di bawah 13 tahun (atau usia minimum '
-                'yang berlaku di yurisdiksi Anda). Kami tidak dengan sengaja mengumpulkan '
-                'data pribadi dari anak. Jika Anda adalah orang tua/wali dan merasa anak '
-                'memberikan data melalui aplikasi, hentikan penggunaan dan hapus data '
-                'aplikasi di perangkat.',
+                '8. Children',
+                'The app is not directed at children under 13 (or the minimum age required '
+                'in your jurisdiction). We do not knowingly collect personal data from '
+                'children. If you are a parent or guardian and believe a child has used '
+                'the app in a way that concerns you, stop use and clear app data on the '
+                'device.',
               ),
               _section(
                 card,
                 titleColor,
                 bodyColor,
-                '9. Perubahan Kebijakan',
-                'Kami dapat memperbarui Kebijakan Privasi ini dari waktu ke waktu, misalnya '
-                'karena perubahan fitur atau persyaratan hukum. Versi terbaru akan '
-                'ditampilkan di halaman ini di dalam aplikasi. Penggunaan berkelanjutan '
-                'setelah perubahan berarti Anda memahami kebijakan yang diperbarui.',
+                '9. Changes to This Policy',
+                'We may update this Privacy Policy from time to time, for example when '
+                'features change or legal requirements evolve. The latest version will be '
+                'shown on this page inside the app. Continued use after changes means you '
+                'understand the updated policy.',
               ),
               _section(
                 card,
                 titleColor,
                 bodyColor,
-                '10. Kontak',
-                'Untuk pertanyaan terkait privasi MPorT Go, hubungi pengembang melalui '
-                'saluran resmi yang tercantum di halaman About di dalam aplikasi, atau '
-                'melalui distribusi/store tempat Anda mengunduh aplikasi.\n\n'
-                'Pengembang: HaaNSirO / MPorT Go\n'
-                'Aplikasi: ${AppConstants.appName}\n'
-                'Versi: ${AppConstants.appVersion}+${AppConstants.appBuild}',
+                '10. Contact',
+                'For privacy questions about MPorT Go, contact the developer through the '
+                'official channels listed on the About page in the app, or via the '
+                'store/distribution channel where you downloaded the app.\n\n'
+                'Developer: HaaNSirO / MPorT Go\n'
+                'Application: ${AppConstants.appName}\n'
+                'Version: ${AppConstants.appVersion}+${AppConstants.appBuild}',
               ),
               _section(
                 card,
                 titleColor,
                 bodyColor,
-                '11. Ringkasan Singkat',
-                '• Tes kecepatan membutuhkan koneksi internet.\n'
-                '• Hasil & preferensi disimpan di perangkat Anda.\n'
-                '• Izin lokasi hanya untuk menampilkan SSID Wi‑Fi (opsional).\n'
-                '• Notifikasi hasil tes bersifat lokal dan opsional.\n'
-                '• Kami tidak menjual data pribadi Anda.',
+                '11. Short Summary',
+                '• Speed tests require an internet connection.\n'
+                '• Results and preferences are stored on your device.\n'
+                '• Location permission is only for showing Wi‑Fi SSID (optional).\n'
+                '• Result notifications are local and optional.\n'
+                '• We do not sell your personal data.',
               ),
               const SizedBox(height: 16),
               const AppFooter(),
@@ -218,7 +218,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
     );
   }
 
-  Widget _header(Color card, Color titleColor, Color bodyColor) {
+  Widget _header(Color card, Color bodyColor) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(18),
@@ -236,7 +236,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
               SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  'Kebijakan Privasi MPorT Go',
+                  'MPorT Go Privacy Policy',
                   style: TextStyle(
                     color: _green,
                     fontSize: 17,
@@ -248,7 +248,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           Text(
-            'Transparansi tentang data, izin, dan cara kerja aplikasi tes kecepatan internet.',
+            'Transparency about data, permissions, and how this internet speed test app works.',
             style: TextStyle(color: bodyColor, fontSize: 13, height: 1.4),
           ),
         ],
