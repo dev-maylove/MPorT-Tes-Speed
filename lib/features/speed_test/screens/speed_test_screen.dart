@@ -470,6 +470,12 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
         upload: result.upload,
         server: result.server,
         timestamp: result.timestamp,
+        isp: _ispName,
+        networkName: _deviceNetworkName,
+        connectionKind: _connectionKind,
+        deviceModel: _deviceModel,
+        testId: _testId,
+        serverLocation: _serverService.selected.location,
       );
     } catch (e) {
       if (!mounted || gen != _testGeneration) return;
