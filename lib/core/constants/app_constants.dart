@@ -1,8 +1,8 @@
 class AppConstants {
   static const String appName = 'MPorT Go';
   /// Keep in sync with pubspec.yaml version (name+build).
-  static const String appVersion = '1.9.5';
-  static const String appBuild = '24';
+  static const String appVersion = '1.9.6';
+  static const String appBuild = '25';
 
   static const String defaultSpeedUnit = 'Mbps';
   static const String defaultLatencyUnit = 'ms';

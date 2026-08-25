@@ -13,6 +13,14 @@ class MainScreen extends StatefulWidget {
   /// Opened from the hamburger button in child tabs.
   static final scaffoldKey = GlobalKey<ScaffoldState>();
 
+  /// Switch bottom-nav tab from child screens (0=Speed, 1=History, 2=Maps).
+  static void Function(int index)? switchTab;
+
+  /// Jump to History and refresh the list (e.g. after a completed test).
+  static void openHistory() {
+    switchTab?.call(1);
+  }
+
   @override
   State<MainScreen> createState() => _MainScreenState();
 }
@@ -21,6 +29,28 @@ class _MainScreenState extends State<MainScreen> {
   int currentIndex = 0;
   final _historyKey = GlobalKey<HistoryScreenState>();
   DateTime? _lastBackPress;
+
+  @override
+  void initState() {
+    super.initState();
+    MainScreen.switchTab = _goToTab;
+  }
+
+  @override
+  void dispose() {
+    if (identical(MainScreen.switchTab, _goToTab)) {
+      MainScreen.switchTab = null;
+    }
+    super.dispose();
+  }
+
+  void _goToTab(int index) {
+    if (!mounted) return;
+    setState(() => currentIndex = index.clamp(0, 2));
+    if (index == 1) {
+      _historyKey.currentState?.reload();
+    }
+  }
 
   Future<bool> _onWillPop() async {
     final now = DateTime.now();
@@ -39,7 +69,6 @@ class _MainScreenState extends State<MainScreen> {
       }
       return false;
     }
-    // Exit the app
     SystemNavigator.pop();
     return true;
   }
@@ -68,12 +97,7 @@ class _MainScreenState extends State<MainScreen> {
         bottomNavigationBar: NavigationBar(
           backgroundColor: p.background,
           selectedIndex: currentIndex,
-          onDestinationSelected: (index) {
-            setState(() => currentIndex = index);
-            if (index == 1) {
-              _historyKey.currentState?.reload();
-            }
-          },
+          onDestinationSelected: _goToTab,
           destinations: const [
             NavigationDestination(
               icon: Icon(Icons.speed_outlined),

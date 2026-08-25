@@ -1,16 +1,14 @@
+import 'dart:io';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
+
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_drawer.dart';
 import '../../../core/widgets/app_footer.dart';
 import '../services/history_service.dart';
-
-Color _bg(BuildContext c) => AppPalette.of(c).background;
-Color _card(BuildContext c) => AppPalette.of(c).card;
-Color _text(BuildContext c) => AppPalette.of(c).textPrimary;
-Color _muted(BuildContext c) => AppPalette.of(c).textMuted;
-Color _sec(BuildContext c) => AppPalette.of(c).textSecondary;
-Color _prim(BuildContext c) => AppPalette.of(c).primary;
-Color _primL(BuildContext c) => AppPalette.of(c).primaryLight;
 
 class HistoryScreen extends StatefulWidget {
   const HistoryScreen({super.key});
@@ -19,11 +17,16 @@ class HistoryScreen extends StatefulWidget {
   State<HistoryScreen> createState() => HistoryScreenState();
 }
 
-class HistoryScreenState extends State<HistoryScreen> {
+class HistoryScreenState extends State<HistoryScreen>
+    with AutomaticKeepAliveClientMixin {
   final HistoryService _service = HistoryService();
 
   List<Map<String, dynamic>> history = [];
   bool loading = true;
+  bool _sharing = false;
+
+  @override
+  bool get wantKeepAlive => true;
 
   @override
   void initState() {
@@ -33,6 +36,7 @@ class HistoryScreenState extends State<HistoryScreen> {
 
   /// Called from MainScreen when the History tab is selected.
   Future<void> reload() async {
+    if (!mounted) return;
     setState(() => loading = true);
     try {
       final data = await _service.getHistory();
@@ -54,25 +58,33 @@ class HistoryScreenState extends State<HistoryScreen> {
     if (history.isEmpty) return;
     final ok = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: _card(ctx),
-        title: Text('Hapus semua riwayat?',
-            style: TextStyle(color: _text(ctx))),
-        content: Text(
-          'Semua hasil tes yang tersimpan akan dihapus.',
-          style: TextStyle(color: _sec(ctx)),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Batal'),
+      builder: (ctx) {
+        final dp = AppPalette.of(ctx);
+        return AlertDialog(
+          backgroundColor: dp.card,
+          title: Text(
+            'Clear all history?',
+            style: TextStyle(color: dp.textPrimary),
           ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Hapus', style: TextStyle(color: Colors.redAccent)),
+          content: Text(
+            'All saved test results will be permanently deleted.',
+            style: TextStyle(color: dp.textSecondary),
           ),
-        ],
-      ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text(
+                'Delete',
+                style: TextStyle(color: Colors.redAccent),
+              ),
+            ),
+          ],
+        );
+      },
     );
     if (ok == true) {
       await _service.clearHistory();
@@ -91,70 +103,133 @@ class HistoryScreenState extends State<HistoryScreen> {
     });
   }
 
+  /// Build CSV and open the system share sheet.
+  Future<void> _shareCsv() async {
+    if (history.isEmpty || _sharing) return;
+    setState(() => _sharing = true);
+    try {
+      final csv = await compute(_buildHistoryCsv, history);
+      final dir = await getTemporaryDirectory();
+      final stamp = DateTime.now()
+          .toIso8601String()
+          .replaceAll(':', '-')
+          .split('.')
+          .first;
+      final file = File('${dir.path}/mport_history_$stamp.csv');
+      await file.writeAsString(csv, flush: true);
+
+      final box = context.findRenderObject() as RenderBox?;
+      final origin = box != null
+          ? box.localToGlobal(Offset.zero) & box.size
+          : null;
+
+      await Share.shareXFiles(
+        [XFile(file.path, mimeType: 'text/csv', name: 'mport_history_$stamp.csv')],
+        subject: 'MPorT Go — Speed Test History',
+        text: 'Speed test history export (${history.length} results)',
+        sharePositionOrigin: origin,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Share failed: $e'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _sharing = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    super.build(context);
+    final p = AppPalette.of(context);
     return Scaffold(
-      backgroundColor: _bg(context),
+      backgroundColor: p.background,
       appBar: AppBar(
-        title: const Text(
-          'Riwayat Tes',
+        title: Text(
+          'Test History',
           style: TextStyle(
-            color: _text(context),
+            color: p.textPrimary,
             fontWeight: FontWeight.w700,
           ),
         ),
-        backgroundColor: _bg(context),
+        backgroundColor: p.background,
         automaticallyImplyLeading: false,
         actions: [
           if (history.isNotEmpty)
             IconButton(
-              tooltip: 'Hapus semua',
+              tooltip: 'Share as CSV',
+              onPressed: _sharing ? null : _shareCsv,
+              icon: _sharing
+                  ? SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: p.primary,
+                      ),
+                    )
+                  : Icon(Icons.ios_share_rounded, color: p.textPrimary),
+            ),
+          if (history.isNotEmpty)
+            IconButton(
+              tooltip: 'Clear all',
               onPressed: _confirmClear,
-              icon: Icon(Icons.delete_outline, color: _text(context)),
+              icon: Icon(Icons.delete_outline, color: p.textPrimary),
             ),
           appMenuButton(context),
         ],
       ),
       body: loading
           ? Center(
-              child: CircularProgressIndicator(color: _prim(context)),
+              child: CircularProgressIndicator(color: p.primary),
             )
           : history.isEmpty
               ? const _EmptyHistory()
               : RefreshIndicator(
-                  color: _prim(context),
+                  color: p.primary,
                   onRefresh: reload,
                   child: ListView.builder(
+                    // KeepAlive + builder: only visible cards paint.
                     padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
                     itemCount: history.length + 2, // summary + items + footer
                     itemBuilder: (context, index) {
                       if (index == 0) {
-                        return _SummaryHeader(history: history);
+                        return RepaintBoundary(
+                          child: _SummaryHeader(history: history),
+                        );
                       }
                       if (index == history.length + 1) {
-                        return const AppFooter();
+                        return const AppFooter(compact: true);
                       }
                       final i = index - 1;
-                      return Dismissible(
-                        key: ValueKey(
-                          history[i]['id']?.toString() ??
-                              history[i]['timestamp']?.toString() ??
-                              '$i',
-                        ),
-                        direction: DismissDirection.endToStart,
-                        background: Container(
-                          alignment: Alignment.centerRight,
-                          margin: const EdgeInsets.only(bottom: 12),
-                          padding: const EdgeInsets.only(right: 20),
-                          decoration: BoxDecoration(
-                            color: Colors.redAccent.withValues(alpha: 0.2),
-                            borderRadius: BorderRadius.circular(16),
+                      final id = history[i]['id']?.toString() ??
+                          history[i]['testId']?.toString() ??
+                          '$i';
+                      return RepaintBoundary(
+                        key: ValueKey(id),
+                        child: Dismissible(
+                          key: ValueKey('dismiss_$id'),
+                          direction: DismissDirection.endToStart,
+                          background: Container(
+                            alignment: Alignment.centerRight,
+                            margin: const EdgeInsets.only(bottom: 12),
+                            padding: const EdgeInsets.only(right: 20),
+                            decoration: BoxDecoration(
+                              color: Colors.redAccent.withValues(alpha: 0.85),
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            child: const Icon(
+                              Icons.delete_outline,
+                              color: Colors.white,
+                            ),
                           ),
-                          child: const Icon(Icons.delete_outline,
-                              color: Colors.redAccent),
+                          onDismissed: (_) => _removeAt(i),
+                          child: _HistoryCard(data: history[i]),
                         ),
-                        onDismissed: (_) => _removeAt(i),
-                        child: _HistoryCard(data: history[i]),
                       );
                     },
                   ),
@@ -163,25 +238,77 @@ class HistoryScreenState extends State<HistoryScreen> {
   }
 }
 
+/// Top-level for [compute] — builds CSV off the UI isolate.
+String _buildHistoryCsv(List<Map<String, dynamic>> rows) {
+  const headers = [
+    'timestamp',
+    'test_id',
+    'download_mbps',
+    'upload_mbps',
+    'ping_ms',
+    'jitter_ms',
+    'avg_ping_ms',
+    'max_ping_ms',
+    'packet_loss_pct',
+    'server',
+    'server_location',
+    'isp',
+    'network_name',
+    'connection',
+    'device_model',
+  ];
+  final buf = StringBuffer();
+  buf.writeln(headers.join(','));
+  for (final e in rows) {
+    String cell(Object? v) {
+      final s = (v ?? '').toString().replaceAll('"', '""');
+      if (s.contains(',') || s.contains('"') || s.contains('\n')) {
+        return '"$s"';
+      }
+      return s;
+    }
+
+    buf.writeln([
+      cell(e['timestamp']),
+      cell(e['testId'] ?? e['id']),
+      cell(e['download']),
+      cell(e['upload']),
+      cell(e['ping']),
+      cell(e['jitter']),
+      cell(e['avgPing']),
+      cell(e['maxPing']),
+      cell(e['packetLossPercent']),
+      cell(e['server']),
+      cell(e['serverLocation']),
+      cell(e['isp']),
+      cell(e['networkName']),
+      cell(e['connectionKind']),
+      cell(e['deviceModel']),
+    ].join(','));
+  }
+  return buf.toString();
+}
+
 class _EmptyHistory extends StatelessWidget {
   const _EmptyHistory();
 
   @override
   Widget build(BuildContext context) {
-    return const Center(
+    final p = AppPalette.of(context);
+    return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.history_rounded, size: 72, color: _prim(context)Dim),
-          SizedBox(height: 16),
+          Icon(Icons.history_rounded, size: 72, color: p.textMuted),
+          const SizedBox(height: 16),
           Text(
-            'Belum ada riwayat tes',
-            style: TextStyle(color: _sec(context), fontSize: 16),
+            'No test history yet',
+            style: TextStyle(color: p.textSecondary, fontSize: 16),
           ),
-          SizedBox(height: 6),
+          const SizedBox(height: 6),
           Text(
-            'Jalankan tes speed, hasilnya akan muncul di sini',
-            style: TextStyle(color: _muted(context), fontSize: 12),
+            'Run a speed test — results will appear here',
+            style: TextStyle(color: p.textMuted, fontSize: 12),
           ),
         ],
       ),
@@ -204,6 +331,7 @@ class _SummaryHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = AppPalette.of(context);
     final avgDl = _avg('download');
     final avgUl = _avg('upload');
     final avgPing = _avg('ping');
@@ -212,13 +340,13 @@ class _SummaryHeader extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 14),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: _card(context),
+        color: p.card,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: _prim(context).withValues(alpha: 0.25)),
+        border: Border.all(color: p.primary.withValues(alpha: 0.25)),
       ),
       child: Row(
         children: [
-          _stat(context, 'Tes', '${history.length}', ''),
+          _stat(context, 'Tests', '${history.length}', ''),
           _stat(context, 'Avg ↓', avgDl.toStringAsFixed(1), 'Mbps'),
           _stat(context, 'Avg ↑', avgUl.toStringAsFixed(1), 'Mbps'),
           _stat(context, 'Avg Ping', avgPing.toStringAsFixed(0), 'ms'),
@@ -228,11 +356,11 @@ class _SummaryHeader extends StatelessWidget {
   }
 
   Widget _stat(BuildContext context, String label, String value, String unit) {
+    final p = AppPalette.of(context);
     return Expanded(
       child: Column(
         children: [
-          Text(label,
-              style: TextStyle(color: _muted(context), fontSize: 10)),
+          Text(label, style: TextStyle(color: p.textMuted, fontSize: 10)),
           const SizedBox(height: 4),
           Text.rich(
             TextSpan(
@@ -240,7 +368,7 @@ class _SummaryHeader extends StatelessWidget {
                 TextSpan(
                   text: value,
                   style: TextStyle(
-                    color: _primL(context),
+                    color: p.primaryLight,
                     fontSize: 15,
                     fontWeight: FontWeight.w700,
                   ),
@@ -248,10 +376,7 @@ class _SummaryHeader extends StatelessWidget {
                 if (unit.isNotEmpty)
                   TextSpan(
                     text: ' $unit',
-                    style: TextStyle(
-                      color: _muted(context),
-                      fontSize: 9,
-                    ),
+                    style: TextStyle(color: p.textMuted, fontSize: 9),
                   ),
               ],
             ),
@@ -264,51 +389,39 @@ class _SummaryHeader extends StatelessWidget {
 
 class _HistoryCard extends StatelessWidget {
   final Map<String, dynamic> data;
-
   const _HistoryCard({required this.data});
 
-  static double _number(dynamic value) {
-    if (value is num) return value.toDouble();
-    return double.tryParse(value?.toString() ?? '') ?? 0;
-  }
-
-  static String _formatDate(DateTime date) {
-    String two(int value) => value.toString().padLeft(2, '0');
-    return '${two(date.day)}/${two(date.month)}/${date.year} '
-        '${two(date.hour)}:${two(date.minute)}';
-  }
-
-  IconData _connIcon(String kind) {
-    switch (kind) {
-      case 'wifi':
-        return Icons.wifi_rounded;
-      case 'mobile':
-        return Icons.signal_cellular_alt_rounded;
-      case 'ethernet':
-        return Icons.settings_ethernet_rounded;
-      default:
-        return Icons.lan_rounded;
-    }
+  static double _number(dynamic v) {
+    if (v is num) return v.toDouble();
+    return double.tryParse(v?.toString() ?? '') ?? 0;
   }
 
   @override
   Widget build(BuildContext context) {
+    final p = AppPalette.of(context);
+    final download = _number(data['download']);
+    final upload = _number(data['upload']);
     final ping = _number(data['ping']);
     final jitter = _number(data['jitter']);
     final avgPing = _number(data['avgPing']);
     final maxPing = _number(data['maxPing']);
     final loss = _number(data['packetLossPercent']);
-    final download = _number(data['download']);
-    final upload = _number(data['upload']);
-    final server = data['server']?.toString() ?? '-';
-    final loc = data['serverLocation']?.toString() ?? '';
-    final isp = data['isp']?.toString() ?? '';
-    final network = data['networkName']?.toString() ?? '';
-    final kind = data['connectionKind']?.toString() ?? '';
-    final device = data['deviceModel']?.toString() ?? '';
-    final testId = data['testId']?.toString() ?? data['id']?.toString() ?? '';
-    final timestamp =
-        DateTime.tryParse(data['timestamp']?.toString() ?? '') ?? DateTime.now();
+    final server = (data['server'] ?? '—').toString();
+    final location = (data['serverLocation'] ?? '').toString();
+    final isp = (data['isp'] ?? '').toString();
+    final network = (data['networkName'] ?? '').toString();
+    final kind = (data['connectionKind'] ?? '').toString();
+    final device = (data['deviceModel'] ?? '').toString();
+    final testId = (data['testId'] ?? data['id'] ?? '').toString();
+
+    DateTime? ts;
+    try {
+      ts = DateTime.tryParse(data['timestamp']?.toString() ?? '');
+    } catch (_) {}
+    final timeLabel = ts == null
+        ? '—'
+        : '${ts.year}-${ts.month.toString().padLeft(2, '0')}-${ts.day.toString().padLeft(2, '0')} '
+            '${ts.hour.toString().padLeft(2, '0')}:${ts.minute.toString().padLeft(2, '0')}';
 
     final networkLabel = network.isNotEmpty
         ? network
@@ -318,45 +431,39 @@ class _HistoryCard extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: _card(context),
+        color: p.card,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+        border: Border.all(color: p.textPrimary.withValues(alpha: 0.06)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header: time + network
           Row(
             children: [
-              Icon(Icons.access_time, size: 14, color: _muted(context)),
+              Icon(Icons.access_time, size: 14, color: p.textMuted),
               const SizedBox(width: 6),
-              Text(
-                _formatDate(timestamp),
-                style: const TextStyle(
-                  color: _text(context),
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
+              Expanded(
+                child: Text(
+                  timeLabel,
+                  style: TextStyle(
+                    color: p.textPrimary,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
-              const Spacer(),
-              Icon(_connIcon(kind), size: 14, color: _prim(context)),
+              Icon(_connIcon(kind), size: 14, color: p.primary),
               const SizedBox(width: 4),
               Flexible(
                 child: Text(
                   networkLabel,
-                  maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: _primL(context),
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                  ),
+                  style: TextStyle(color: p.primaryLight, fontSize: 12),
                 ),
               ),
             ],
           ),
           const SizedBox(height: 12),
-          // Download / Upload big
           Row(
             children: [
               Expanded(
@@ -365,7 +472,7 @@ class _HistoryCard extends StatelessWidget {
                   label: 'Download',
                   value: download,
                   unit: 'Mbps',
-                  color: _primL(context),
+                  color: p.primaryLight,
                 ),
               ),
               const SizedBox(width: 10),
@@ -381,47 +488,46 @@ class _HistoryCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 10),
-          // Latency row
           Row(
             children: [
-              Expanded(child: _SmallValue(title: 'Ping', value: ping, unit: 'ms')),
-              Expanded(child: _SmallValue(title: 'Avg', value: avgPing > 0 ? avgPing : ping, unit: 'ms')),
-              Expanded(child: _SmallValue(title: 'Jitter', value: jitter, unit: 'ms')),
-              Expanded(child: _SmallValue(title: 'Loss', value: loss, unit: '%')),
-              if (maxPing > 0)
-                Expanded(child: _SmallValue(title: 'Max', value: maxPing, unit: 'ms')),
+              Expanded(
+                child: _SmallValue(title: 'Ping', value: ping, unit: 'ms'),
+              ),
+              Expanded(
+                child: _SmallValue(
+                  title: 'Avg',
+                  value: avgPing > 0 ? avgPing : ping,
+                  unit: 'ms',
+                ),
+              ),
+              Expanded(
+                child: _SmallValue(title: 'Jitter', value: jitter, unit: 'ms'),
+              ),
+              Expanded(
+                child: _SmallValue(title: 'Loss', value: loss, unit: '%'),
+              ),
             ],
           ),
           const SizedBox(height: 10),
-          // Server / device footer
           Row(
             children: [
-              Icon(Icons.dns_rounded, size: 13, color: _muted(context)),
+              Icon(Icons.dns_rounded, size: 13, color: p.textMuted),
               const SizedBox(width: 4),
-              Flexible(
+              Expanded(
                 child: Text(
-                  loc.isNotEmpty ? '$server · $loc' : server,
-                  maxLines: 1,
+                  location.isNotEmpty ? '$server · $location' : server,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: _muted(context),
-                    fontSize: 11,
-                  ),
+                  style: TextStyle(color: p.textMuted, fontSize: 11),
                 ),
               ),
               if (device.isNotEmpty) ...[
-                const SizedBox(width: 8),
-                Icon(Icons.smartphone, size: 13, color: _muted(context)),
+                Icon(Icons.smartphone, size: 13, color: p.textMuted),
                 const SizedBox(width: 4),
                 Flexible(
                   child: Text(
                     device,
-                    maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: _muted(context),
-                      fontSize: 11,
-                    ),
+                    style: TextStyle(color: p.textMuted, fontSize: 11),
                   ),
                 ),
               ],
@@ -432,7 +538,7 @@ class _HistoryCard extends StatelessWidget {
             Text(
               'ID: $testId',
               style: TextStyle(
-                color: _muted(context).withValues(alpha: 0.7),
+                color: p.textMuted.withValues(alpha: 0.7),
                 fontSize: 10,
               ),
             ),
@@ -440,6 +546,19 @@ class _HistoryCard extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  static IconData _connIcon(String kind) {
+    switch (kind.toLowerCase()) {
+      case 'wifi':
+        return Icons.wifi;
+      case 'mobile':
+        return Icons.signal_cellular_alt;
+      case 'ethernet':
+        return Icons.settings_ethernet;
+      default:
+        return Icons.network_check;
+    }
   }
 }
 
@@ -474,8 +593,13 @@ class _BigValue extends StatelessWidget {
             children: [
               Icon(icon, size: 14, color: color),
               const SizedBox(width: 4),
-              Text(label,
-                  style: TextStyle(color: color.withValues(alpha: 0.9), fontSize: 11)),
+              Text(
+                label,
+                style: TextStyle(
+                  color: color.withValues(alpha: 0.9),
+                  fontSize: 11,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 4),
@@ -520,21 +644,20 @@ class _SmallValue extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = AppPalette.of(context);
     return Column(
       children: [
-        Text(title,
-            style: TextStyle(color: _muted(context), fontSize: 9)),
+        Text(title, style: TextStyle(color: p.textMuted, fontSize: 9)),
         const SizedBox(height: 2),
         Text(
           value.toStringAsFixed(unit == '%' || unit == 'ms' ? 0 : 1),
-          style: const TextStyle(
-            color: _text(context),
+          style: TextStyle(
+            color: p.textPrimary,
             fontSize: 13,
             fontWeight: FontWeight.w700,
           ),
         ),
-        Text(unit,
-            style: TextStyle(color: _prim(context)Dim, fontSize: 8)),
+        Text(unit, style: TextStyle(color: p.textMuted, fontSize: 8)),
       ],
     );
   }

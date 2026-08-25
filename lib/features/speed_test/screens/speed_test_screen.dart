@@ -19,6 +19,7 @@ import '../services/asn_isp_service.dart';
 import '../services/history_service.dart';
 import '../services/realtime_service.dart';
 import '../services/speed_test_service.dart';
+import 'main_screen.dart';
 import '../../../core/notifications/test_notification_service.dart';
 
 
@@ -30,7 +31,9 @@ class SpeedTestScreen extends StatefulWidget {
 }
 
 class _SpeedTestScreenState extends State<SpeedTestScreen>
-    with TickerProviderStateMixin {
+    with TickerProviderStateMixin, AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
   // Theme-aware palette (light + dark)
   Color get gold => AppPalette.of(context).primary;
   Color get goldLight => AppPalette.of(context).primaryLight;
@@ -740,6 +743,7 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     final showTestUi = running ||
         phase == SpeedTestPhase.completed ||
         phase == SpeedTestPhase.error;
@@ -1703,20 +1707,8 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
             children: [
               TextButton(
                 onPressed: () {
-                  // Navigate to history for detailed past results
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        'Download ${_formatSpeed(download)} $_unit · '
-                        'Upload ${_formatSpeed(upload)} $_unit · '
-                        'Ping ${(ping ?? 0).toStringAsFixed(0)} ms · '
-                        'Avg ${(avgPing ?? 0).toStringAsFixed(0)} ms · '
-                        'Jitter ${(jitter ?? 0).toStringAsFixed(0)} ms · '
-                        'Loss ${(packetLoss ?? 0).toStringAsFixed(0)}%',
-                      ),
-                      behavior: SnackBarBehavior.floating,
-                    ),
-                  );
+                  // Open History tab for full saved results
+                  MainScreen.openHistory();
                 },
                 child: const Text(
                   'Detailed result',
