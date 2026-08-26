@@ -1042,7 +1042,8 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
                       Text(
                         o,
                         style: TextStyle(
-                          color: active ? Colors.white : Colors.white38,
+                          // Theme-aware: white is invisible on light sheet
+                          color: active ? gold : textMut,
                           fontSize: 14,
                           fontWeight:
                               active ? FontWeight.w700 : FontWeight.w500,
