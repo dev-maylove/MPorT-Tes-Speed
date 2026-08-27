@@ -220,7 +220,7 @@ class _Header extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 6),
-        Text(
+        const Text(
           'Internet Speed Test',
           style: TextStyle(
             color: AboutScreen.primaryColor,

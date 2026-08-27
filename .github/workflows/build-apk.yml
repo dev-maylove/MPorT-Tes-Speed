@@ -127,10 +127,18 @@ jobs:
             -alias "$KEY_ALIAS" -storepass "$KEYSTORE_PASSWORD" >/dev/null
           echo 'Release keystore verified.'
 
+      - name: Prepare Gradle wrapper
+        run: |
+          set -euo pipefail
+          # ZIP extraction / Git on some clients can drop the executable bit.
+          # Restore it explicitly so CI is deterministic.
+          test -f android/gradlew
+          chmod +x android/gradlew
+          test -x android/gradlew
+
       - name: Validate Gradle wrapper
         run: |
           set -euo pipefail
-          test -x android/gradlew
           android/gradlew --version
 
       - name: Build signed release APK (universal)
