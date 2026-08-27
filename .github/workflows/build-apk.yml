@@ -36,7 +36,6 @@ jobs:
         with:
           distribution: temurin
           java-version: ${{ env.JAVA_VERSION }}
-          cache: gradle
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
@@ -151,6 +150,7 @@ jobs:
           flutter build apk --release \
             --obfuscate \
             --split-debug-info=build/debug-info \
+            --extra-gen-snapshot-options=--strip \
             --tree-shake-icons
 
       - name: Build signed Play App Bundle
@@ -159,6 +159,7 @@ jobs:
           flutter build appbundle --release \
             --obfuscate \
             --split-debug-info=build/debug-info \
+            --extra-gen-snapshot-options=--strip \
             --tree-shake-icons
 
       - name: Locate and verify signed APK + AAB
@@ -200,7 +201,7 @@ jobs:
           sha256sum artifacts/*.apk artifacts/*.aab > artifacts/SHA256SUMS.txt
 
       - name: Upload signed APK + AAB
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: MPorT-Tes-Speed-Android-Release
           path: artifacts/

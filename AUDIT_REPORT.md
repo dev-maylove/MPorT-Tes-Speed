@@ -29,3 +29,12 @@ Fixes:
 - AAB signature verification now relies on `jarsigner -verify` exit status instead of grepping its output.
 - Gradle VFS file watching is disabled in CI to avoid the non-fatal `Already watching path` warning seen between the APK and AAB builds.
 - APK + AAB output remains enabled.
+
+## v5 DWARF warning fix
+
+Release APK and AAB builds now pass `--extra-gen-snapshot-options=--strip` together with `--obfuscate` and `--split-debug-info`. This instructs Flutter's AOT `gen_snapshot` to strip DWARF from the generated ELF while retaining split debug information for symbolization. The flag is applied to both APK and App Bundle builds.
+
+## GitHub Actions Node.js 24 artifact update
+- Updated `actions/upload-artifact` from `v4` to `v7`.
+- This removes the Node.js 20 deprecation warning from the artifact upload step by using the current Node.js 24-compatible major release.
+- APK and AAB artifact behavior is unchanged.
