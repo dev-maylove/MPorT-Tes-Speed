@@ -17,6 +17,10 @@ concurrency:
 
 env:
   JAVA_VERSION: '17'
+  # GitHub runners can occasionally emit `Already watching path` when
+  # Flutter invokes Gradle twice in the same job. Disable Gradle VFS watching
+  # for deterministic CI builds; this does not affect the app at runtime.
+  GRADLE_OPTS: '-Dorg.gradle.vfs.watch=false'
 
 jobs:
   quality:
@@ -166,14 +170,16 @@ jobs:
           test -f "$APK" || { echo '::error::Release APK was not produced'; exit 1; }
           test -f "$AAB" || { echo '::error::Release AAB was not produced'; exit 1; }
 
-          echo 'Verifying APK signature...'
-          jarsigner -verify -verbose -certs "$APK" >/tmp/jarsigner-apk.txt
-          grep -q 'jar verified' /tmp/jarsigner-apk.txt
+          echo 'Verifying APK signature with Android SDK apksigner...'
+          APKSIGNER="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
+          test -n "$APKSIGNER" || { echo '::error::apksigner was not found'; exit 1; }
+          "$APKSIGNER" verify --verbose "$APK"
           echo 'APK signature verified.'
 
-          echo 'Verifying AAB signature...'
-          jarsigner -verify -verbose -certs "$AAB" >/tmp/jarsigner-aab.txt
-          grep -q 'jar verified' /tmp/jarsigner-aab.txt
+          echo 'Verifying AAB signature with jarsigner...'
+          # jarsigner returns non-zero when the JAR signature is invalid. Do not
+          # grep human-readable output because its wording differs between JDKs.
+          jarsigner -verify "$AAB" >/tmp/jarsigner-aab.txt
           echo 'AAB signature verified.'
 
           echo 'Release artifacts:'
@@ -205,5 +211,5 @@ jobs:
         if: always()
         run: |
           rm -f android/app/mport-release.jks android/key.properties
-          rm -f /tmp/jarsigner-apk.txt /tmp/jarsigner-aab.txt
+          rm -f /tmp/jarsigner-aab.txt
           echo 'Temporary signing material removed.'

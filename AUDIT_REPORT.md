@@ -19,3 +19,13 @@ This environment does not have the Flutter SDK installed, so `flutter analyze` a
 
 ## Security action required
 The previous archive contained a release keystore and its password. Those credentials must be considered compromised. Rotate/revoke the old release signing material where possible and configure the replacement release keystore only through GitHub Actions secrets.
+
+## CI incident fixed — 2026-08-27
+
+The signed build itself completed successfully: both the release APK and AAB were produced and the release keystore was verified. The workflow failed afterward because it expected the JDK `jarsigner` human-readable output to contain the exact string `jar verified`. That text is not a stable machine-readable contract across JDK versions/builds.
+
+Fixes:
+- APK signature verification now uses Android SDK `apksigner verify --verbose`.
+- AAB signature verification now relies on `jarsigner -verify` exit status instead of grepping its output.
+- Gradle VFS file watching is disabled in CI to avoid the non-fatal `Already watching path` warning seen between the APK and AAB builds.
+- APK + AAB output remains enabled.
