@@ -34,6 +34,10 @@ class PingResult {
 }
 
 class PingService {
+  bool _cancelled = false;
+
+  void cancel() => _cancelled = true;
+
   /// Lightweight HTTP latency probe:
   /// - keep-alive, HEAD first then GET range
   /// - many samples; primary ping = minimum (best latency)
@@ -41,6 +45,7 @@ class PingService {
   Future<PingResult> test({
     int samples = ServerConfig.pingSamples,
   }) async {
+    _cancelled = false;
     final client = HttpClient();
     client.connectionTimeout = const Duration(seconds: 3);
     client.idleTimeout = const Duration(seconds: 15);
@@ -55,11 +60,21 @@ class PingService {
       final total = samples + ServerConfig.pingWarmup;
 
       for (var i = 0; i < total; i++) {
-        final uri = Uri.parse(
-          '${ServerConfig.pingUrl}?n=${DateTime.now().microsecondsSinceEpoch}',
+        if (_cancelled) {
+          throw const PingCancelledException();
+        }
+        final baseUri = Uri.parse(ServerConfig.pingUrl);
+        final uri = baseUri.replace(
+          queryParameters: {
+            ...baseUri.queryParameters,
+            'n': '${DateTime.now().microsecondsSinceEpoch}',
+          },
         );
 
         final ms = await _onePing(client, uri);
+        if (_cancelled) {
+          throw const PingCancelledException();
+        }
         // Count only post-warmup attempts toward loss stats
         if (i >= ServerConfig.pingWarmup) {
           attempts++;
@@ -86,33 +101,32 @@ class PingService {
 
     final sorted = List<double>.from(samplesMs)..sort();
 
-    // Drop the highest outliers so primary ping is more stable
+    // Trim only the highest few values for the displayed average.
     var working = sorted;
     const trim = ServerConfig.pingTrimCount;
     if (working.length > trim + 2) {
       working = working.sublist(0, working.length - trim);
     }
 
-    // Primary ping = lowest (best latency), with light HTTP/TLS overhead correction
-    var ping = working.reduce(math.min);
-    ping = math.max(1.0, ping * 0.82);
-
-    final maxPing = math.max(1.0, sorted.last * 0.82);
+    // Report measured RTT directly. Do not apply an arbitrary correction
+    // factor: doing so makes the displayed latency systematically too low.
+    final ping = math.max(0.1, sorted.first);
+    final maxPing = math.max(0.1, sorted.last);
     final avgRaw = working.reduce((a, b) => a + b) / working.length;
-    final avgPing = math.max(1.0, avgRaw * 0.82);
+    final avgPing = math.max(0.1, avgRaw);
 
-    // Jitter from successive differences of stable samples (≤ p80)
-    final p80Idx = (sorted.length * 0.80).floor().clamp(0, sorted.length - 1);
+    // Jitter must use chronological samples, not sorted samples.
+    // Exclude the slowest 20% only as outliers.
+    final p80Idx = (sorted.length * 0.80).ceil().clamp(1, sorted.length) - 1;
     final threshold = sorted[p80Idx];
     final stable = samplesMs.where((v) => v <= threshold).toList();
     final diffs = <double>[];
     for (var i = 1; i < stable.length; i++) {
       diffs.add((stable[i] - stable[i - 1]).abs());
     }
-    var jitter = diffs.isEmpty
-        ? 1.0
+    final jitter = diffs.isEmpty
+        ? 0.0
         : diffs.reduce((a, b) => a + b) / diffs.length;
-    jitter = math.max(0.5, jitter * 0.82);
 
     final loss = attempts > 0 ? (failures / attempts) * 100.0 : 0.0;
 
@@ -127,6 +141,7 @@ class PingService {
   }
 
   Future<double?> _onePing(HttpClient client, Uri uri) async {
+    if (_cancelled) return null;
     try {
       final sw = Stopwatch()..start();
       final req = await client.openUrl('HEAD', uri);
@@ -139,7 +154,7 @@ class PingService {
       await res.drain<void>();
       sw.stop();
 
-      if (res.statusCode < 500) {
+      if (res.statusCode >= 200 && res.statusCode < 400) {
         return sw.elapsedMicroseconds / 1000.0;
       }
     } catch (_) {}
@@ -156,11 +171,19 @@ class PingService {
       await res.drain<void>();
       sw.stop();
 
-      if (res.statusCode < 500) {
+      if (res.statusCode >= 200 && res.statusCode < 400) {
         return sw.elapsedMicroseconds / 1000.0;
       }
     } catch (_) {}
 
     return null;
   }
+}
+
+
+class PingCancelledException implements Exception {
+  const PingCancelledException();
+
+  @override
+  String toString() => 'Ping test cancelled';
 }

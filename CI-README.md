@@ -2,68 +2,57 @@
 
 Workflow: `.github/workflows/build-apk.yml`
 
-## Jobs
+## Pipeline
 
 | Job | Trigger | Output |
 |-----|---------|--------|
-| **Build APK** | push/PR `main`/`master` + manual | `app-release.apk` |
-| **Build AAB** | manual (`workflow_dispatch`) atau tag | `app-release.aab` |
+| **Analyze & Test** | push / pull request / tag / manual | CI result |
+| **Build Signed Android App Bundle** | push to `main`/`master`, `v*` tag, or manual | signed `.aab` |
 
-## Flow (APK)
+Pull requests run analysis and tests only. Release signing is deliberately skipped on PRs so GitHub Actions secrets are never exposed to untrusted PR code.
 
-1. Checkout source  
-2. Java 17 (Temurin) + Gradle cache  
-3. Flutter stable (cached)  
-4. Accept Android licenses  
-5. `flutter pub get`  
-6. `flutter analyze`  
-7. `flutter test`  
-8. Setup signing (Secrets **atau** keystore di repo)  
-9. `flutter build apk --release`  
-10. Fallback locate/copy APK jika path tidak standar  
-11. Upload artifact **MPorT-Tes-Speed-release**
+## GitHub Secrets
 
-## Cara menjalankan
+Create these repository secrets under **Settings → Secrets and variables → Actions**:
 
-- **Otomatis:** push ke branch `main` / `master`
-- **Manual:** GitHub → **Actions** → **Build MPorT Go APK** → **Run workflow**
-- **AAB:** jalankan manual (workflow_dispatch) atau buat git tag
+| Secret | Value |
+|--------|-------|
+| `KEYSTORE_BASE64` | Base64 contents of your release `.jks` |
+| `KEYSTORE_PASSWORD` | Keystore password |
+| `KEY_ALIAS` | Release key alias |
+| `KEY_PASSWORD` | Release key password |
 
-## Hasil
+Example from Termux/Linux:
 
-| Artifact name | File |
-|---------------|------|
-| `MPorT-Tes-Speed-release` | `app-release.apk` |
-| `MPorT-Tes-Speed-aab` | `app-release.aab` |
+```bash
+base64 -w 0 ~/keystore/mport-release.jks
+```
 
-Download dari tab **Actions** → pilih run → **Artifacts**.
+Copy the resulting single-line value into `KEYSTORE_BASE64`.
 
-## Signing di CI
+**Never commit the `.jks`, `android/key.properties`, passwords, or Base64 signing material to Git.**
 
-### Opsi A — Secrets (disarankan untuk repo publik)
+## Signed AAB flow
 
-| Secret | Isi |
-|--------|-----|
-| `KEYSTORE_BASE64` | `base64 -w0 android/app/mport-release-key.jks` |
-| `KEYSTORE_PASSWORD` | store password |
-| `KEY_PASSWORD` | key password |
-| `KEY_ALIAS` | `mport` |
+1. GitHub Actions checks out the source.
+2. Flutter analyzes and tests the project.
+3. The four signing secrets are validated.
+4. `KEYSTORE_BASE64` is decoded temporarily to `android/app/mport-release.jks`.
+5. `android/key.properties` is generated temporarily.
+6. Gradle verifies the keystore alias.
+7. `flutter build appbundle --release` creates the Play Store AAB.
+8. `jarsigner` verifies that the resulting AAB is signed.
+9. The AAB and obfuscation debug-info archive are uploaded as workflow artifacts.
+10. Temporary signing files are deleted even if the build fails.
 
-### Opsi B — Keystore di repo (internal / testing)
+## Artifact
 
-Jika `android/key.properties` + `android/app/mport-release-key.jks` sudah ada di repo, CI memakai itu otomatis.
+The Actions artifact **MPorT-Tes-Speed-Play-Release** contains:
 
-> **Peringatan:** Jangan commit keystore & password ke repository publik.  
-> File `.gitignore` sudah meng-exclude `*.jks` dan `key.properties`.
+- `MPorT-Tes-Speed-release.aab` — signed Android App Bundle for Google Play
+- `MPorT-Tes-Speed-debug-info.tar.gz` — keep this for crash/symbolication support when obfuscation is enabled
+- `SHA256SUMS.txt` — SHA-256 checksums
 
-## Matrix build
+## Release signing behavior
 
-| Component | Version |
-|-----------|---------|
-| Gradle | **9.1.0** |
-| AGP | **9.0.1** |
-| Kotlin | **2.3.20** |
-| Java | **17** |
-| Flutter | **stable** (3.47.x) |
-
-> AGP 9 + `android.newDsl=false` + `android.builtInKotlin=false` (opt-out breaking changes).
+`android/app/build.gradle.kts` intentionally fails a release build when a valid release keystore is not available. This prevents an accidental debug-signed production release.

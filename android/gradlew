@@ -1,0 +1,43 @@
+#!/bin/sh
+set -eu
+
+APP_HOME=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+GRADLE_VERSION="${GRADLE_VERSION:-9.1.0}"
+CACHE_DIR="${GRADLE_USER_HOME:-$HOME/.gradle}/mport-distributions"
+DIST_DIR="$CACHE_DIR/gradle-$GRADLE_VERSION"
+ZIP="$CACHE_DIR/gradle-$GRADLE_VERSION-bin.zip"
+URL="https://services.gradle.org/distributions/gradle-$GRADLE_VERSION-bin.zip"
+
+if [ ! -x "$DIST_DIR/bin/gradle" ]; then
+  mkdir -p "$CACHE_DIR"
+  if [ ! -f "$ZIP" ]; then
+    if command -v curl >/dev/null 2>&1; then
+      curl -fL --retry 3 --retry-delay 2 -o "$ZIP" "$URL"
+    elif command -v wget >/dev/null 2>&1; then
+      wget -O "$ZIP" "$URL"
+    else
+      echo "ERROR: curl or wget is required to bootstrap Gradle." >&2
+      exit 1
+    fi
+  fi
+  TMP_DIR="$CACHE_DIR/.extract-$GRADLE_VERSION-$$"
+  rm -rf "$TMP_DIR"
+  mkdir -p "$TMP_DIR"
+  if command -v unzip >/dev/null 2>&1; then
+    unzip -q "$ZIP" -d "$TMP_DIR"
+  else
+    echo "ERROR: unzip is required to bootstrap Gradle." >&2
+    exit 1
+  fi
+  FOUND="$TMP_DIR/gradle-$GRADLE_VERSION"
+  if [ ! -x "$FOUND/bin/gradle" ]; then
+    echo "ERROR: Invalid Gradle distribution: $ZIP" >&2
+    rm -rf "$TMP_DIR"
+    exit 1
+  fi
+  rm -rf "$DIST_DIR"
+  mv "$FOUND" "$DIST_DIR"
+  rm -rf "$TMP_DIR"
+fi
+
+exec "$DIST_DIR/bin/gradle" "$@"

@@ -73,12 +73,11 @@ android {
 
     buildTypes {
         release {
-            signingConfig = if (hasValidKeystore) {
-                signingConfigs.getByName("release")
-            } else {
-                // Fallback: debug signing — avoids validateSigningRelease failure
-                signingConfigs.getByName("debug")
+            require(hasValidKeystore) {
+                "Release signing keystore is missing. Configure android/key.properties " +
+                    "or provide CI signing secrets before building a release."
             }
+            signingConfig = signingConfigs.getByName("release")
             isMinifyEnabled = true
             isShrinkResources = true
             isDebuggable = false

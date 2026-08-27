@@ -213,7 +213,7 @@ class ServerService extends ChangeNotifier {
           })
           .timeout(const Duration(milliseconds: 1500));
       sw.stop();
-      if (r.statusCode < 500) {
+      if (r.statusCode >= 200 && r.statusCode < 400) {
         return sw.elapsedMicroseconds / 1000.0;
       }
     } catch (_) {}
@@ -228,7 +228,7 @@ class ServerService extends ChangeNotifier {
           })
           .timeout(const Duration(milliseconds: 1500));
       sw.stop();
-      if (r.statusCode < 500) {
+      if (r.statusCode >= 200 && r.statusCode < 400) {
         return sw.elapsedMicroseconds / 1000.0;
       }
     } catch (_) {}

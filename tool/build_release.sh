@@ -9,9 +9,24 @@ flutter pub get
 echo "==> analyze (lib only)"
 flutter analyze --no-fatal-infos lib || true
 
-MODE="${1:-split}"  # split | universal | appbundle
+MODE="${1:-all}"  # all | split | universal | appbundle
 
 case "$MODE" in
+  all)
+    echo "==> build universal signed APK + signed App Bundle"
+    flutter build apk --release \
+      --obfuscate \
+      --split-debug-info=build/debug-info \
+      --tree-shake-icons
+    flutter build appbundle --release \
+      --obfuscate \
+      --split-debug-info=build/debug-info \
+      --tree-shake-icons
+    echo ""
+    echo "Release artifacts:"
+    ls -lh build/app/outputs/flutter-apk/app-release.apk 2>/dev/null || true
+    ls -lh build/app/outputs/bundle/release/app-release.aab 2>/dev/null || true
+    ;;
   split)
     echo "==> build APK split-per-abi (arm64 + armv7) + obfuscate"
     flutter build apk --release \
@@ -42,7 +57,7 @@ case "$MODE" in
     ls -lh build/app/outputs/bundle/release/*.aab 2>/dev/null || true
     ;;
   *)
-    echo "Usage: $0 [split|universal|appbundle]"
+    echo "Usage: $0 [all|split|universal|appbundle]"
     exit 1
     ;;
 esac

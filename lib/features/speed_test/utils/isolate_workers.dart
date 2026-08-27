@@ -44,27 +44,18 @@ class OoklaScoreArgs {
   });
 }
 
-/// Final Mbps: prefer top-% of instantaneous samples; else total/time.
+/// Final Mbps from the measured transfer volume and elapsed measurement time.
+///
+/// Instantaneous samples are useful for the live gauge, but selecting only the
+/// fastest samples systematically overstates real-world throughput. The final
+/// score therefore uses the complete post-warm-up transfer window.
 double computeOoklaMbpsSync(OoklaScoreArgs args) {
-  final samples = args.samples;
-  var mbps = 0.0;
-  if (samples.isNotEmpty) {
-    final sorted = List<double>.from(samples)..sort();
-    final n = sorted.length;
-    var topCount = (n * args.topSamplePercent).ceil();
-    if (topCount < 1) topCount = 1;
-    if (topCount > n) topCount = n;
-    final top = sorted.sublist(n - topCount);
-    var sum = 0.0;
-    for (final v in top) {
-      sum += v;
-    }
-    mbps = sum / top.length;
-  }
-  if (mbps <= 0 && args.measureBytes > 0 && args.measureSeconds > 0.1) {
-    mbps = args.measureBytes * 8 / args.measureSeconds / 1e6 * args.overhead;
-  }
-  return mbps;
+  if (args.measureBytes <= 0 || args.measureSeconds <= 0.1) return 0;
+
+  final raw = args.measureBytes * 8 / args.measureSeconds / 1e6;
+  if (!raw.isFinite || raw <= 0) return 0;
+
+  return raw * args.overhead;
 }
 
 Future<double> computeOoklaMbps(OoklaScoreArgs args) {

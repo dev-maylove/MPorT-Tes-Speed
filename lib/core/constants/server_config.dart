@@ -25,19 +25,33 @@ class ServerConfig {
     return '$base$wsPath';
   }
 
+  static String _withQuery(String url, Map<String, String> query) {
+    final uri = Uri.parse(url);
+    final merged = <String, String>{
+      ...uri.queryParameters,
+      ...query,
+    };
+    return uri.replace(queryParameters: merged).toString();
+  }
+
   static String downloadUrlBusted() {
     final n = DateTime.now().microsecondsSinceEpoch;
-    // Ookla-style servers often accept size= (bytes to stream)
+    // Ookla-style servers commonly accept size= (bytes to stream).
     if (downloadPath.contains('speedtest')) {
-      return '$downloadUrl?size=35000000&n=$n';
+      return _withQuery(downloadUrl, {
+        'size': '35000000',
+        'n': '$n',
+      });
     }
-    return '$downloadUrl?ckSize=100&n=$n';
+    return _withQuery(downloadUrl, {
+      'ckSize': '100',
+      'n': '$n',
+    });
   }
 
   static String uploadUrlBusted() {
     final n = DateTime.now().microsecondsSinceEpoch;
-    final sep = uploadUrl.contains('?') ? '&' : '?';
-    return '$uploadUrl${sep}n=$n';
+    return _withQuery(uploadUrl, {'n': '$n'});
   }
 
   /// Switch active server (called on select / auto-nearest).

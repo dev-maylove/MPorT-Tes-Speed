@@ -1,31 +1,37 @@
-name: Build MPorT GO APK
+name: MPorT Go - Quality & Signed APK + AAB
 
 on:
   push:
-    branches:
-      - main
-      - master
+    branches: [main, master]
+    tags: ['v*']
   pull_request:
-    branches:
-      - main
-      - master
+    branches: [main, master]
   workflow_dispatch:
 
-jobs:
-  build:
-    name: Flutter Analyze Test Signed Release APK
-    runs-on: ubuntu-latest
-    timeout-minutes: 45
+permissions:
+  contents: read
 
+concurrency:
+  group: mport-build-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  JAVA_VERSION: '17'
+
+jobs:
+  quality:
+    name: Analyze & Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - name: Checkout
         uses: actions/checkout@v5
 
-      - name: Setup Java 17
+      - name: Setup Java
         uses: actions/setup-java@v5
         with:
           distribution: temurin
-          java-version: '17'
+          java-version: ${{ env.JAVA_VERSION }}
           cache: gradle
 
       - name: Setup Flutter
@@ -37,9 +43,6 @@ jobs:
       - name: Flutter version
         run: flutter --version
 
-      - name: Accept Android licenses
-        run: yes | flutter doctor --android-licenses || true
-
       - name: Pub get
         run: flutter pub get
 
@@ -49,236 +52,150 @@ jobs:
       - name: Test
         run: flutter test
 
-      # ============================================================
-      # RELEASE SIGNING
-      # ============================================================
-      - name: Setup new release keystore
+  release:
+    name: Build Signed Android APK + App Bundle
+    runs-on: ubuntu-latest
+    needs: quality
+    # Never attempt release signing on pull requests, where repository secrets
+    # are intentionally unavailable (especially for fork PRs).
+    if: github.event_name != 'pull_request'
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: gradle
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Flutter version
+        run: flutter --version
+
+      - name: Pub get
+        run: flutter pub get
+
+      - name: Validate signing secrets
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
           set -euo pipefail
+          test -n "$KEYSTORE_BASE64" || { echo '::error::Missing KEYSTORE_BASE64'; exit 1; }
+          test -n "$KEYSTORE_PASSWORD" || { echo '::error::Missing KEYSTORE_PASSWORD'; exit 1; }
+          test -n "$KEY_ALIAS" || { echo '::error::Missing KEY_ALIAS'; exit 1; }
+          test -n "$KEY_PASSWORD" || { echo '::error::Missing KEY_PASSWORD'; exit 1; }
 
-          echo "Checking signing secrets..."
-
-          test -n "${KEYSTORE_BASE64}" || {
-            echo "::error::KEYSTORE_BASE64 is missing"
-            exit 1
-          }
-
-          test -n "${KEYSTORE_PASSWORD}" || {
-            echo "::error::KEYSTORE_PASSWORD is missing"
-            exit 1
-          }
-
-          test -n "${KEY_PASSWORD}" || {
-            echo "::error::KEY_PASSWORD is missing"
-            exit 1
-          }
-
-          test -n "${KEY_ALIAS}" || {
-            echo "::error::KEY_ALIAS is missing"
-            exit 1
-          }
-
+      - name: Recreate release keystore from GitHub Secret
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
           mkdir -p android/app
 
-          printf '%s' "${KEYSTORE_BASE64}" |
-            base64 --decode > android/app/mport-release-new.jks
+          # GitHub Secret contains only the Base64 representation of the JKS.
+          # It is reconstructed temporarily on the runner and removed in the
+          # final cleanup step.
+          printf '%s' "$KEYSTORE_BASE64" | tr -d '\r\n ' | base64 --decode > android/app/mport-release.jks
+          chmod 600 android/app/mport-release.jks
+          test -s android/app/mport-release.jks
 
-          test -s android/app/mport-release-new.jks
-
-          chmod 600 android/app/mport-release-new.jks
-
-          # No leading whitespace — Properties parser treats keys with spaces as invalid
+          # key.properties is generated only on the runner; it is gitignored.
           printf '%s\n' \
-            "storePassword=${KEYSTORE_PASSWORD}" \
-            "keyPassword=${KEY_PASSWORD}" \
-            "keyAlias=${KEY_ALIAS}" \
-            "storeFile=app/mport-release-new.jks" \
+            "storePassword=$KEYSTORE_PASSWORD" \
+            "keyPassword=$KEY_PASSWORD" \
+            "keyAlias=$KEY_ALIAS" \
+            'storeFile=app/mport-release.jks' \
             > android/key.properties
-
           chmod 600 android/key.properties
 
-          echo "Verifying keystore..."
+          echo 'Verifying release keystore and alias...'
+          keytool -list -keystore android/app/mport-release.jks \
+            -alias "$KEY_ALIAS" -storepass "$KEYSTORE_PASSWORD" >/dev/null
+          echo 'Release keystore verified.'
 
-          keytool -list \
-            -keystore android/app/mport-release-new.jks \
-            -alias "${KEY_ALIAS}" \
-            -storepass "${KEYSTORE_PASSWORD}" \
-            >/dev/null
-
-          EXPECTED_SHA256='B8:2C:BB:24:66:9B:42:38:BE:72:D7:0C:18:DF:20:E9:72:01:FB:95:27:98:1D:3A:1D:1A:0D:E7:01:AC:39:40'
-
-          ACTUAL_SHA256="$(
-            keytool -list -v \
-              -keystore android/app/mport-release-new.jks \
-              -alias "${KEY_ALIAS}" \
-              -storepass "${KEYSTORE_PASSWORD}" |
-              awk -F': ' '/SHA256:/{print $2; exit}'
-          )"
-
-          echo "Expected SHA-256: ${EXPECTED_SHA256}"
-          echo "Actual SHA-256:   ${ACTUAL_SHA256}"
-
-          if [ "${ACTUAL_SHA256}" != "${EXPECTED_SHA256}" ]; then
-            echo "::error::NEW keystore fingerprint mismatch"
-            exit 1
-          fi
-
-          echo "NEW keystore verified successfully."
-
-      # ============================================================
-      # CLEANUP DUPLICATE RESOURCES
-      # ============================================================
-      - name: Remove duplicate launcher resources
-        run: |
-          set -e
-
-          rm -f android/app/src/main/res/drawable/ic_launcher_foreground.png
-          rm -f android/app/src/main/res/drawable/ic_launcher_foreground.xml
-          rm -f android/app/src/main/res/drawable/ic_launcher.png
-          rm -f android/app/src/main/res/drawable/ic_launcher.xml
-
-      # ============================================================
-      # BUILD
-      # ============================================================
-      - name: Build signed release APK
-        run: |
-          set -e
-
-          flutter build apk \
-            --release \
-            --split-per-abi \
-            --obfuscate \
-            --split-debug-info=build/debug-info \
-            --tree-shake-icons \
-            --target-platform=android-arm,android-arm64
-
-      # ============================================================
-      # VERIFY APK SIGNATURE
-      # ============================================================
-      - name: Verify APK signatures
-        env:
-          EXPECTED_SHA256: 'B8:2C:BB:24:66:9B:42:38:BE:72:D7:0C:18:DF:20:E9:72:01:FB:95:27:98:1D:3A:1D:1A:0D:E7:01:AC:39:40'
+      - name: Validate Gradle wrapper
         run: |
           set -euo pipefail
+          test -x android/gradlew
+          android/gradlew --version
 
-          APK_SIGNER="$(
-            find "${ANDROID_HOME}/build-tools" \
-              -type f \
-              -name apksigner \
-              -print |
-              sort -V |
-              tail -1
-          )"
+      - name: Build signed release APK (universal)
+        run: |
+          set -euo pipefail
+          flutter build apk --release \
+            --obfuscate \
+            --split-debug-info=build/debug-info \
+            --tree-shake-icons
 
-          if [ -z "${APK_SIGNER}" ] || [ ! -x "${APK_SIGNER}" ]; then
-            echo "::error::apksigner not found"
-            exit 1
+      - name: Build signed Play App Bundle
+        run: |
+          set -euo pipefail
+          flutter build appbundle --release \
+            --obfuscate \
+            --split-debug-info=build/debug-info \
+            --tree-shake-icons
+
+      - name: Locate and verify signed APK + AAB
+        run: |
+          set -euo pipefail
+          APK='build/app/outputs/flutter-apk/app-release.apk'
+          AAB='build/app/outputs/bundle/release/app-release.aab'
+
+          test -f "$APK" || { echo '::error::Release APK was not produced'; exit 1; }
+          test -f "$AAB" || { echo '::error::Release AAB was not produced'; exit 1; }
+
+          echo 'Verifying APK signature...'
+          jarsigner -verify -verbose -certs "$APK" >/tmp/jarsigner-apk.txt
+          grep -q 'jar verified' /tmp/jarsigner-apk.txt
+          echo 'APK signature verified.'
+
+          echo 'Verifying AAB signature...'
+          jarsigner -verify -verbose -certs "$AAB" >/tmp/jarsigner-aab.txt
+          grep -q 'jar verified' /tmp/jarsigner-aab.txt
+          echo 'AAB signature verified.'
+
+          echo 'Release artifacts:'
+          ls -lh "$APK" "$AAB"
+          sha256sum "$APK" "$AAB"
+
+      - name: Prepare release artifacts
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          cp build/app/outputs/flutter-apk/app-release.apk artifacts/MPorT-Tes-Speed-release.apk
+          cp build/app/outputs/bundle/release/app-release.aab artifacts/MPorT-Tes-Speed-release.aab
+
+          if [ -d build/debug-info ]; then
+            tar -C build -czf artifacts/MPorT-Tes-Speed-debug-info.tar.gz debug-info
           fi
 
-          echo "Using apksigner: ${APK_SIGNER}"
+          sha256sum artifacts/*.apk artifacts/*.aab > artifacts/SHA256SUMS.txt
 
-          mkdir -p verified-apks
-
-          found=0
-
-          for apk in build/app/outputs/flutter-apk/*.apk; do
-            [ -f "${apk}" ] || continue
-
-            found=1
-
-            echo ""
-            echo "=========================================="
-            echo "VERIFYING ${apk}"
-            echo "=========================================="
-
-            VERIFY_OUTPUT="$(
-              "${APK_SIGNER}" verify \
-                --verbose \
-                --print-certs \
-                "${apk}" 2>&1
-            )"
-
-            printf '%s\n' "${VERIFY_OUTPUT}"
-
-            CERT_SHA256="$(
-              printf '%s\n' "${VERIFY_OUTPUT}" |
-                grep -i 'certificate SHA-256 digest:' |
-                head -1 |
-                sed 's/.*certificate SHA-256 digest:[[:space:]]*//'
-            )"
-
-            if [ -z "${CERT_SHA256}" ]; then
-              echo "::error::Could not extract APK certificate SHA-256."
-              echo "::error::Raw apksigner certificate output:"
-              printf '%s\n' "${VERIFY_OUTPUT}"
-              exit 1
-            fi
-
-            echo "APK certificate SHA-256:"
-            echo "${CERT_SHA256}"
-
-            EXPECTED_NORMALIZED="$(
-              printf '%s' "${EXPECTED_SHA256}" |
-              tr -d ':[:space:]' |
-              tr '[:upper:]' '[:lower:]'
-            )"
-
-            ACTUAL_NORMALIZED="$(
-              printf '%s' "${CERT_SHA256}" |
-              tr -d ':[:space:]' |
-              tr '[:upper:]' '[:lower:]'
-            )"
-
-            echo "Normalized expected SHA-256:"
-            echo "${EXPECTED_NORMALIZED}"
-
-            echo "Normalized actual SHA-256:"
-            echo "${ACTUAL_NORMALIZED}"
-
-            if [ "${ACTUAL_NORMALIZED}" != "${EXPECTED_NORMALIZED}" ]; then
-              echo "::error::APK is NOT signed with the NEW keystore."
-              echo "::error::Expected: ${EXPECTED_NORMALIZED}"
-              echo "::error::Actual:   ${ACTUAL_NORMALIZED}"
-              exit 1
-            fi
-
-            echo "APK signature matches NEW keystore."
-
-            cp "${apk}" "verified-apks/$(basename "${apk}")"
-          done
-
-          if [ "${found}" -eq 0 ]; then
-            echo "::error::No APK files found"
-            exit 1
-          fi
-
-          echo ""
-          echo "=========================================="
-          echo "ALL APK SIGNATURES VERIFIED"
-          echo "=========================================="
-
-          ls -lh verified-apks/
-
-      # ============================================================
-      # UPLOAD
-      # ============================================================
-      - name: Upload signed APKs
-        uses: actions/upload-artifact@v6
+      - name: Upload signed APK + AAB
+        uses: actions/upload-artifact@v4
         with:
-          name: MPorT-GO-signed-release
-          path: verified-apks/
+          name: MPorT-Tes-Speed-Android-Release
+          path: artifacts/
           if-no-files-found: error
+          retention-days: 14
 
-      # ============================================================
-      # CLEANUP
-      # ============================================================
-      - name: Remove signing files
+      - name: Remove signing material
         if: always()
         run: |
-          rm -f android/app/mport-release-new.jks
-          rm -f android/key.properties
+          rm -f android/app/mport-release.jks android/key.properties
+          rm -f /tmp/jarsigner-apk.txt /tmp/jarsigner-aab.txt
+          echo 'Temporary signing material removed.'

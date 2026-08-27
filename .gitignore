@@ -15,7 +15,6 @@
 build/
 coverage/
 
-**/android/**/gradle-wrapper.jar
 **/android/.gradle
 **/android/local.properties
 

@@ -1,19 +1,15 @@
-import '../../../core/constants/server_config.dart';
-
-/// Ookla-style final score: average of the fastest [topSamplePercent] samples.
+/// Return the mean of valid instantaneous samples.
+///
+/// This helper is intended for diagnostics/live metrics. Final speed results
+/// are calculated from total measured bytes and elapsed time.
 double ooklaStyleMbps(List<double> samples) {
-  if (samples.isEmpty) return 0;
-  final sorted = List<double>.from(samples)..sort();
-  final n = sorted.length;
-  var topCount = (n * ServerConfig.topSamplePercent).ceil();
-  if (topCount < 1) topCount = 1;
-  if (topCount > n) topCount = n;
-  final top = sorted.sublist(n - topCount);
+  final valid = samples.where((v) => v.isFinite && v > 0).toList();
+  if (valid.isEmpty) return 0;
   var sum = 0.0;
-  for (final v in top) {
-    sum += v;
+  for (final value in valid) {
+    sum += value;
   }
-  return sum / top.length;
+  return sum / valid.length;
 }
 
 /// Exponential moving average for smoother live gauge (not used in final score).

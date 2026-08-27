@@ -29,6 +29,7 @@ class SpeedTestService {
   /// Stop in-flight download/upload workers.
   void cancel() {
     _cancelled = true;
+    _pingService.cancel();
     _downloadService.cancel();
     _uploadService.cancel();
   }
@@ -47,6 +48,7 @@ class SpeedTestService {
 
     final pingResult = await _pingService.test();
     if (_cancelled) {
+      _uploadService.releaseCache();
       return SpeedResult(
         ping: pingResult.ping,
         jitter: pingResult.jitter,
@@ -71,6 +73,7 @@ class SpeedTestService {
       },
     );
     if (_cancelled) {
+      _uploadService.releaseCache();
       return SpeedResult(
         ping: pingResult.ping,
         jitter: pingResult.jitter,
