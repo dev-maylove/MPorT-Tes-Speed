@@ -32,7 +32,7 @@ Fixes:
 
 ## v5 DWARF warning fix
 
-Release APK and AAB builds now pass `--extra-gen-snapshot-options=--strip` together with `--obfuscate` and `--split-debug-info`. This instructs Flutter's AOT `gen_snapshot` to strip DWARF from the generated ELF while retaining split debug information for symbolization. The flag is applied to both APK and App Bundle builds.
+Release APK and AAB builds now pass native ELF stripping via the Android NDK `llvm-strip` together with `--obfuscate` and `--split-debug-info`. This instructs Flutter's AOT `gen_snapshot` to strip DWARF from the generated ELF while retaining split debug information for symbolization. The flag is applied to both APK and App Bundle builds.
 
 ## GitHub Actions Node.js 24 artifact update
 - Updated `actions/upload-artifact` from `v4` to `v7`.

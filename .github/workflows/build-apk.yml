@@ -83,6 +83,15 @@ jobs:
       - name: Flutter version
         run: flutter --version
 
+      - name: Prepare Android NDK for native symbol stripping
+        shell: bash
+        run: |
+          set -euo pipefail
+          export ANDROID_SDK_ROOT="${ANDROID_SDK_ROOT:-$ANDROID_HOME}"
+          sdkmanager --install "ndk;28.2.13676358"
+          test -x "$ANDROID_SDK_ROOT/ndk/28.2.13676358/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip"
+          echo "NDK 28.2.13676358 and llvm-strip are available."
+
       - name: Pub get
         run: flutter pub get
 
@@ -144,13 +153,19 @@ jobs:
           set -euo pipefail
           android/gradlew --version
 
+      - name: Verify Android toolchain for release stripping
+        run: |
+          set -euo pipefail
+          flutter doctor -v
+          export ANDROID_SDK_ROOT="${ANDROID_SDK_ROOT:-$ANDROID_HOME}"
+          "$ANDROID_SDK_ROOT/ndk/28.2.13676358/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip" --version
+
       - name: Build signed release APK (universal)
         run: |
           set -euo pipefail
           flutter build apk --release \
             --obfuscate \
             --split-debug-info=build/debug-info \
-            --extra-gen-snapshot-options=--strip \
             --tree-shake-icons
 
       - name: Build signed Play App Bundle
@@ -159,7 +174,6 @@ jobs:
           flutter build appbundle --release \
             --obfuscate \
             --split-debug-info=build/debug-info \
-            --extra-gen-snapshot-options=--strip \
             --tree-shake-icons
 
       - name: Locate and verify signed APK + AAB
