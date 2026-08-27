@@ -38,3 +38,9 @@ Release APK and AAB builds now pass native ELF stripping via the Android NDK `ll
 - Updated `actions/upload-artifact` from `v4` to `v7`.
 - This removes the Node.js 20 deprecation warning from the artifact upload step by using the current Node.js 24-compatible major release.
 - APK and AAB artifact behavior is unchanged.
+
+
+## v8 CI fix
+- Fixed release NDK preparation: `sdkmanager` is now resolved explicitly from Android command-line tools instead of assuming it is on PATH.
+- Validates `ANDROID_HOME`/`ANDROID_SDK_ROOT` before use and adds the resolved sdkmanager directory to `GITHUB_PATH`.
+- Keeps APK + AAB signed build and NDK/llvm-strip verification unchanged.

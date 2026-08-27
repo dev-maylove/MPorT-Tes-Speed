@@ -87,9 +87,35 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          export ANDROID_SDK_ROOT="${ANDROID_SDK_ROOT:-$ANDROID_HOME}"
-          sdkmanager --install "ndk;28.2.13676358"
-          test -x "$ANDROID_SDK_ROOT/ndk/28.2.13676358/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip"
+          # GitHub-hosted runners expose the Android SDK, but sdkmanager is
+          # not guaranteed to be on PATH. Resolve it explicitly from the
+          # installed command-line tools instead of assuming `sdkmanager`
+          # is globally available.
+          export ANDROID_SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-}}"
+          test -n "$ANDROID_SDK_ROOT" || { echo '::error::ANDROID_SDK_ROOT/ANDROID_HOME is not set'; exit 1; }
+
+          SDKMANAGER="$(command -v sdkmanager || true)"
+          if [ -z "$SDKMANAGER" ]; then
+            SDKMANAGER="$(find "$ANDROID_SDK_ROOT/cmdline-tools" -type f -path '*/bin/sdkmanager' -print -quit 2>/dev/null || true)"
+          fi
+          if [ -z "$SDKMANAGER" ] || [ ! -x "$SDKMANAGER" ]; then
+            echo '::error::Android sdkmanager was not found in the installed command-line tools.'
+            find "$ANDROID_SDK_ROOT/cmdline-tools" -maxdepth 4 -type f -name sdkmanager -print 2>/dev/null || true
+            exit 1
+          fi
+
+          SDKMANAGER_DIR="$(dirname "$SDKMANAGER")"
+          echo "$SDKMANAGER_DIR" >> "$GITHUB_PATH"
+          export PATH="$SDKMANAGER_DIR:$PATH"
+
+          echo "Using sdkmanager: $SDKMANAGER"
+          "$SDKMANAGER" --version
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" --install "ndk;28.2.13676358"
+
+          NDK_ROOT="$ANDROID_SDK_ROOT/ndk/28.2.13676358"
+          STRIP="$NDK_ROOT/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip"
+          test -x "$STRIP"
           echo "NDK 28.2.13676358 and llvm-strip are available."
 
       - name: Pub get
@@ -157,7 +183,8 @@ jobs:
         run: |
           set -euo pipefail
           flutter doctor -v
-          export ANDROID_SDK_ROOT="${ANDROID_SDK_ROOT:-$ANDROID_HOME}"
+          export ANDROID_SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-}}"
+          test -n "$ANDROID_SDK_ROOT"
           "$ANDROID_SDK_ROOT/ndk/28.2.13676358/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip" --version
 
       - name: Build signed release APK (universal)
