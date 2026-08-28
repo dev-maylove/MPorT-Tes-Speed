@@ -278,13 +278,13 @@ jobs:
           export KEYSTORE_PASSWORD='${{ secrets.KEYSTORE_PASSWORD }}'
           export KEY_PASSWORD='${{ secrets.KEY_PASSWORD }}'
           export KEY_ALIAS='${{ secrets.KEY_ALIAS }}'
+          # Explicitly target API 1 so legacy V1 signing is evaluated by apksigner.
+          # Keep comments outside the continued shell command.
           "$APKSIGNER" sign \
             --ks android/app/mport-release.jks \
             --ks-key-alias "$KEY_ALIAS" \
             --ks-pass env:KEYSTORE_PASSWORD \
             --key-pass env:KEY_PASSWORD \
-            # Explicitly target API 1 so the requested legacy V1 JAR scheme is
-            # actually emitted even when the APK manifest has a modern minSdk.
             --min-sdk-version 1 \
             --v1-signing-enabled true \
             --v2-signing-enabled true \
