@@ -16,21 +16,26 @@ if (keystorePropertiesFile.exists()) {
 }
 
 fun resolveKeystoreFile(storePath: String): File? {
-    val inApp = file(storePath)
-    if (inApp.exists()) return inApp
-    val inRoot = rootProject.file(storePath)
-    if (inRoot.exists()) return inRoot
-    val inAppExplicit = rootProject.file("app/$storePath")
-    if (inAppExplicit.exists()) return inAppExplicit
-    return null
+    val configured = File(storePath)
+    if (configured.isAbsolute && configured.exists()) return configured
+
+    val candidates = listOf(
+        rootProject.file(storePath),
+        rootProject.file("app/$storePath"),
+    )
+    return candidates.firstOrNull { it.exists() }
 }
 
 val storePathFromProps = if (keystorePropertiesFile.exists()) {
     keystoreProperties["storeFile"] as? String
 } else null
 
-val resolvedStoreFile: File? = storePathFromProps?.let { resolveKeystoreFile(it) }
-val hasValidKeystore = resolvedStoreFile != null
+val resolvedStoreFile: File? = storePathFromProps?.takeIf { it.isNotBlank() }?.let { resolveKeystoreFile(it) }
+val hasSigningProperties = keystorePropertiesFile.exists() &&
+    listOf("storePassword", "keyPassword", "keyAlias", "storeFile").all {
+        (keystoreProperties[it] as? String)?.isNotBlank() == true
+    }
+val hasValidKeystore = hasSigningProperties && resolvedStoreFile?.isFile == true
 
 android {
     namespace = "id.haansiro.mporttestspeed"
@@ -74,8 +79,8 @@ android {
     buildTypes {
         release {
             require(hasValidKeystore) {
-                "Release signing keystore is missing. Configure android/key.properties " +
-                    "or provide CI signing secrets before building a release."
+                "Release signing is not configured. CI must generate android/key.properties " +
+                    "from GitHub Secrets and provide a valid private-key keystore."
             }
             signingConfig = signingConfigs.getByName("release")
             isMinifyEnabled = true

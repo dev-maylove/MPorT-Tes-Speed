@@ -24,3 +24,11 @@ coverage/
 *.keystore
 **/keystore*.txt
 **/tes_keystore.txt
+
+# CI-generated Android signing material
+android/key.properties
+android/app/*.jks
+android/app/*.keystore
+**/key.properties
+**/*.jks
+**/*.keystore
