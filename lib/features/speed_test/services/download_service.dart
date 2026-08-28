@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:http/http.dart' as http;
 
 import '../../../core/constants/server_config.dart';
-import '../utils/isolate_workers.dart';
 import '../utils/throughput_math.dart';
 
 class DownloadResult {
