@@ -271,55 +271,39 @@ jobs:
           APKSIGNER="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
           test -n "$APKSIGNER" || { echo '::error::apksigner was not found'; exit 1; }
 
-          # AGP 9 may emit a valid v2/v3 APK without the legacy v1 JAR
-          # signature. Re-sign the already-built APK with the same CI
-          # keystore so V1/V2/V3/V4 are deterministic. The certificate
-          # remains the same production certificate.
-          export KEYSTORE_PASSWORD='${{ secrets.KEYSTORE_PASSWORD }}'
-          export KEY_PASSWORD='${{ secrets.KEY_PASSWORD }}'
-          export KEY_ALIAS='${{ secrets.KEY_ALIAS }}'
-          # Explicitly target API 1 so legacy V1 signing is evaluated by apksigner.
-          # Keep comments outside the continued shell command.
-          # First create the normal embedded V1/V2/V3 signatures.
-          # V4 is a detached .idsig artifact and is generated in a second,
-          # explicit pass so it is not affected by the APK's legacy minSdk.
-          rm -f "$APK.idsig"
+          # Use ONE deterministic signing pass. V4 is generated from the exact
+          # final APK bytes, so a second in-place signing pass can invalidate the
+          # previously generated .idsig. apksigner writes <output>.idsig beside
+          # the explicit --out file.
+          rm -f "$APK.idsig" "$APK.ci-signed.apk" "$APK.ci-signed.apk.idsig"
+          SIGNED_APK="$RUNNER_TEMP/MPorT-final-signed.apk"
+          rm -f "$SIGNED_APK" "$SIGNED_APK.idsig"
+
           "$APKSIGNER" sign \
             --ks android/app/mport-release.jks \
             --ks-key-alias "$KEY_ALIAS" \
             --ks-pass env:KEYSTORE_PASSWORD \
             --key-pass env:KEY_PASSWORD \
             --min-sdk-version 18 \
-            --v1-signing-enabled true \
-            --v2-signing-enabled true \
-            --v3-signing-enabled true \
-            --v4-signing-enabled false \
-            "$APK"
-
-          # Re-sign the final APK with all requested schemes. API 30 is the first
-          # Android release supporting V4; explicit booleans avoid apksigner syntax
-          # ambiguity and keep V1/V2/V3 present in the final APK.
-          "$APKSIGNER" sign \
-            --ks android/app/mport-release.jks \
-            --ks-key-alias "$KEY_ALIAS" \
-            --ks-pass env:KEYSTORE_PASSWORD \
-            --key-pass env:KEY_PASSWORD \
-            --min-sdk-version 30 \
+            --align-file-size \
             --v1-signing-enabled true \
             --v2-signing-enabled true \
             --v3-signing-enabled true \
             --v4-signing-enabled true \
+            --out "$SIGNED_APK" \
             "$APK"
 
+          test -s "$SIGNED_APK" || { echo '::error::apksigner did not produce the final signed APK'; exit 1; }
+          test -s "$SIGNED_APK.idsig" || { echo '::error::apksigner did not produce the matching V4 .idsig'; exit 1; }
+          mv -f "$SIGNED_APK" "$APK"
+          mv -f "$SIGNED_APK.idsig" "$APK.idsig"
+
+          # Verify the exact APK and the exact .idsig generated from that APK.
           "$APKSIGNER" verify --verbose --print-certs --min-sdk-version 18 "$APK" | tee "$RUNNER_TEMP/apksigner.txt"
           grep -Fq 'Verifies' "$RUNNER_TEMP/apksigner.txt" || {
             echo '::error::apksigner did not verify the release APK.'
             exit 1
           }
-          # The release profile intentionally enables the four APK signing
-          # schemes supported directly by AGP: v1, v2, v3 and v4. Keep these
-          # checks strict so a future AGP/toolchain change cannot silently
-          # drop one of the requested schemes.
           for EXPECTED in \
             'Verified using v1 scheme (JAR signing): true' \
             'Verified using v2 scheme (APK Signature Scheme v2): true' \
@@ -330,20 +314,11 @@ jobs:
             }
           done
 
-          # V4 is an external .idsig artifact rather than a signing block
-          # embedded in the APK. Locate it after the AGP build and verify it
-          # by passing the idsig explicitly to apksigner.
-          APK_IDS=$(find build -type f -name 'app-release.apk.idsig' -print -quit)
-          if [ -z "$APK_IDS" ]; then
-            APK_IDS=$(find build -type f -name '*.idsig' -print -quit)
-          fi
-          test -n "$APK_IDS" || {
-            echo '::error::V4 signing artifact (.idsig) was not produced.'
-            exit 1
-          }
-          "$APKSIGNER" verify --verbose --print-certs --min-sdk-version 30 --v4-signature-file "$APK_IDS" "$APK" | tee "$RUNNER_TEMP/apksigner-v4.txt"
+          APK_IDS="$APK.idsig"
+          "$APKSIGNER" verify --verbose --print-certs --min-sdk-version 30 \
+            --v4-signature-file "$APK_IDS" "$APK" | tee "$RUNNER_TEMP/apksigner-v4.txt"
           grep -Fq 'Verified using v4 scheme (APK Signature Scheme v4): true' "$RUNNER_TEMP/apksigner-v4.txt" || {
-            echo '::error::APK v4 signature was not verified.'
+            echo '::error::APK v4 signature was not verified against the exact matching .idsig.'
             exit 1
           }
           echo "V4 idsig: $APK_IDS"
