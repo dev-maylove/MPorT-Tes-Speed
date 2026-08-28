@@ -283,13 +283,16 @@ jobs:
             --ks-key-alias "$KEY_ALIAS" \
             --ks-pass env:KEYSTORE_PASSWORD \
             --key-pass env:KEY_PASSWORD \
+            # Explicitly target API 1 so the requested legacy V1 JAR scheme is
+            # actually emitted even when the APK manifest has a modern minSdk.
+            --min-sdk-version 1 \
             --v1-signing-enabled true \
             --v2-signing-enabled true \
             --v3-signing-enabled true \
             --v4-signing-enabled true \
             "$APK"
 
-          "$APKSIGNER" verify --verbose --print-certs "$APK" | tee "$RUNNER_TEMP/apksigner.txt"
+          "$APKSIGNER" verify --verbose --print-certs --min-sdk-version 1 "$APK" | tee "$RUNNER_TEMP/apksigner.txt"
           grep -Fq 'Verifies' "$RUNNER_TEMP/apksigner.txt" || {
             echo '::error::apksigner did not verify the release APK.'
             exit 1
@@ -319,7 +322,7 @@ jobs:
             echo '::error::V4 signing artifact (.idsig) was not produced.'
             exit 1
           }
-          "$APKSIGNER" verify --verbose --print-certs --v4-signature-file "$APK_IDS" "$APK" | tee "$RUNNER_TEMP/apksigner-v4.txt"
+          "$APKSIGNER" verify --verbose --print-certs --min-sdk-version 1 --v4-signature-file "$APK_IDS" "$APK" | tee "$RUNNER_TEMP/apksigner-v4.txt"
           grep -Fq 'Verified using v4 scheme (APK Signature Scheme v4): true' "$RUNNER_TEMP/apksigner-v4.txt" || {
             echo '::error::APK v4 signature was not verified.'
             exit 1
@@ -351,7 +354,7 @@ jobs:
 
           # Release artifacts must not be debug-signed. The APK must also be
           # structurally valid and have exactly one Android signing certificate.
-          SIGNER_COUNT="$($APKSIGNER verify --print-certs "$APK" 2>/dev/null | grep -c '^Signer #' || true)"
+          SIGNER_COUNT="$($APKSIGNER verify --min-sdk-version 1 --print-certs "$APK" 2>/dev/null | grep -c '^Signer #' || true)"
           test "$SIGNER_COUNT" -eq 1 || { echo "::error::Expected exactly one APK signer, found $SIGNER_COUNT"; exit 1; }
 
           echo 'Release artifacts:'
