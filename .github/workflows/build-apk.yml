@@ -259,6 +259,13 @@ jobs:
             --tree-shake-icons
 
       - name: Locate and verify signed APK + AAB
+        env:
+          # GitHub Actions step environments are isolated. These values are
+          # required by apksigner via --ks-key-alias / env:KEYSTORE_PASSWORD /
+          # env:KEY_PASSWORD, so expose the signing secrets in this step too.
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
           set -euo pipefail
           APK='build/app/outputs/flutter-apk/app-release.apk'
