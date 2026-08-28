@@ -73,6 +73,7 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
   String? _serverStatus; // Online / Offline / latency
 
   StreamSubscription<List<ConnectivityResult>>? _connectivitySub;
+  Timer? _startupServerTimer;
   String? _connectivityKey; // fingerprint of last connectivity type(s)
 
   // Bottom sheet
@@ -119,18 +120,27 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
 
     _serverService.addListener(_onServerChanged);
     _realtime.addListener(_onServerChanged);
-    _autoSelectServer();
+
+    // Keep startup lightweight. Server probing, ISP lookup and permission
+    // work are useful metadata, but none belongs on the critical GO path.
     _realtime.connect();
-    _fetchMeta();
-    _loadDeviceModel();
     _listenConnectivity();
-    // Request location + notification (and nearby Wi-Fi) then refresh SSID label
-    // ignore: unawaited_futures
-    _bootstrapPermissions();
+    _startupServerTimer = Timer(const Duration(milliseconds: 1200), () {
+      if (!mounted || running) return;
+      unawaited(_autoSelectServer());
+      unawaited(_fetchMeta());
+      unawaited(_loadDeviceModel());
+      unawaited(_bootstrapPermissions());
+    });
     // After first frame: pre-allocate upload buffer so start-test stays snappy
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      _service.warmUp();
+      // Give the first frame priority. Payload generation is isolated, but
+      // starting it immediately can still contend with Android's startup work.
+      unawaited(Future<void>.delayed(const Duration(milliseconds: 700), () {
+        if (!mounted || running) return;
+        unawaited(_service.warmUp());
+      }));
     });
   }
 
@@ -340,6 +350,7 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
   @override
   void dispose() {
     _connectivitySub?.cancel();
+    _startupServerTimer?.cancel();
     _serverService.removeListener(_onServerChanged);
     _realtime.removeListener(_onServerChanged);
     _gaugeCtrl.dispose();
@@ -385,6 +396,12 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
   Future<void> startTest() async {
     if (running) return;
 
+    // Once GO is pressed, stop deferred discovery/metadata from competing with
+    // the actual speed-test connections. The selected/default server remains
+    // valid and the metadata can be refreshed after the test.
+    _startupServerTimer?.cancel();
+    _startupServerTimer = null;
+
     // Collapse sheet when starting
     try {
       _sheetCtrl.animateTo(0.14,
@@ -408,11 +425,8 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
       _serverStatus = 'Checking…';
     });
     _animateGaugeTo(0);
-    // Lightweight status only — avoid stacking geo-IP / SSID work on test start
-    // (already loaded in initState). Keeps UI responsive when user taps GO.
-    // ignore: unawaited_futures
-    _refreshServerStatus();
-
+    // Do not start a second network request here: ping/download/upload are the
+    // critical path and competing with a status probe makes GO feel sluggish.
     try {
       final result = await _service.start(
         multiConnection: _multiConnection,
@@ -463,8 +477,9 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
         // nextInt max must be <= 2^32; build a 10–13 digit Test ID safely
         _testId = _generateTestId();
       });
-      // After test finishes: reset needle to 0 (center still shows final Mbps).
-      _animateGaugeTo(0);
+      // Keep the last gauge value coherent with the final result. The result
+      // panel replaces the gauge below, but no extra needle reset is performed.
+      // Refresh server status only after the critical test path has completed.
       // ignore: unawaited_futures
       _refreshServerStatus();
 
@@ -1237,9 +1252,12 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
                         width: 280,
                         height: 280,
                         child: AnimatedBuilder(
-                          animation: Listenable.merge([_pulseCtrl, _gaugeCtrl]),
+                          // The gauge must not rebuild at 60 fps just because
+                          // the decorative pulse animates. Rebuild only while
+                          // the needle/value tween is moving.
+                          animation: _gaugeCtrl,
                           builder: (context, _) {
-                            final pulse = running ? _pulseCtrl.value : 0.35;
+                            const pulse = 0.35;
                             // Read tween values here so center text tracks the needle
                             // without full-screen setState on every frame.
                             final progress = _gaugeCtrl.isAnimating

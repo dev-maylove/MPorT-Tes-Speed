@@ -9,3 +9,10 @@ flutter run
 ```
 
 Signing: see `KEYSTORE.md` in the project root.
+
+## Release signing
+
+Release signing credentials are intentionally not included in this source archive.
+Configure `android/key.properties` and provide the replacement keystore through your
+local/CI secret store before building a release. Never commit keystores, passwords,
+or base64-encoded signing material.

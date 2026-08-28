@@ -133,9 +133,14 @@ jobs:
           test -n "$KEYSTORE_PASSWORD" || { echo '::error::Missing KEYSTORE_PASSWORD'; exit 1; }
           test -n "$KEY_ALIAS" || { echo '::error::Missing KEY_ALIAS'; exit 1; }
           test -n "$KEY_PASSWORD" || { echo '::error::Missing KEY_PASSWORD'; exit 1; }
-          # Fail closed if a signing secret contains accidental whitespace/newlines.
-          [[ "$KEY_ALIAS" != *$'\n'* ]] || { echo '::error::KEY_ALIAS contains a newline'; exit 1; }
-          [[ "$KEY_ALIAS" != *$'\r'* ]] || { echo '::error::KEY_ALIAS contains a carriage return'; exit 1; }
+          # Never allow a committed/local key.properties to silently override CI signing.
+          test ! -f android/key.properties || { echo '::error::android/key.properties must not exist in CI source'; exit 1; }
+          # Never allow a keystore to be supplied by the repository instead of the secret.
+          if find . -type f \( -name '*.jks' -o -name '*.keystore' \) -not -path './.git/*' | grep -q .; then
+            echo '::error::A signing keystore exists in the repository checkout; remove it and use GitHub Secrets.'
+            find . -type f \( -name '*.jks' -o -name '*.keystore' \) -not -path './.git/*' -print
+            exit 1
+          fi
 
       - name: Recreate release keystore from GitHub Secret
         env:
@@ -150,9 +155,14 @@ jobs:
           # GitHub Secret contains only the Base64 representation of the JKS.
           # It is reconstructed temporarily on the runner and removed in the
           # final cleanup step.
-          printf '%s' "$KEYSTORE_BASE64" | tr -d '\r\n ' | base64 --decode > android/app/mport-release.jks
+          # Decode strictly and reject malformed/empty secret material.
+          CLEAN_B64="$(printf '%s' "$KEYSTORE_BASE64" | tr -d '[:space:]')"
+          printf '%s' "$CLEAN_B64" | base64 --decode > android/app/mport-release.jks
           chmod 600 android/app/mport-release.jks
           test -s android/app/mport-release.jks
+          # The keystore must be a readable Java keystore containing the exact alias/password pair.
+          keytool -list -keystore android/app/mport-release.jks \
+            -alias "$KEY_ALIAS" -storepass "$KEYSTORE_PASSWORD" >/dev/null
 
           # key.properties is generated only on the runner; it is gitignored.
           printf '%s\n' \
@@ -163,16 +173,17 @@ jobs:
             > android/key.properties
           chmod 600 android/key.properties
 
-          echo 'Verifying release keystore and alias...'
+          echo 'Release keystore verified.'
+
+          # Capture the expected signing certificate fingerprint without printing
+          # any passwords or private key material.
           keytool -list -v -keystore android/app/mport-release.jks \
-            -alias "$KEY_ALIAS" -storepass "$KEYSTORE_PASSWORD" > /tmp/release-keystore.txt
-          grep -q '^Alias name: ' /tmp/release-keystore.txt
-          grep -q '^Entry type: PrivateKeyEntry' /tmp/release-keystore.txt
-          KEYSTORE_SHA256="$(keytool -list -v -keystore android/app/mport-release.jks -alias "$KEY_ALIAS" -storepass "$KEYSTORE_PASSWORD" | awk -F': ' '/SHA256:/{print $2; exit}' | tr -d '[:space:]')"
-          test -n "$KEYSTORE_SHA256" || { echo '::error::Could not read signing certificate SHA-256'; exit 1; }
-          echo "Signing certificate SHA-256: $KEYSTORE_SHA256"
-          echo "KEYSTORE_SHA256=$KEYSTORE_SHA256" >> "$GITHUB_ENV"
-          echo 'Release keystore and private-key entry verified.'
+            -alias "$KEY_ALIAS" -storepass "$KEYSTORE_PASSWORD" \
+            > "$RUNNER_TEMP/release-cert.txt"
+          CERT_SHA256="$(awk -F': ' '/^[[:space:]]*SHA256:/{print $2; exit}' "$RUNNER_TEMP/release-cert.txt" | tr -d '[:space:]:')"
+          test -n "$CERT_SHA256" || { echo '::error::Could not determine release certificate SHA-256 fingerprint'; exit 1; }
+          echo "Expected signing certificate SHA-256: $CERT_SHA256"
+          echo "CERT_SHA256=$CERT_SHA256" >> "$GITHUB_ENV"
 
       - name: Prepare Gradle wrapper
         run: |
@@ -221,21 +232,46 @@ jobs:
           test -f "$APK" || { echo '::error::Release APK was not produced'; exit 1; }
           test -f "$AAB" || { echo '::error::Release AAB was not produced'; exit 1; }
 
+          echo 'Inspecting APK signing entries...'
+          unzip -Z1 "$APK" | grep -Fx 'META-INF/MANIFEST.MF' >/dev/null || {
+            echo '::error::Release APK has no META-INF/MANIFEST.MF. v1 signing is required for this minSdk/verification path.'
+            exit 1
+          }
+
           echo 'Verifying APK signature with Android SDK apksigner...'
           APKSIGNER="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
           test -n "$APKSIGNER" || { echo '::error::apksigner was not found'; exit 1; }
-          "$APKSIGNER" verify --verbose --min-sdk-version 21 "$APK"
-          APK_CERT_SHA256="$("$APKSIGNER" verify --print-certs "$APK" | awk -F': ' '/Signer #1 certificate SHA-256 digest:/{print $2; exit}' | tr -d '[:space:]')"
-          test -n "$APK_CERT_SHA256" || { echo '::error::Could not read APK signer certificate SHA-256'; exit 1; }
-          test "$APK_CERT_SHA256" = "$KEYSTORE_SHA256" || { echo "::error::APK signer certificate does not match release keystore. Expected $KEYSTORE_SHA256, got $APK_CERT_SHA256"; exit 1; }
-          echo 'APK signature verified and certificate matches the configured release keystore.'
+          "$APKSIGNER" verify --verbose --print-certs "$APK" | tee "$RUNNER_TEMP/apksigner.txt"
+          grep -Fq 'Verifies' "$RUNNER_TEMP/apksigner.txt" || {
+            echo '::error::apksigner did not verify the release APK.'
+            exit 1
+          }
+          grep -Fq 'Verified using v1 scheme (JAR signing): true' "$RUNNER_TEMP/apksigner.txt" || {
+            echo '::error::APK is not v1/JAR signed. Enable V1 signing in the release signingConfig.'
+            exit 1
+          }
+          grep -Fq 'Verified using v2 scheme (APK Signature Scheme v2): true' "$RUNNER_TEMP/apksigner.txt" || {
+            echo '::error::APK is not v2 signed. Enable V2 signing in the release signingConfig.'
+            exit 1
+          }
+          tr -d '[:space:]:' < "$RUNNER_TEMP/apksigner.txt" | grep -Fq "$CERT_SHA256" || {
+            echo '::error::APK certificate does not match the CI release keystore certificate.'
+            exit 1
+          }
+          echo 'APK signature and certificate fingerprint verified.'
 
           echo 'Verifying AAB signature with jarsigner...'
-          jarsigner -verify -strict "$AAB" >/tmp/jarsigner-aab.txt
-          AAB_CERT_SHA256="$(keytool -printcert -jarfile "$AAB" | awk -F': ' '/SHA256:/{print $2; exit}' | tr -d '[:space:]')"
-          test -n "$AAB_CERT_SHA256" || { echo '::error::Could not read AAB signer certificate SHA-256'; exit 1; }
-          test "$AAB_CERT_SHA256" = "$KEYSTORE_SHA256" || { echo "::error::AAB signer certificate does not match release keystore. Expected $KEYSTORE_SHA256, got $AAB_CERT_SHA256"; exit 1; }
-          echo 'AAB signature verified and certificate matches the configured release keystore.'
+          jarsigner -verify -verbose:certs "$AAB" >"$RUNNER_TEMP/jarsigner-aab.txt"
+          tr -d '[:space:]:' < "$RUNNER_TEMP/jarsigner-aab.txt" | grep -Fq "$CERT_SHA256" || {
+            echo '::error::AAB signer certificate does not match the CI release keystore certificate.'
+            exit 1
+          }
+          echo 'AAB signature and certificate fingerprint verified.'
+
+          # Release artifacts must not be debug-signed. The APK must also be
+          # structurally valid and have exactly one Android signing certificate.
+          SIGNER_COUNT="$($APKSIGNER verify --print-certs "$APK" 2>/dev/null | grep -c '^Signer #' || true)"
+          test "$SIGNER_COUNT" -eq 1 || { echo "::error::Expected exactly one APK signer, found $SIGNER_COUNT"; exit 1; }
 
           echo 'Release artifacts:'
           ls -lh "$APK" "$AAB"
@@ -266,5 +302,8 @@ jobs:
         if: always()
         run: |
           rm -f android/app/mport-release.jks android/key.properties
-          rm -f /tmp/jarsigner-aab.txt /tmp/release-keystore.txt
+          rm -f "$RUNNER_TEMP/release-cert.txt" "$RUNNER_TEMP/apksigner.txt" "$RUNNER_TEMP/jarsigner-aab.txt"
+          # Fail cleanup if signing material still exists.
+          test ! -e android/app/mport-release.jks
+          test ! -e android/key.properties
           echo 'Temporary signing material removed.'

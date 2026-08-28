@@ -44,3 +44,20 @@ Release APK and AAB builds now pass native ELF stripping via the Android NDK `ll
 - Fixed release NDK preparation: `sdkmanager` is now resolved explicitly from Android command-line tools instead of assuming it is on PATH.
 - Validates `ANDROID_HOME`/`ANDROID_SDK_ROOT` before use and adds the resolved sdkmanager directory to `GITHUB_PATH`.
 - Keeps APK + AAB signed build and NDK/llvm-strip verification unchanged.
+
+## v9 speed-test responsiveness + gauge/result consistency — 2026-08-28
+
+### Fixed
+- Live download/upload gauge values now use the same measured-window byte/time formula as the final result. This removes the previous mismatch where the needle used EMA instantaneous samples while the final result used total measured bytes.
+- Upload result counting now accepts only successful 2xx responses and does not count requests that complete after the test deadline.
+- Removed the final needle reset after completion so the final gauge state is not artificially different from the reported value during the hand-off to the result panel.
+- Removed the animated pulse controller from the gauge's rebuild dependency. The gauge no longer rebuilds at 60 fps just because decorative glow is pulsing, reducing rendering pressure during test start and measurement.
+- Deferred non-critical server probing, ISP/device metadata and permission work until after startup. Pressing GO cancels the deferred startup probe so it cannot compete with ping/download/upload connections.
+- Deferred upload payload pre-warming slightly after the first frame so Android startup/render work gets priority.
+- Added unit coverage for the shared throughput formula and invalid-input handling.
+
+### Validation limitation
+- Flutter/Dart SDK is not installed in this execution environment, so `flutter analyze` and `flutter test` could not be executed here. Static source inspection, targeted consistency checks, and archive inspection were performed instead.
+
+### Signing security
+- Removed release/test keystores, `key.properties`, and base64 signing material from the redistributed source archive. The release Gradle configuration intentionally requires replacement signing credentials supplied locally or through CI secrets.

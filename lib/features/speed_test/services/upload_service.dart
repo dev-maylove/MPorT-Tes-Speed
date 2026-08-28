@@ -103,18 +103,12 @@ class UploadService {
     var successCount = 0;
     final threadCount = threads.clamp(1, 6);
 
-    final samples = <double>[];
-    var lastSampleBytes = 0;
-    var lastSampleMs = 0;
-    var smoothUi = 0.0;
     var lastUiMs = 0;
 
     void endGraceIfNeeded() {
       if (!graceEnded && stopwatch.elapsed >= grace) {
         graceEnded = true;
         graceBytes = totalBytes;
-        lastSampleBytes = totalBytes;
-        lastSampleMs = stopwatch.elapsedMilliseconds;
       }
     }
 
@@ -122,22 +116,17 @@ class UploadService {
       endGraceIfNeeded();
       if (!graceEnded || _cancelled) return;
       final now = stopwatch.elapsedMilliseconds;
-      final dt = (now - lastSampleMs) / 1000.0;
-      if (dt < 0.08) return;
-      final dBytes = totalBytes - lastSampleBytes;
-      lastSampleBytes = totalBytes;
-      lastSampleMs = now;
-      if (dBytes <= 0) return;
-      final inst = dBytes * 8 / dt / 1e6 * ServerConfig.overheadAdjustment;
-      if (inst.isFinite && inst > 0) {
-        samples.add(inst);
-        smoothUi = ema(smoothUi, inst);
-        if (onProgress != null &&
-            now - lastUiMs >= ServerConfig.progressThrottleMs) {
-          lastUiMs = now;
-          onProgress(smoothUi);
-        }
-      }
+      if (now - lastUiMs < ServerConfig.progressThrottleMs) return;
+      final elapsedSec = (stopwatch.elapsed - grace).inMicroseconds / 1e6;
+      final measuredBytes = totalBytes - graceBytes;
+      final liveMbps = measuredMbps(
+        measuredBytes,
+        elapsedSec,
+        overhead: ServerConfig.overheadAdjustment,
+      );
+      if (liveMbps <= 0) return;
+      lastUiMs = now;
+      onProgress?.call(liveMbps);
     }
 
     final sampleTimer = Timer.periodic(
@@ -171,10 +160,12 @@ class UploadService {
                 );
           } catch (_) {}
 
-          if (response.statusCode >= 500) continue;
+          if (response.statusCode < 200 || response.statusCode >= 300) continue;
 
-          totalBytes += payload.length;
-          successCount++;
+          if (stopwatch.elapsed <= duration) {
+            totalBytes += payload.length;
+            successCount++;
+          }
         } catch (_) {
           if (!running || _cancelled) break;
           await Future<void>.delayed(const Duration(milliseconds: 40));
@@ -202,18 +193,18 @@ class UploadService {
 
     final measureBytes =
         graceEnded ? (totalBytes - graceBytes) : totalBytes;
+    // The measurement window ends at the configured deadline, not when a
+    // late HTTP worker happens to finish. This keeps the denominator stable.
+    final elapsedForScore = stopwatch.elapsed < duration ? stopwatch.elapsed : duration;
     final measureSec = graceEnded
-        ? (stopwatch.elapsed - grace).inMicroseconds / 1e6
-        : stopwatch.elapsedMicroseconds / 1e6;
+        ? (elapsedForScore - grace).inMicroseconds / 1e6
+        : elapsedForScore.inMicroseconds / 1e6;
 
-    final mbps = await computeOoklaMbps(
-      OoklaScoreArgs(
-        samples: List<double>.from(samples),
-        topSamplePercent: ServerConfig.topSamplePercent,
-        overhead: ServerConfig.overheadAdjustment,
-        measureBytes: measureBytes,
-        measureSeconds: measureSec,
-      ),
+    // Final score uses the exact same byte/time formula as the live gauge.
+    final mbps = measuredMbps(
+      measureBytes,
+      measureSec,
+      overhead: ServerConfig.overheadAdjustment,
     );
 
     if (totalBytes == 0) {

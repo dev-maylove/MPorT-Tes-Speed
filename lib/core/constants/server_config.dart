@@ -93,11 +93,10 @@ class ServerConfig {
   // ── Overhead (HTTP framing / TCP) — mild, like commercial apps ─
   static const double overheadAdjustment = 1.04;
 
-  // ── Throughput sampling (Ookla-style top-N%) ─────────────
-  /// Instantaneous sample interval for final result.
+  // ── Throughput sampling ─────────────────────────────────
+  /// Live gauge update interval. Final and live values use the same
+  /// measured byte/time window; this interval only controls UI refresh rate.
   static const int sampleIntervalMs = 200;
-  /// Average the fastest [topSamplePercent]% of samples (Ookla ≈ top 10%).
-  static const double topSamplePercent = 0.10;
 
   // ── Timeout ─────────────────────────────────────────────
   static const int connectTimeoutSeconds = 10;

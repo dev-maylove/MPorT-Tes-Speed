@@ -18,7 +18,7 @@ class DownloadResult {
   });
 }
 
-/// Multi-connection download test with Ookla-style top-10% sampling.
+/// Multi-connection download test with a shared measured-window throughput score.
 class DownloadService {
   bool _cancelled = false;
   http.Client? _client;
@@ -51,19 +51,12 @@ class DownloadService {
     const grace = Duration(seconds: ServerConfig.gracePeriodSeconds);
     final threadCount = threads.clamp(1, 8);
 
-    // Instantaneous samples after grace (for final Ookla-style score)
-    final samples = <double>[];
-    var lastSampleBytes = 0;
-    var lastSampleMs = 0;
-    var smoothUi = 0.0;
     var lastUiMs = 0;
 
     void endGraceIfNeeded() {
       if (!graceEnded && stopwatch.elapsed >= grace) {
         graceEnded = true;
         graceBytes = totalBytes;
-        lastSampleBytes = totalBytes;
-        lastSampleMs = stopwatch.elapsedMilliseconds;
       }
     }
 
@@ -71,23 +64,19 @@ class DownloadService {
       endGraceIfNeeded();
       if (!graceEnded || _cancelled) return;
       final now = stopwatch.elapsedMilliseconds;
-      final dt = (now - lastSampleMs) / 1000.0;
-      if (dt < 0.08) return;
-      final dBytes = totalBytes - lastSampleBytes;
-      lastSampleBytes = totalBytes;
-      lastSampleMs = now;
-      if (dBytes <= 0) return;
-      final inst = dBytes * 8 / dt / 1e6 * ServerConfig.overheadAdjustment;
-      if (inst.isFinite && inst > 0) {
-        samples.add(inst);
-        // Smooth for UI only
-        smoothUi = ema(smoothUi, inst);
-        if (onProgress != null &&
-            now - lastUiMs >= ServerConfig.progressThrottleMs) {
-          lastUiMs = now;
-          onProgress(smoothUi);
-        }
-      }
+      if (now - lastUiMs < ServerConfig.progressThrottleMs) return;
+      final elapsedSec = graceEnded
+          ? (stopwatch.elapsed - grace).inMicroseconds / 1e6
+          : stopwatch.elapsedMicroseconds / 1e6;
+      final measuredBytes = graceEnded ? totalBytes - graceBytes : totalBytes;
+      final liveMbps = measuredMbps(
+        measuredBytes,
+        elapsedSec,
+        overhead: ServerConfig.overheadAdjustment,
+      );
+      if (liveMbps <= 0) return;
+      lastUiMs = now;
+      onProgress?.call(liveMbps);
     }
 
     final sampleTimer = Timer.periodic(
@@ -154,19 +143,18 @@ class DownloadService {
 
     final measureBytes =
         graceEnded ? (totalBytes - graceBytes) : totalBytes;
+    // The measurement window ends at the configured deadline, not when a
+    // late HTTP worker happens to finish. This keeps the denominator stable.
+    final elapsedForScore = stopwatch.elapsed < duration ? stopwatch.elapsed : duration;
     final measureSec = graceEnded
-        ? (stopwatch.elapsed - grace).inMicroseconds / 1e6
-        : stopwatch.elapsedMicroseconds / 1e6;
+        ? (elapsedForScore - grace).inMicroseconds / 1e6
+        : elapsedForScore.inMicroseconds / 1e6;
 
-    // Final score may sort many samples — offload when list is large.
-    final mbps = await computeOoklaMbps(
-      OoklaScoreArgs(
-        samples: List<double>.from(samples),
-        topSamplePercent: ServerConfig.topSamplePercent,
-        overhead: ServerConfig.overheadAdjustment,
-        measureBytes: measureBytes,
-        measureSeconds: measureSec,
-      ),
+    // Final score uses the exact same byte/time formula as the live gauge.
+    final mbps = measuredMbps(
+      measureBytes,
+      measureSec,
+      overhead: ServerConfig.overheadAdjustment,
     );
 
     if (!_cancelled && totalBytes == 0) {
