@@ -215,9 +215,9 @@ jobs:
           keytool -list -v -keystore android/app/mport-release.jks \
             -alias "$KEY_ALIAS" -storepass "$KEYSTORE_PASSWORD" \
             > "$RUNNER_TEMP/release-cert.txt"
-          CERT_SHA256="$(awk -F': ' '/^[[:space:]]*SHA256:/{print $2; exit}' "$RUNNER_TEMP/release-cert.txt" | tr -d '[:space:]:' | tr '[:upper:]' '[:lower:]')"
+          CERT_SHA256="$(awk -F': ' '/^[[:space:]]*SHA256:/{print $2; exit}' "$RUNNER_TEMP/release-cert.txt" | tr -d '[:space:]:')"
           test -n "$CERT_SHA256" || { echo '::error::Could not determine release certificate SHA-256 fingerprint'; exit 1; }
-          echo "Expected signing certificate SHA-256 (normalized): $CERT_SHA256"
+          echo "Expected signing certificate SHA-256: $CERT_SHA256"
           echo "CERT_SHA256=$CERT_SHA256" >> "$GITHUB_ENV"
 
       - name: Prepare Gradle wrapper
@@ -267,9 +267,28 @@ jobs:
           test -f "$APK" || { echo '::error::Release APK was not produced'; exit 1; }
           test -f "$AAB" || { echo '::error::Release AAB was not produced'; exit 1; }
 
-          echo 'Verifying APK signature with Android SDK apksigner...'
+          echo 'Normalizing release APK signing with Android SDK apksigner...'
           APKSIGNER="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
           test -n "$APKSIGNER" || { echo '::error::apksigner was not found'; exit 1; }
+
+          # AGP 9 may emit a valid v2/v3 APK without the legacy v1 JAR
+          # signature. Re-sign the already-built APK with the same CI
+          # keystore so V1/V2/V3/V4 are deterministic. The certificate
+          # remains the same production certificate.
+          export KEYSTORE_PASSWORD='${{ secrets.KEYSTORE_PASSWORD }}'
+          export KEY_PASSWORD='${{ secrets.KEY_PASSWORD }}'
+          export KEY_ALIAS='${{ secrets.KEY_ALIAS }}'
+          "$APKSIGNER" sign \
+            --ks android/app/mport-release.jks \
+            --ks-key-alias "$KEY_ALIAS" \
+            --ks-pass env:KEYSTORE_PASSWORD \
+            --key-pass env:KEY_PASSWORD \
+            --v1-signing-enabled true \
+            --v2-signing-enabled true \
+            --v3-signing-enabled true \
+            --v4-signing-enabled true \
+            "$APK"
+
           "$APKSIGNER" verify --verbose --print-certs "$APK" | tee "$RUNNER_TEMP/apksigner.txt"
           grep -Fq 'Verifies' "$RUNNER_TEMP/apksigner.txt" || {
             echo '::error::apksigner did not verify the release APK.'
@@ -316,7 +335,7 @@ jobs:
           # failure.
           grep -F 'Verified using v3.1 scheme' "$RUNNER_TEMP/apksigner-v4.txt" || true
           grep -F 'Verified using v3.2 scheme' "$RUNNER_TEMP/apksigner-v4.txt" || true
-          tr -d '[:space:]:' < "$RUNNER_TEMP/apksigner.txt" | tr '[:upper:]' '[:lower:]' | grep -Fq "$CERT_SHA256" || {
+          tr -d '[:space:]:' < "$RUNNER_TEMP/apksigner.txt" | grep -Fq "$CERT_SHA256" || {
             echo '::error::APK certificate does not match the CI release keystore certificate.'
             exit 1
           }
@@ -324,7 +343,7 @@ jobs:
 
           echo 'Verifying AAB signature with jarsigner...'
           jarsigner -verify -verbose:certs "$AAB" >"$RUNNER_TEMP/jarsigner-aab.txt"
-          tr -d '[:space:]:' < "$RUNNER_TEMP/jarsigner-aab.txt" | tr '[:upper:]' '[:lower:]' | grep -Fq "$CERT_SHA256" || {
+          tr -d '[:space:]:' < "$RUNNER_TEMP/jarsigner-aab.txt" | grep -Fq "$CERT_SHA256" || {
             echo '::error::AAB signer certificate does not match the CI release keystore certificate.'
             exit 1
           }
