@@ -215,8 +215,9 @@ jobs:
           keytool -list -v -keystore android/app/mport-release.jks \
             -alias "$KEY_ALIAS" -storepass "$KEYSTORE_PASSWORD" \
             > "$RUNNER_TEMP/release-cert.txt"
-          CERT_SHA256="$(awk -F': ' '/^[[:space:]]*SHA256:/{print $2; exit}' "$RUNNER_TEMP/release-cert.txt" | tr -d '[:space:]:')"
+          CERT_SHA256="$(awk -F': ' '/^[[:space:]]*SHA256:/{print $2; exit}' "$RUNNER_TEMP/release-cert.txt" | tr -d '[:space:]:' | tr '[:lower:]' '[:upper:]')"
           test -n "$CERT_SHA256" || { echo '::error::Could not determine release certificate SHA-256 fingerprint'; exit 1; }
+          test "${#CERT_SHA256}" -eq 64 || { echo '::error::Release certificate SHA-256 fingerprint has an unexpected length'; exit 1; }
           echo "Expected signing certificate SHA-256: $CERT_SHA256"
           echo "CERT_SHA256=$CERT_SHA256" >> "$GITHUB_ENV"
 
@@ -339,16 +340,30 @@ jobs:
           # failure.
           grep -F 'Verified using v3.1 scheme' "$RUNNER_TEMP/apksigner-v4.txt" || true
           grep -F 'Verified using v3.2 scheme' "$RUNNER_TEMP/apksigner-v4.txt" || true
-          tr -d '[:space:]:' < "$RUNNER_TEMP/apksigner.txt" | grep -Fq "$CERT_SHA256" || {
-            echo '::error::APK certificate does not match the CI release keystore certificate.'
+          # apksigner prints the SHA-256 digest in lowercase, while keytool
+          # commonly prints it in uppercase. Normalize both sides before
+          # comparing; otherwise a valid certificate can be rejected by a
+          # case-sensitive grep even though the digests are identical.
+          APK_CERT_SHA256="$("$APKSIGNER" verify --print-certs "$APK" 2>/dev/null |
+            awk -F': ' '/certificate SHA-256 digest:/{print $2; exit}' |
+            tr -d '[:space:]:' | tr '[:lower:]' '[:upper:]')"
+          test -n "$APK_CERT_SHA256" || { echo '::error::Could not read the APK signer certificate SHA-256 fingerprint'; exit 1; }
+          test "$APK_CERT_SHA256" = "$CERT_SHA256" || {
+            echo "::error::APK certificate does not match the CI release keystore certificate. Expected $CERT_SHA256, got $APK_CERT_SHA256."
             exit 1
           }
           echo 'APK signature and certificate fingerprint verified.'
 
           echo 'Verifying AAB signature with jarsigner...'
           jarsigner -verify -verbose:certs "$AAB" >"$RUNNER_TEMP/jarsigner-aab.txt"
-          tr -d '[:space:]:' < "$RUNNER_TEMP/jarsigner-aab.txt" | grep -Fq "$CERT_SHA256" || {
-            echo '::error::AAB signer certificate does not match the CI release keystore certificate.'
+          AAB_CERT_SHA256="$(awk -F': ' '/Certificate fingerprints:/{flag=1; next} flag && /SHA-256:/{print $2; exit}' "$RUNNER_TEMP/jarsigner-aab.txt" |
+            tr -d '[:space:]:' | tr '[:lower:]' '[:upper:]')"
+          test -n "$AAB_CERT_SHA256" || {
+            echo '::error::Could not read the AAB signer certificate SHA-256 fingerprint.'
+            exit 1
+          }
+          test "$AAB_CERT_SHA256" = "$CERT_SHA256" || {
+            echo "::error::AAB signer certificate does not match the CI release keystore certificate. Expected $CERT_SHA256, got $AAB_CERT_SHA256."
             exit 1
           }
           echo 'AAB signature and certificate fingerprint verified.'
