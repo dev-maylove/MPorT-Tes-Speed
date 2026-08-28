@@ -289,7 +289,7 @@ jobs:
             --ks-key-alias "$KEY_ALIAS" \
             --ks-pass env:KEYSTORE_PASSWORD \
             --key-pass env:KEY_PASSWORD \
-            --min-sdk-version 1 \
+            --min-sdk-version 18 \
             --v1-signing-enabled true \
             --v2-signing-enabled true \
             --v3-signing-enabled true \
@@ -311,7 +311,7 @@ jobs:
             --v4-signing-enabled true \
             "$APK"
 
-          "$APKSIGNER" verify --verbose --print-certs --min-sdk-version 1 "$APK" | tee "$RUNNER_TEMP/apksigner.txt"
+          "$APKSIGNER" verify --verbose --print-certs --min-sdk-version 18 "$APK" | tee "$RUNNER_TEMP/apksigner.txt"
           grep -Fq 'Verifies' "$RUNNER_TEMP/apksigner.txt" || {
             echo '::error::apksigner did not verify the release APK.'
             exit 1
@@ -373,7 +373,7 @@ jobs:
 
           # Release artifacts must not be debug-signed. The APK must also be
           # structurally valid and have exactly one Android signing certificate.
-          SIGNER_COUNT="$($APKSIGNER verify --min-sdk-version 1 --print-certs "$APK" 2>/dev/null | grep -c '^Signer #' || true)"
+          SIGNER_COUNT="$($APKSIGNER verify --min-sdk-version 18 --print-certs "$APK" 2>/dev/null | grep -c '^Signer #' || true)"
           test "$SIGNER_COUNT" -eq 1 || { echo "::error::Expected exactly one APK signer, found $SIGNER_COUNT"; exit 1; }
 
           echo 'Release artifacts:'
