@@ -215,9 +215,9 @@ jobs:
           keytool -list -v -keystore android/app/mport-release.jks \
             -alias "$KEY_ALIAS" -storepass "$KEYSTORE_PASSWORD" \
             > "$RUNNER_TEMP/release-cert.txt"
-          CERT_SHA256="$(awk -F': ' '/^[[:space:]]*SHA256:/{print $2; exit}' "$RUNNER_TEMP/release-cert.txt" | tr -d '[:space:]:')"
+          CERT_SHA256="$(awk -F': ' '/^[[:space:]]*SHA256:/{print $2; exit}' "$RUNNER_TEMP/release-cert.txt" | tr -d '[:space:]:' | tr '[:upper:]' '[:lower:]')"
           test -n "$CERT_SHA256" || { echo '::error::Could not determine release certificate SHA-256 fingerprint'; exit 1; }
-          echo "Expected signing certificate SHA-256: $CERT_SHA256"
+          echo "Expected signing certificate SHA-256 (normalized): $CERT_SHA256"
           echo "CERT_SHA256=$CERT_SHA256" >> "$GITHUB_ENV"
 
       - name: Prepare Gradle wrapper
@@ -275,14 +275,48 @@ jobs:
             echo '::error::apksigner did not verify the release APK.'
             exit 1
           }
-          # Do not require v1/JAR signing here. Modern Android release APKs
-          # may legitimately be v2-only (especially with newer AGP). The
-          # authoritative APK check is apksigner verification plus v2 signing.
-          grep -Fq 'Verified using v2 scheme (APK Signature Scheme v2): true' "$RUNNER_TEMP/apksigner.txt" || {
-            echo '::error::APK is not v2 signed. Enable V2 signing in the release signingConfig.'
+          # The release profile intentionally enables the four APK signing
+          # schemes supported directly by AGP: v1, v2, v3 and v4. Keep these
+          # checks strict so a future AGP/toolchain change cannot silently
+          # drop one of the requested schemes.
+          for EXPECTED in \
+            'Verified using v1 scheme (JAR signing): true' \
+            'Verified using v2 scheme (APK Signature Scheme v2): true' \
+            'Verified using v3 scheme (APK Signature Scheme v3): true'; do
+            grep -Fq "$EXPECTED" "$RUNNER_TEMP/apksigner.txt" || {
+              echo "::error::APK signing scheme check failed: $EXPECTED"
+              exit 1
+            }
+          done
+
+          # V4 is an external .idsig artifact rather than a signing block
+          # embedded in the APK. Locate it after the AGP build and verify it
+          # by passing the idsig explicitly to apksigner.
+          APK_IDS=$(find build -type f -name 'app-release.apk.idsig' -print -quit)
+          if [ -z "$APK_IDS" ]; then
+            APK_IDS=$(find build -type f -name '*.idsig' -print -quit)
+          fi
+          test -n "$APK_IDS" || {
+            echo '::error::V4 signing artifact (.idsig) was not produced.'
             exit 1
           }
-          tr -d '[:space:]:' < "$RUNNER_TEMP/apksigner.txt" | grep -Fq "$CERT_SHA256" || {
+          "$APKSIGNER" verify --verbose --print-certs --v4-signature-file "$APK_IDS" "$APK" | tee "$RUNNER_TEMP/apksigner-v4.txt"
+          grep -Fq 'Verified using v4 scheme (APK Signature Scheme v4): true' "$RUNNER_TEMP/apksigner-v4.txt" || {
+            echo '::error::APK v4 signature was not verified.'
+            exit 1
+          }
+          echo "V4 idsig: $APK_IDS"
+
+          # V3.1 is a key-rotation scheme. It is only emitted when a signing
+          # certificate lineage containing a rotated key is supplied; the
+          # existing production keystore contains the current signer only.
+          # V3.2 is tied to the newer platform/toolchain and is not a generic
+          # extra toggle in AGP. Report these states for diagnostics rather
+          # than silently treating a missing rotation lineage as a signing
+          # failure.
+          grep -F 'Verified using v3.1 scheme' "$RUNNER_TEMP/apksigner-v4.txt" || true
+          grep -F 'Verified using v3.2 scheme' "$RUNNER_TEMP/apksigner-v4.txt" || true
+          tr -d '[:space:]:' < "$RUNNER_TEMP/apksigner.txt" | tr '[:upper:]' '[:lower:]' | grep -Fq "$CERT_SHA256" || {
             echo '::error::APK certificate does not match the CI release keystore certificate.'
             exit 1
           }
@@ -290,7 +324,7 @@ jobs:
 
           echo 'Verifying AAB signature with jarsigner...'
           jarsigner -verify -verbose:certs "$AAB" >"$RUNNER_TEMP/jarsigner-aab.txt"
-          tr -d '[:space:]:' < "$RUNNER_TEMP/jarsigner-aab.txt" | grep -Fq "$CERT_SHA256" || {
+          tr -d '[:space:]:' < "$RUNNER_TEMP/jarsigner-aab.txt" | tr '[:upper:]' '[:lower:]' | grep -Fq "$CERT_SHA256" || {
             echo '::error::AAB signer certificate does not match the CI release keystore certificate.'
             exit 1
           }
@@ -310,13 +344,17 @@ jobs:
           set -euo pipefail
           mkdir -p artifacts
           cp build/app/outputs/flutter-apk/app-release.apk artifacts/MPorT-Tes-Speed-release.apk
+          APK_IDS=$(find build -type f -name 'app-release.apk.idsig' -print -quit || true)
+          if [ -z "$APK_IDS" ]; then APK_IDS=$(find build -type f -name '*.idsig' -print -quit || true); fi
+          test -n "$APK_IDS" || { echo '::error::V4 idsig artifact missing'; exit 1; }
+          cp "$APK_IDS" artifacts/MPorT-Tes-Speed-release.apk.idsig
           cp build/app/outputs/bundle/release/app-release.aab artifacts/MPorT-Tes-Speed-release.aab
 
           if [ -d build/debug-info ]; then
             tar -C build -czf artifacts/MPorT-Tes-Speed-debug-info.tar.gz debug-info
           fi
 
-          sha256sum artifacts/*.apk artifacts/*.aab > artifacts/SHA256SUMS.txt
+          sha256sum artifacts/*.apk artifacts/*.aab artifacts/*.idsig > artifacts/SHA256SUMS.txt
 
       - name: Upload signed APK + AAB
         uses: actions/upload-artifact@v7
@@ -330,7 +368,7 @@ jobs:
         if: always()
         run: |
           rm -f android/app/mport-release.jks android/key.properties
-          rm -f "$RUNNER_TEMP/release-cert.txt" "$RUNNER_TEMP/apksigner.txt" "$RUNNER_TEMP/jarsigner-aab.txt"
+          rm -f "$RUNNER_TEMP/release-cert.txt" "$RUNNER_TEMP/apksigner.txt" "$RUNNER_TEMP/apksigner-v4.txt" "$RUNNER_TEMP/jarsigner-aab.txt"
           # Fail cleanup if signing material still exists.
           test ! -e android/app/mport-release.jks
           test ! -e android/key.properties

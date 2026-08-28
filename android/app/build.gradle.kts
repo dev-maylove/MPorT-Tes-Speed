@@ -72,10 +72,11 @@ android {
                 storePassword = keystoreProperties["storePassword"] as String
                 storeFile = resolvedStoreFile
                 // Preserve the existing release signing configuration from v1-v4.
-                // CI does not require v1 verification because modern AGP may
-                // legitimately produce a v2-only APK.
+                // Release explicitly requests v1-v4 where supported by the AGP/toolchain.
                 enableV1Signing = true
                 enableV2Signing = true
+                enableV3Signing = true
+                enableV4Signing = true
             }
         }
     }
