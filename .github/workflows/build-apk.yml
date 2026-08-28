@@ -47,7 +47,20 @@ jobs:
         run: flutter --version
 
       - name: Pub get
-        run: flutter pub get
+        env:
+          PUB_HOSTED_URL: https://pub.dev
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f "$HOME/.config/dart/pub-credentials.json"
+          rm -f "$HOME/.dart/pub-credentials.json"
+          if ! flutter pub get; then
+            echo '::warning::Initial pub.dev dependency resolution failed; retrying once with a clean pub credential state.'
+            rm -f "$HOME/.config/dart/pub-credentials.json"
+            rm -f "$HOME/.dart/pub-credentials.json"
+            flutter pub cache repair >/dev/null 2>&1 || true
+            flutter pub get
+          fi
 
       - name: Analyze
         run: flutter analyze --no-fatal-infos
@@ -119,7 +132,29 @@ jobs:
           echo "NDK 28.2.13676358 and llvm-strip are available."
 
       - name: Pub get
-        run: flutter pub get
+        env:
+          # All project dependencies come from the public pub.dev repository.
+          # Force the canonical endpoint so an inherited/custom mirror cannot
+          # turn a public dependency lookup into an authorization failure.
+          PUB_HOSTED_URL: https://pub.dev
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          # A hosted-package cache is safe to reuse, but an old Dart pub
+          # credential file can cause pub.dev to answer 401/403 for otherwise
+          # public packages. Do not carry interactive/local pub credentials
+          # into CI. This project has no private pub repository.
+          rm -f "$HOME/.config/dart/pub-credentials.json"
+          rm -f "$HOME/.dart/pub-credentials.json"
+
+          if ! flutter pub get; then
+            echo '::warning::Initial pub.dev dependency resolution failed; retrying once with a clean pub credential state.'
+            rm -f "$HOME/.config/dart/pub-credentials.json"
+            rm -f "$HOME/.dart/pub-credentials.json"
+            flutter pub cache repair >/dev/null 2>&1 || true
+            flutter pub get
+          fi
 
       - name: Validate signing secrets
         env:
