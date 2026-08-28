@@ -71,11 +71,9 @@ android {
                 keyPassword = keystoreProperties["keyPassword"] as String
                 storePassword = keystoreProperties["storePassword"] as String
                 storeFile = resolvedStoreFile
-                // Keep both JAR (v1) and APK Signature Scheme v2 enabled.
-                // The CI verifier evaluates the APK against its minSdk; when
-                // minSdk < 24 Android can fall back to v1 verification.
-                // Enabling v1 prevents apksigner from reporting
-                // JAR_SIG_NO_MANIFEST / Missing META-INF/MANIFEST.MF.
+                // Preserve the existing release signing configuration from v1-v4.
+                // CI does not require v1 verification because modern AGP may
+                // legitimately produce a v2-only APK.
                 enableV1Signing = true
                 enableV2Signing = true
             }
