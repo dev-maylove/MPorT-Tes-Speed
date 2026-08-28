@@ -61,3 +61,9 @@ Release APK and AAB builds now pass native ELF stripping via the Android NDK `ll
 
 ### Signing security
 - Removed release/test keystores, `key.properties`, and base64 signing material from the redistributed source archive. The release Gradle configuration intentionally requires replacement signing credentials supplied locally or through CI secrets.
+
+
+## v18 CI signing verification fix — 2026-08-28
+- Fixed APK certificate fingerprint extraction. `apksigner` prints the signer prefix before `certificate SHA-256 digest`, so the previous `awk -F': '` parser captured the label itself and produced `CERTIFICATESHA-256DIGEST...` instead of the digest.
+- Replaced the fragile field-position parser with label-based extraction for both APK (`apksigner`) and AAB (`jarsigner`) certificate fingerprints.
+- APK/AAB fingerprints are normalized to uppercase hexadecimal before comparison.

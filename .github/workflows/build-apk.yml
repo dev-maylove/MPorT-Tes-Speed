@@ -344,8 +344,12 @@ jobs:
           # commonly prints it in uppercase. Normalize both sides before
           # comparing; otherwise a valid certificate can be rejected by a
           # case-sensitive grep even though the digests are identical.
+          # Do not split on the first ": ". apksigner emits:
+          # "V3.0 Signer: certificate SHA-256 digest: <digest>"
+          # so -F': ' would incorrectly return "certificate SHA-256 digest: <digest>".
           APK_CERT_SHA256="$("$APKSIGNER" verify --print-certs "$APK" 2>/dev/null |
-            awk -F': ' '/certificate SHA-256 digest:/{print $2; exit}' |
+            sed -nE 's/.*certificate SHA-256 digest:[[:space:]]*([0-9A-Fa-f:]+).*/\1/p' |
+            head -n 1 |
             tr -d '[:space:]:' | tr '[:lower:]' '[:upper:]')"
           test -n "$APK_CERT_SHA256" || { echo '::error::Could not read the APK signer certificate SHA-256 fingerprint'; exit 1; }
           test "$APK_CERT_SHA256" = "$CERT_SHA256" || {
@@ -356,7 +360,11 @@ jobs:
 
           echo 'Verifying AAB signature with jarsigner...'
           jarsigner -verify -verbose:certs "$AAB" >"$RUNNER_TEMP/jarsigner-aab.txt"
-          AAB_CERT_SHA256="$(awk -F': ' '/Certificate fingerprints:/{flag=1; next} flag && /SHA-256:/{print $2; exit}' "$RUNNER_TEMP/jarsigner-aab.txt" |
+          # jarsigner output varies slightly between JDK releases. Extract the
+          # digest from the SHA-256 label itself instead of relying on a fixed
+          # field position.
+          AAB_CERT_SHA256="$(sed -nE 's/.*SHA-256:[[:space:]]*([0-9A-Fa-f:]+).*/\1/p' "$RUNNER_TEMP/jarsigner-aab.txt" |
+            head -n 1 |
             tr -d '[:space:]:' | tr '[:lower:]' '[:upper:]')"
           test -n "$AAB_CERT_SHA256" || {
             echo '::error::Could not read the AAB signer certificate SHA-256 fingerprint.'
