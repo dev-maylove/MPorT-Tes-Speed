@@ -296,15 +296,19 @@ jobs:
             --v4-signing-enabled false \
             "$APK"
 
-          # Generate V4 only from the already V2/V3-signed APK. API 30 is
-          # the first Android release supporting V4.
+          # Re-sign the final APK with all requested schemes. API 30 is the first
+          # Android release supporting V4; explicit booleans avoid apksigner syntax
+          # ambiguity and keep V1/V2/V3 present in the final APK.
           "$APKSIGNER" sign \
             --ks android/app/mport-release.jks \
             --ks-key-alias "$KEY_ALIAS" \
             --ks-pass env:KEYSTORE_PASSWORD \
             --key-pass env:KEY_PASSWORD \
             --min-sdk-version 30 \
-            --v4-signing-enabled only \
+            --v1-signing-enabled true \
+            --v2-signing-enabled true \
+            --v3-signing-enabled true \
+            --v4-signing-enabled true \
             "$APK"
 
           "$APKSIGNER" verify --verbose --print-certs --min-sdk-version 1 "$APK" | tee "$RUNNER_TEMP/apksigner.txt"
