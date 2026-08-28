@@ -280,6 +280,10 @@ jobs:
           export KEY_ALIAS='${{ secrets.KEY_ALIAS }}'
           # Explicitly target API 1 so legacy V1 signing is evaluated by apksigner.
           # Keep comments outside the continued shell command.
+          # First create the normal embedded V1/V2/V3 signatures.
+          # V4 is a detached .idsig artifact and is generated in a second,
+          # explicit pass so it is not affected by the APK's legacy minSdk.
+          rm -f "$APK.idsig"
           "$APKSIGNER" sign \
             --ks android/app/mport-release.jks \
             --ks-key-alias "$KEY_ALIAS" \
@@ -289,7 +293,18 @@ jobs:
             --v1-signing-enabled true \
             --v2-signing-enabled true \
             --v3-signing-enabled true \
-            --v4-signing-enabled true \
+            --v4-signing-enabled false \
+            "$APK"
+
+          # Generate V4 only from the already V2/V3-signed APK. API 30 is
+          # the first Android release supporting V4.
+          "$APKSIGNER" sign \
+            --ks android/app/mport-release.jks \
+            --ks-key-alias "$KEY_ALIAS" \
+            --ks-pass env:KEYSTORE_PASSWORD \
+            --key-pass env:KEY_PASSWORD \
+            --min-sdk-version 30 \
+            --v4-signing-enabled only \
             "$APK"
 
           "$APKSIGNER" verify --verbose --print-certs --min-sdk-version 1 "$APK" | tee "$RUNNER_TEMP/apksigner.txt"
@@ -322,7 +337,7 @@ jobs:
             echo '::error::V4 signing artifact (.idsig) was not produced.'
             exit 1
           }
-          "$APKSIGNER" verify --verbose --print-certs --min-sdk-version 1 --v4-signature-file "$APK_IDS" "$APK" | tee "$RUNNER_TEMP/apksigner-v4.txt"
+          "$APKSIGNER" verify --verbose --print-certs --min-sdk-version 30 --v4-signature-file "$APK_IDS" "$APK" | tee "$RUNNER_TEMP/apksigner-v4.txt"
           grep -Fq 'Verified using v4 scheme (APK Signature Scheme v4): true' "$RUNNER_TEMP/apksigner-v4.txt" || {
             echo '::error::APK v4 signature was not verified.'
             exit 1
