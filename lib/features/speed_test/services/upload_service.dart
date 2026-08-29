@@ -151,6 +151,7 @@ class UploadService {
           request.bufferOutput = true;
 
           var sentThisRequest = 0;
+          var bytesSinceFlush = 0;
           try {
             for (var offset = 0; offset < payload.length && running && current(); offset += _chunkBytes) {
               final end = math.min(offset + _chunkBytes, payload.length);
@@ -159,11 +160,14 @@ class UploadService {
                 end - offset,
               );
               request.add(view);
-              sentThisRequest += end - offset;
-              if (sentThisRequest >= nextFlush || end == payload.length) {
+              final chunkBytes = end - offset;
+              sentThisRequest += chunkBytes;
+              bytesSinceFlush += chunkBytes;
+              if (bytesSinceFlush >= _flushEveryBytes || end == payload.length) {
                 await request.flush().timeout(_requestInactivityTimeout);
                 wireBytes += sentThisRequest;
                 sentThisRequest = 0;
+                bytesSinceFlush = 0;
                 transferStartMicros = transferStartMicros == 0
                     ? stopwatch.elapsedMicroseconds
                     : transferStartMicros;
