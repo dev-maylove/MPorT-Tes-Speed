@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:http/http.dart' as http;
 
@@ -21,9 +22,11 @@ class DownloadResult {
 class DownloadService {
   bool _cancelled = false;
   http.Client? _client;
+  int _operationId = 0;
 
   void cancel() {
     _cancelled = true;
+    _operationId++;
     try {
       _client?.close();
     } catch (_) {}
@@ -38,6 +41,7 @@ class DownloadService {
     void Function(double mbps)? onProgress,
   }) async {
     _cancelled = false;
+    final operationId = ++_operationId;
     final client = http.Client();
     _client = client;
 
@@ -86,7 +90,7 @@ class DownloadService {
     );
 
     Future<void> worker() async {
-      while (running && !_cancelled) {
+      while (running && !_cancelled && operationId == _operationId) {
         if (stopwatch.elapsed >= duration) {
           running = false;
           break;
@@ -108,7 +112,7 @@ class DownloadService {
           }
 
           await for (final chunk in response.stream) {
-            if (_cancelled || !running) break;
+            if (_cancelled || !running || operationId != _operationId) break;
             if (stopwatch.elapsed >= duration) {
               running = false;
               break;
@@ -116,7 +120,7 @@ class DownloadService {
             totalBytes += chunk.length;
           }
         } catch (_) {
-          if (!running || _cancelled) break;
+          if (!running || _cancelled || operationId != _operationId) break;
           await Future<void>.delayed(const Duration(milliseconds: 40));
         }
       }
@@ -140,14 +144,16 @@ class DownloadService {
       if (identical(_client, client)) _client = null;
     }
 
-    final measureBytes =
-        graceEnded ? (totalBytes - graceBytes) : totalBytes;
+    final measureBytes = graceEnded
+        ? math.max(0, totalBytes - graceBytes)
+        : totalBytes;
     // The measurement window ends at the configured deadline, not when a
     // late HTTP worker happens to finish. This keeps the denominator stable.
     final elapsedForScore = stopwatch.elapsed < duration ? stopwatch.elapsed : duration;
-    final measureSec = graceEnded
-        ? (elapsedForScore - grace).inMicroseconds / 1e6
-        : elapsedForScore.inMicroseconds / 1e6;
+    final measuredDuration = graceEnded
+        ? elapsedForScore - grace
+        : elapsedForScore;
+    final measureSec = math.max(0.0, measuredDuration.inMicroseconds / 1e6);
 
     // Final score uses the exact same byte/time formula as the live gauge.
     final mbps = measuredMbps(
@@ -156,11 +162,13 @@ class DownloadService {
       overhead: ServerConfig.overheadAdjustment,
     );
 
-    if (!_cancelled && totalBytes == 0) {
+    if (!_cancelled && operationId == _operationId && totalBytes == 0) {
       throw Exception('Download failed — no data received');
     }
 
-    if (mbps > 0) onProgress?.call(mbps);
+    if (!_cancelled && operationId == _operationId && mbps > 0) {
+      onProgress?.call(mbps);
+    }
 
     return DownloadResult(
       mbps: mbps,

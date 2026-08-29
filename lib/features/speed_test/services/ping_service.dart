@@ -35,8 +35,12 @@ class PingResult {
 
 class PingService {
   bool _cancelled = false;
+  int _operationId = 0;
 
-  void cancel() => _cancelled = true;
+  void cancel() {
+    _cancelled = true;
+    _operationId++;
+  }
 
   /// Lightweight HTTP latency probe:
   /// - keep-alive, HEAD first then GET range
@@ -46,6 +50,7 @@ class PingService {
     int samples = ServerConfig.pingSamples,
   }) async {
     _cancelled = false;
+    final operationId = ++_operationId;
     final client = HttpClient();
     client.connectionTimeout = const Duration(seconds: 3);
     client.idleTimeout = const Duration(seconds: 15);
@@ -60,7 +65,7 @@ class PingService {
       final total = samples + ServerConfig.pingWarmup;
 
       for (var i = 0; i < total; i++) {
-        if (_cancelled) {
+        if (_cancelled || operationId != _operationId) {
           throw const PingCancelledException();
         }
         final baseUri = Uri.parse(ServerConfig.pingUrl);
@@ -71,8 +76,8 @@ class PingService {
           },
         );
 
-        final ms = await _onePing(client, uri);
-        if (_cancelled) {
+        final ms = await _onePing(client, uri, operationId);
+        if (_cancelled || operationId != _operationId) {
           throw const PingCancelledException();
         }
         // Count only post-warmup attempts toward loss stats
@@ -140,8 +145,9 @@ class PingService {
     );
   }
 
-  Future<double?> _onePing(HttpClient client, Uri uri) async {
-    if (_cancelled) return null;
+  Future<double?> _onePing(
+    HttpClient client, Uri uri, int operationId) async {
+    if (_cancelled || operationId != _operationId) return null;
     try {
       final sw = Stopwatch()..start();
       final req = await client.openUrl('HEAD', uri);
@@ -160,6 +166,7 @@ class PingService {
     } catch (_) {}
 
     try {
+      if (_cancelled || operationId != _operationId) return null;
       final sw = Stopwatch()..start();
       final req = await client.getUrl(uri);
       req.followRedirects = false;

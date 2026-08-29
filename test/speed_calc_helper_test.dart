@@ -17,6 +17,11 @@ void main() {
     expect(live, closeTo(20.8, 0.001));
   });
 
+  test('throughput remains zero for non-finite seconds', () {
+    expect(measuredMbps(1000, double.nan), 0);
+    expect(measuredMbps(1000, double.infinity), 0);
+  });
+
   test('invalid throughput inputs return zero', () {
     expect(measuredMbps(0, 10), 0);
     expect(measuredMbps(1000, 0), 0);

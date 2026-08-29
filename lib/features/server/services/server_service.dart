@@ -18,6 +18,7 @@ class ServerService extends ChangeNotifier {
   bool _probing = false;
   bool _autoDone = false;
   String? _error;
+  int _selectionGeneration = 0;
 
   List<TestServer> get servers => List.unmodifiable(_servers);
   TestServer get selected => _selected;
@@ -69,6 +70,7 @@ class ServerService extends ChangeNotifier {
   /// 4) Early-stop if latency < 12 ms
   Future<TestServer> selectNearest({bool force = false}) async {
     if (_autoDone && !force && _selected.latencyMs != null) return _selected;
+    final generation = ++_selectionGeneration;
 
     _probing = true;
     _error = null;
@@ -104,6 +106,8 @@ class ServerService extends ChangeNotifier {
           }),
         );
 
+        if (generation != _selectionGeneration) return _selected;
+
         for (final e in results) {
           final s = e.key;
           final lat = e.value;
@@ -138,6 +142,8 @@ class ServerService extends ChangeNotifier {
           return (a.distanceKm ?? 999).compareTo(b.distanceKm ?? 999);
         });
 
+      if (generation != _selectionGeneration) return _selected;
+
       final chosen = best;
       if (chosen != null) {
         _selected = chosen;
@@ -162,6 +168,8 @@ class ServerService extends ChangeNotifier {
   }
 
   void select(TestServer server) {
+    _selectionGeneration++;
+    _autoDone = true;
     _selected = server;
     _applySelected();
     notifyListeners();

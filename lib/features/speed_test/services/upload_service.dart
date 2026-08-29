@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:typed_data';
+import 'dart:math' as math;
 
 import 'package:http/http.dart' as http;
 
@@ -23,10 +24,13 @@ class UploadService {
   Uint8List? _cachedPayload;
   Future<Uint8List>? _warmInFlight;
   bool _cancelled = false;
+  int _operationId = 0;
+  int _payloadGeneration = 0;
   http.Client? _client;
 
   void cancel() {
     _cancelled = true;
+    _operationId++;
     try {
       _client?.close();
     } catch (_) {}
@@ -35,6 +39,9 @@ class UploadService {
 
   /// Drop cached upload body to free Dart heap (~2 MiB).
   void releaseCache() {
+    // Invalidate an in-flight payload generation. The future may still finish,
+    // but its completion handler must not repopulate the cache after release.
+    _payloadGeneration++;
     _cachedPayload = null;
     _warmInFlight = null;
   }
@@ -57,8 +64,11 @@ class UploadService {
     final inflight = _warmInFlight;
     if (inflight != null) return inflight;
 
+    final generation = _payloadGeneration;
     final future = generateUploadPayload(megabytes).then((data) {
-      _cachedPayload = data;
+      if (generation == _payloadGeneration) {
+        _cachedPayload = data;
+      }
       return data;
     });
     _warmInFlight = future;
@@ -80,12 +90,13 @@ class UploadService {
     void Function(double mbps)? onProgress,
   }) async {
     _cancelled = false;
+    final operationId = ++_operationId;
     final client = http.Client();
     _client = client;
 
     // Build / reuse payload off the UI isolate.
     final payload = await _payloadAsync(payloadMegabytes);
-    if (_cancelled) {
+    if (_cancelled || operationId != _operationId) {
       try {
         client.close();
       } catch (_) {}
@@ -137,7 +148,7 @@ class UploadService {
     );
 
     Future<void> worker() async {
-      while (running && !_cancelled) {
+      while (running && !_cancelled && operationId == _operationId) {
         if (stopwatch.elapsed >= duration) {
           running = false;
           break;
@@ -167,7 +178,7 @@ class UploadService {
             successCount++;
           }
         } catch (_) {
-          if (!running || _cancelled) break;
+          if (!running || _cancelled || operationId != _operationId) break;
           await Future<void>.delayed(const Duration(milliseconds: 40));
         }
       }
@@ -191,14 +202,16 @@ class UploadService {
       if (identical(_client, client)) _client = null;
     }
 
-    final measureBytes =
-        graceEnded ? (totalBytes - graceBytes) : totalBytes;
+    final measureBytes = graceEnded
+        ? math.max(0, totalBytes - graceBytes)
+        : totalBytes;
     // The measurement window ends at the configured deadline, not when a
     // late HTTP worker happens to finish. This keeps the denominator stable.
     final elapsedForScore = stopwatch.elapsed < duration ? stopwatch.elapsed : duration;
-    final measureSec = graceEnded
-        ? (elapsedForScore - grace).inMicroseconds / 1e6
-        : elapsedForScore.inMicroseconds / 1e6;
+    final measuredDuration = graceEnded
+        ? elapsedForScore - grace
+        : elapsedForScore;
+    final measureSec = math.max(0.0, measuredDuration.inMicroseconds / 1e6);
 
     // Final score uses the exact same byte/time formula as the live gauge.
     final mbps = measuredMbps(
@@ -206,6 +219,10 @@ class UploadService {
       measureSec,
       overhead: ServerConfig.overheadAdjustment,
     );
+
+    if (_cancelled || operationId != _operationId) {
+      return const UploadResult(mbps: 0, bytes: 0, duration: Duration.zero);
+    }
 
     if (totalBytes == 0) {
       throw Exception(
