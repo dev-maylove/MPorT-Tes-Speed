@@ -31,7 +31,7 @@ class SpeedTestException implements Exception {
   final String message;
   final Object? cause;
 
-  const SpeedTestException(this.kind, this.message, {this.cause});
+  const SpeedTestException(this.kind, this.message, {super.cause});
 
   @override
   String toString() => message;
@@ -58,11 +58,11 @@ class SpeedTestNoInternetException extends SpeedTestException {
 }
 
 class SpeedTestServerException extends SpeedTestException {
-  const SpeedTestServerException(String message, {Object? cause})
-      : super(SpeedTestErrorKind.server, message, cause: cause);
+  const SpeedTestServerException(String message, {super.cause})
+      : super(SpeedTestErrorKind.server, message);
 }
 
 class SpeedTestTlsHttpException extends SpeedTestException {
-  const SpeedTestTlsHttpException(String message, {Object? cause})
-      : super(SpeedTestErrorKind.tlsHttp, message, cause: cause);
+  const SpeedTestTlsHttpException(String message, {super.cause})
+      : super(SpeedTestErrorKind.tlsHttp, message);
 }

@@ -53,6 +53,11 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
 
   SpeedTestPhase phase = SpeedTestPhase.idle;
   SpeedTestLifecycle _lifecycle = SpeedTestLifecycle.idle;
+
+  bool get _lifecycleActive =>
+      _lifecycle == SpeedTestLifecycle.preparing ||
+      _lifecycle == SpeedTestLifecycle.testing ||
+      _lifecycle == SpeedTestLifecycle.stopping;
   double currentSpeed = 0;
   double? ping;
   double? jitter;
@@ -824,7 +829,7 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
   @override
   Widget build(BuildContext context) {
     super.build(context);
-    final showTestUi = running ||
+    final showTestUi = _lifecycleActive ||
         phase == SpeedTestPhase.completed ||
         phase == SpeedTestPhase.error;
 
