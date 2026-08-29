@@ -56,7 +56,3 @@ The Actions artifact **MPorT-Tes-Speed-Play-Release** contains:
 ## Release signing behavior
 
 `android/app/build.gradle.kts` intentionally fails a release build when a valid release keystore is not available. This prevents an accidental debug-signed production release.
-
-
-### v18
-The signing verification parser was hardened to extract SHA-256 fingerprints by label rather than colon-separated field position. This fixes the false mismatch `got CERTIFICATESHA-256DIGEST`.
