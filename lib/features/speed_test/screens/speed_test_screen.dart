@@ -381,9 +381,15 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
 
   @override
   void dispose() {
+    _testGeneration++;
     _connectivitySub?.cancel();
-    _service.cancel();
+    _connectivitySub = null;
     _startupServerTimer?.cancel();
+    _startupServerTimer = null;
+    _service.cancel();
+    // RealtimeService is a shared singleton; stop it here only to prevent its
+    // socket/timers from continuing after leaving this screen.
+    unawaited(_realtime.disconnect(reconnect: false));
     _serverService.removeListener(_onServerChanged);
     _realtime.removeListener(_onServerChanged);
     _gaugeCtrl.dispose();

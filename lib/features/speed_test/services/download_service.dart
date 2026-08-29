@@ -16,12 +16,14 @@ class DownloadResult {
 
 class DownloadService {
   int _operationId = 0;
-  http.Client? _client;
+  final Set<http.Client> _activeClients = <http.Client>{};
 
   void cancel() {
     _operationId++;
-    try { _client?.close(); } catch (_) {}
-    _client = null;
+    for (final client in List<http.Client>.from(_activeClients)) {
+      try { client.close(); } catch (_) {}
+    }
+    _activeClients.clear();
   }
 
   Future<DownloadResult> test({
@@ -30,13 +32,9 @@ class DownloadService {
     void Function(double mbps)? onProgress,
   }) async {
     final operationId = ++_operationId;
-    final client = http.Client();
-    _client = client;
     final stopwatch = Stopwatch()..start();
-    final deadline = duration;
     const grace = Duration(seconds: ServerConfig.gracePeriodSeconds);
-    final threadCount = threads.clamp(1, 8);
-
+    final threadCount = threads.clamp(1, 8).toInt();
     var totalBytes = 0;
     var graceBytes = 0;
     var running = true;
@@ -47,9 +45,9 @@ class DownloadService {
     final intervalSamples = <double>[];
     var lastUiMs = 0;
     var httpFailures = 0;
+    SpeedTestException? terminalError;
 
     bool current() => operationId == _operationId;
-    bool cancelled() => !current();
 
     void endGraceIfNeeded() {
       if (!graceEnded && stopwatch.elapsed >= grace) {
@@ -61,8 +59,9 @@ class DownloadService {
     }
 
     void sampleTick({bool force = false}) {
+      if (!current()) return;
       endGraceIfNeeded();
-      if (!graceEnded || cancelled()) return;
+      if (!graceEnded) return;
       final nowMicros = stopwatch.elapsedMicroseconds;
       final deltaMicros = nowMicros - lastTickMicros;
       final deltaBytes = totalBytes - lastTickBytes;
@@ -74,14 +73,10 @@ class DownloadService {
       lastTickMicros = nowMicros;
       lastTickBytes = totalBytes;
       if (!force && nowMicros ~/ 1000 - lastUiMs < ServerConfig.progressThrottleMs) return;
-      final activeSec = activeMicros / 1e6;
       final live = robustLiveMbps(intervalSamples);
       if (live > 0) {
         lastUiMs = nowMicros ~/ 1000;
         onProgress?.call(live);
-      } else if (activeSec > 0) {
-        final aggregate = measuredMbps(math.max(0, totalBytes - graceBytes), activeSec, overhead: ServerConfig.overheadAdjustment);
-        if (aggregate > 0) onProgress?.call(aggregate);
       }
     }
 
@@ -90,50 +85,91 @@ class DownloadService {
     });
 
     Future<void> worker() async {
-      while (running && current()) {
-        if (stopwatch.elapsed >= deadline) { running = false; break; }
-        try {
-          final request = http.Request('GET', Uri.parse(ServerConfig.downloadUrlBusted()));
-          request.headers.addAll(ServerConfig.defaultHeaders);
-          final response = await client.send(request).timeout(const Duration(seconds: ServerConfig.connectTimeoutSeconds));
-          if (response.statusCode != 200) {
-            httpFailures++;
-            await response.stream.drain<void>().catchError((_) {});
-            if (httpFailures >= 2) {
-              throw SpeedTestServerException('Download HTTP ${response.statusCode}');
+      final client = http.Client();
+      _activeClients.add(client);
+      try {
+        while (running && current() && stopwatch.elapsed < duration) {
+          try {
+            final request = http.Request('GET', Uri.parse(ServerConfig.downloadUrlBusted()));
+            request.headers.addAll(ServerConfig.defaultHeaders);
+            final response = await client.send(request).timeout(
+              const Duration(seconds: ServerConfig.connectTimeoutSeconds),
+            );
+            if (response.statusCode != 200) {
+              httpFailures++;
+              await response.stream.drain<void>().catchError((_) {});
+              if (httpFailures >= 2) {
+                terminalError = SpeedTestServerException('Download HTTP ${response.statusCode}');
+                running = false;
+                break;
+              }
+              continue;
             }
-            continue;
+            httpFailures = 0;
+            await for (final chunk in response.stream.timeout(
+              const Duration(seconds: ServerConfig.receiveTimeoutSeconds),
+            )) {
+              if (!running || !current()) break;
+              if (stopwatch.elapsed >= duration) {
+                running = false;
+                break;
+              }
+              totalBytes += chunk.length;
+            }
+          } on TimeoutException catch (e) {
+            if (!running || !current()) break;
+            terminalError = SpeedTestTimeoutException('Download timed out: $e');
+            running = false;
+            break;
+          } on SocketException catch (e) {
+            if (!running || !current()) break;
+            httpFailures++;
+            if (httpFailures >= 2) {
+              terminalError = SpeedTestTlsHttpException('Network/TLS error: ${e.message}', cause: e);
+              running = false;
+              break;
+            }
+            await Future<void>.delayed(const Duration(milliseconds: 80));
+          } on http.ClientException catch (e) {
+            if (!running || !current()) break;
+            httpFailures++;
+            if (httpFailures >= 2) {
+              terminalError = SpeedTestTlsHttpException('HTTP error: ${e.message}', cause: e);
+              running = false;
+              break;
+            }
+            await Future<void>.delayed(const Duration(milliseconds: 80));
           }
-          httpFailures = 0;
-          await for (final chunk in response.stream.timeout(const Duration(seconds: ServerConfig.receiveTimeoutSeconds))) {
-            if (!running || cancelled()) break;
-            if (stopwatch.elapsed >= deadline) { running = false; break; }
-            totalBytes += chunk.length;
-          }
-        } on SpeedTestServerException {
-          if (current()) rethrow;
-        } on TimeoutException {
-          if (running && current()) await Future<void>.delayed(const Duration(milliseconds: 40));
-        } catch (_) {
-          if (!running || cancelled()) break;
-          await Future<void>.delayed(const Duration(milliseconds: 40));
         }
+      } finally {
+        _activeClients.remove(client);
+        try { client.close(); } catch (_) {}
       }
     }
 
     try {
       final workers = List.generate(threadCount, (_) => worker());
-      await Future.any([Future.wait(workers), Future<void>.delayed(deadline + const Duration(milliseconds: 600))]);
+      await Future.any(<Future<void>>[
+        Future.wait(workers),
+        Future<void>.delayed(duration + const Duration(milliseconds: 700)),
+      ]);
+      running = false;
+      for (final client in List<http.Client>.from(_activeClients)) {
+        try { client.close(); } catch (_) {}
+      }
+      await Future.wait(workers);
     } finally {
       running = false;
       timer.cancel();
+      for (final client in List<http.Client>.from(_activeClients)) {
+        try { client.close(); } catch (_) {}
+      }
       sampleTick(force: true);
       stopwatch.stop();
-      try { client.close(); } catch (_) {}
-      if (identical(_client, client)) _client = null;
     }
 
-    if (cancelled()) throw const SpeedTestCancelledException();
+    if (!current()) throw const SpeedTestCancelledException();
+    if (terminalError != null) throw terminalError!;
     endGraceIfNeeded();
     final measuredBytes = math.max(0, totalBytes - graceBytes);
     final seconds = activeMicros / 1e6;
