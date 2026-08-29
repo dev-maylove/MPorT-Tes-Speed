@@ -27,7 +27,6 @@ class UploadService {
 
   Uint8List? _cachedPayload;
   Future<Uint8List>? _warmInFlight;
-  int? _warmInFlightSize;
   int _operationId = 0;
   int _payloadGeneration = 0;
   final Set<HttpClient> _activeClients = <HttpClient>{};
@@ -46,7 +45,6 @@ class UploadService {
     _payloadGeneration++;
     _cachedPayload = null;
     _warmInFlight = null;
-    _warmInFlightSize = null;
   }
 
   Future<void> warmUp({int megabytes = ServerConfig.uploadPayloadMegabytes}) async {
@@ -60,7 +58,7 @@ class UploadService {
     final cached = _cachedPayload;
     if (cached != null && cached.length == size) return cached;
     final inflight = _warmInFlight;
-    if (inflight != null && _warmInFlightSize == size) return inflight;
+    if (inflight != null) return inflight;
 
     final generation = _payloadGeneration;
     final future = generateUploadPayload(megabytes).then((data) {
@@ -68,14 +66,10 @@ class UploadService {
       return data;
     });
     _warmInFlight = future;
-    _warmInFlightSize = size;
     try {
       return await future;
     } finally {
-      if (identical(_warmInFlight, future)) {
-        _warmInFlight = null;
-        _warmInFlightSize = null;
-      }
+      if (identical(_warmInFlight, future)) _warmInFlight = null;
     }
   }
 
@@ -89,7 +83,7 @@ class UploadService {
     final payload = await _payloadAsync(payloadMegabytes);
     if (operationId != _operationId) throw const SpeedTestCancelledException();
 
-    final threadCount = threads.clamp(1, 6).toInt();
+    final threadCount = threads.clamp(1, 6);
     final stopwatch = Stopwatch()..start();
     const grace = Duration(seconds: ServerConfig.gracePeriodSeconds);
     final deadline = duration;
@@ -113,9 +107,6 @@ class UploadService {
       if (!graceEnded && now >= grace.inMicroseconds) {
         graceEnded = true;
         lastTickMicros = now;
-        // Never let bytes sent during warm-up leak into the first measured
-        // interval.
-        previousWireBytes = wireBytes;
       }
       if (!graceEnded) return;
 
@@ -147,6 +138,7 @@ class UploadService {
             ..connectionTimeout = _connectTimeout
             ..idleTimeout = _requestInactivityTimeout;
           _activeClients.add(client);
+          var transferStartMicros = 0;
           final uri = Uri.parse(ServerConfig.uploadUrlBusted());
           final request = await client.openUrl('POST', uri).timeout(_connectTimeout);
           request.headers.contentType = ContentType.binary;
@@ -158,34 +150,29 @@ class UploadService {
           request.persistentConnection = true;
           request.bufferOutput = true;
 
+          var sentThisRequest = 0;
           var bytesSinceFlush = 0;
-          var firstWriteMicros = 0;
-          var lastFlushMicros = 0;
-          for (var offset = 0; offset < payload.length && running && current(); offset += _chunkBytes) {
+            for (var offset = 0; offset < payload.length && running && current(); offset += _chunkBytes) {
               final end = math.min(offset + _chunkBytes, payload.length);
               final view = payload.buffer.asUint8List(
                 payload.offsetInBytes + offset,
                 end - offset,
               );
-            request.add(view);
-            final nowMicros = stopwatch.elapsedMicroseconds;
-            firstWriteMicros = firstWriteMicros == 0 ? nowMicros : firstWriteMicros;
-            final chunkBytes = end - offset;
-            bytesSinceFlush += chunkBytes;
-            if (bytesSinceFlush >= _flushEveryBytes || end == payload.length) {
-              await request.flush().timeout(_requestInactivityTimeout);
-              wireBytes += bytesSinceFlush;
-              bytesSinceFlush = 0;
-              lastFlushMicros = stopwatch.elapsedMicroseconds;
+              request.add(view);
+              final chunkBytes = end - offset;
+              sentThisRequest += chunkBytes;
+              bytesSinceFlush += chunkBytes;
+              if (bytesSinceFlush >= _flushEveryBytes || end == payload.length) {
+                await request.flush().timeout(_requestInactivityTimeout);
+                wireBytes += sentThisRequest;
+                sentThisRequest = 0;
+                bytesSinceFlush = 0;
+                transferStartMicros = transferStartMicros == 0
+                    ? stopwatch.elapsedMicroseconds
+                    : transferStartMicros;
+              }
             }
-          }
-          if (bytesSinceFlush > 0) {
-            await request.flush().timeout(_requestInactivityTimeout);
-            wireBytes += bytesSinceFlush;
-            bytesSinceFlush = 0;
-            lastFlushMicros = stopwatch.elapsedMicroseconds;
-          }
-          if (!running || !current()) throw const SpeedTestCancelledException();
+            if (!running || !current()) throw const SpeedTestCancelledException();
             final response = await request.close().timeout(_requestInactivityTimeout);
             await response.drain<void>().timeout(_requestInactivityTimeout);
             if (response.statusCode < 200 || response.statusCode >= 300) {
@@ -197,16 +184,14 @@ class UploadService {
             }
             consecutiveFailures = 0;
             if (current() && stopwatch.elapsed <= deadline) {
-              // A successful response is the commit point. To keep the grace
-              // period honest, only commit requests whose measured transfer
-              // started after warm-up; a request straddling warm-up is ignored
-              // rather than assigning an unknowable byte split to it.
-              final activeStart = firstWriteMicros;
-              final activeEnd = lastFlushMicros;
-              if (activeStart >= grace.inMicroseconds &&
-                  activeEnd > activeStart) {
-                acceptedBytes += payload.length;
-                successfulIntervals.add(<int>[activeStart, activeEnd]);
+              // A successful response is the commit point for final scoring.
+              acceptedBytes += payload.length;
+              final requestEnd = stopwatch.elapsedMicroseconds;
+              final activeStart = transferStartMicros > grace.inMicroseconds
+                  ? transferStartMicros
+                  : grace.inMicroseconds;
+              if (requestEnd > activeStart) {
+                successfulIntervals.add(<int>[activeStart, requestEnd]);
               }
             }
         } on SpeedTestCancelledException {
