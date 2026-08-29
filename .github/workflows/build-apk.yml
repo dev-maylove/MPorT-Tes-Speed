@@ -215,8 +215,9 @@ jobs:
           keytool -list -v -keystore android/app/mport-release.jks \
             -alias "$KEY_ALIAS" -storepass "$KEYSTORE_PASSWORD" \
             > "$RUNNER_TEMP/release-cert.txt"
-          CERT_SHA256="$(awk -F': ' '/^[[:space:]]*SHA256:/{print $2; exit}' "$RUNNER_TEMP/release-cert.txt" | tr -d '[:space:]:' | tr '[:upper:]' '[:lower:]')"
+          CERT_SHA256="$(awk -F': ' '/^[[:space:]]*SHA256:/{print $2; exit}' "$RUNNER_TEMP/release-cert.txt" | tr -d '[:space:]:' | tr '[:lower:]' '[:upper:]')"
           test -n "$CERT_SHA256" || { echo '::error::Could not determine release certificate SHA-256 fingerprint'; exit 1; }
+          test "${#CERT_SHA256}" -eq 64 || { echo '::error::Release certificate SHA-256 fingerprint has an unexpected length'; exit 1; }
           echo "Expected signing certificate SHA-256: $CERT_SHA256"
           echo "CERT_SHA256=$CERT_SHA256" >> "$GITHUB_ENV"
 
@@ -260,6 +261,9 @@ jobs:
 
       - name: Locate and verify signed APK + AAB
         env:
+          # GitHub Actions step environments are isolated. These values are
+          # required by apksigner via --ks-key-alias / env:KEYSTORE_PASSWORD /
+          # env:KEY_PASSWORD, so expose the signing secrets in this step too.
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
@@ -336,16 +340,52 @@ jobs:
           # failure.
           grep -F 'Verified using v3.1 scheme' "$RUNNER_TEMP/apksigner-v4.txt" || true
           grep -F 'Verified using v3.2 scheme' "$RUNNER_TEMP/apksigner-v4.txt" || true
-          tr -d '[:space:]:' < "$RUNNER_TEMP/apksigner.txt" | tr '[:upper:]' '[:lower:]' | grep -Fq "$CERT_SHA256" || {
-            echo '::error::APK certificate does not match the CI release keystore certificate.'
+          # apksigner prints the SHA-256 digest in lowercase, while keytool
+          # commonly prints it in uppercase. Normalize both sides before
+          # comparing; otherwise a valid certificate can be rejected by a
+          # case-sensitive grep even though the digests are identical.
+          # Do not split on the first ": ". apksigner emits:
+          # "V3.0 Signer: certificate SHA-256 digest: <digest>"
+          # so -F': ' would incorrectly return "certificate SHA-256 digest: <digest>".
+          APK_CERT_SHA256="$("$APKSIGNER" verify --print-certs "$APK" 2>/dev/null |
+            sed -nE 's/.*certificate SHA-256 digest:[[:space:]]*([0-9A-Fa-f:]+).*/\1/p' |
+            head -n 1 |
+            tr -d '[:space:]:' | tr '[:lower:]' '[:upper:]')"
+          test -n "$APK_CERT_SHA256" || { echo '::error::Could not read the APK signer certificate SHA-256 fingerprint'; exit 1; }
+          test "$APK_CERT_SHA256" = "$CERT_SHA256" || {
+            echo "::error::APK certificate does not match the CI release keystore certificate. Expected $CERT_SHA256, got $APK_CERT_SHA256."
             exit 1
           }
           echo 'APK signature and certificate fingerprint verified.'
 
           echo 'Verifying AAB signature with jarsigner...'
           jarsigner -verify -verbose:certs "$AAB" >"$RUNNER_TEMP/jarsigner-aab.txt"
-          tr -d '[:space:]:' < "$RUNNER_TEMP/jarsigner-aab.txt" | tr '[:upper:]' '[:lower:]' | grep -Fq "$CERT_SHA256" || {
-            echo '::error::AAB signer certificate does not match the CI release keystore certificate.'
+          # Do not parse jarsigner's human-readable output for the certificate
+          # fingerprint. Its formatting differs across JDK versions and can put
+          # the fingerprint on a continuation line. keytool reads the signer
+          # certificate directly from the JAR/AAB and exposes a stable
+          # "SHA256:" field.
+          keytool -printcert -jarfile "$AAB" >"$RUNNER_TEMP/aab-cert.txt"
+          AAB_CERT_SHA256="$(sed -nE 's/^[[:space:]]*SHA256:[[:space:]]*([0-9A-Fa-f:[:space:]]+).*$/\1/p' "$RUNNER_TEMP/aab-cert.txt" |
+            head -n 1 |
+            tr -d '[:space:]:' | tr '[:lower:]' '[:upper:]')"
+          if [ -z "$AAB_CERT_SHA256" ]; then
+            # Some JDK builds print the label with a hyphen.
+            AAB_CERT_SHA256="$(sed -nE 's/^[[:space:]]*SHA-256:[[:space:]]*([0-9A-Fa-f:[:space:]]+).*$/\1/p' "$RUNNER_TEMP/aab-cert.txt" |
+              head -n 1 |
+              tr -d '[:space:]:' | tr '[:lower:]' '[:upper:]')"
+          fi
+          test -n "$AAB_CERT_SHA256" || {
+            echo '::error::Could not read the AAB signer certificate SHA-256 fingerprint from keytool.'
+            cat "$RUNNER_TEMP/aab-cert.txt"
+            exit 1
+          }
+          test "${#AAB_CERT_SHA256}" -eq 64 || {
+            echo '::error::AAB signer certificate SHA-256 fingerprint has an unexpected length.'
+            exit 1
+          }
+          test "$AAB_CERT_SHA256" = "$CERT_SHA256" || {
+            echo "::error::AAB signer certificate does not match the CI release keystore certificate. Expected $CERT_SHA256, got $AAB_CERT_SHA256."
             exit 1
           }
           echo 'AAB signature and certificate fingerprint verified.'
@@ -388,7 +428,7 @@ jobs:
         if: always()
         run: |
           rm -f android/app/mport-release.jks android/key.properties
-          rm -f "$RUNNER_TEMP/release-cert.txt" "$RUNNER_TEMP/apksigner.txt" "$RUNNER_TEMP/apksigner-v4.txt" "$RUNNER_TEMP/jarsigner-aab.txt"
+          rm -f "$RUNNER_TEMP/release-cert.txt" "$RUNNER_TEMP/apksigner.txt" "$RUNNER_TEMP/apksigner-v4.txt" "$RUNNER_TEMP/jarsigner-aab.txt" "$RUNNER_TEMP/aab-cert.txt"
           # Fail cleanup if signing material still exists.
           test ! -e android/app/mport-release.jks
           test ! -e android/key.properties
