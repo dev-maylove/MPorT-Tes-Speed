@@ -31,7 +31,7 @@ class SpeedTestException implements Exception {
   final String message;
   final Object? cause;
 
-  const SpeedTestException(this.kind, this.message, {super.cause});
+  const SpeedTestException(this.kind, this.message, {this.cause});
 
   @override
   String toString() => message;
