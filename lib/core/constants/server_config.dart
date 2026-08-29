@@ -79,14 +79,14 @@ class ServerConfig {
 
   // ── Parallelism (Ookla uses multiple concurrent streams) ─
   static const int downloadThreads = 6;
-  static const int uploadThreads = 4;
+  static const int uploadThreads = 2;
 
   // ── Upload payload ──────────────────────────────────────
-  static const int uploadPayloadMegabytes = 2;
+  static const int uploadPayloadMegabytes = 1;
 
   // ── Ping ────────────────────────────────────────────────
-  static const int pingSamples = 16;
-  static const int pingWarmup = 3;
+  static const int pingSamples = 12;
+  static const int pingWarmup = 2;
   static const int pingIntervalMs = 20;
   static const int pingTrimCount = 4;
 
@@ -117,7 +117,7 @@ class ServerConfig {
   };
 
   /// UI progress throttle (ms) — independent of sample interval.
-  static const int progressThrottleMs = 320;
+  static const int progressThrottleMs = 360;
 
   const ServerConfig._();
 }

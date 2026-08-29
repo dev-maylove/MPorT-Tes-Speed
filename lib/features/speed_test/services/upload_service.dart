@@ -123,7 +123,7 @@ class UploadService {
           final request = http.Request('POST', Uri.parse(ServerConfig.uploadUrlBusted()));
           request.headers.addAll(ServerConfig.uploadHeaders);
           request.bodyBytes = payload;
-          final response = await client.send(request).timeout(const Duration(seconds: 12));
+          final response = await client.send(request).timeout(const Duration(seconds: 15));
           try { await response.stream.drain<void>().timeout(const Duration(seconds: 8)); } catch (_) {}
           if (response.statusCode < 200 || response.statusCode >= 300) {
             httpFailures++;
@@ -137,7 +137,7 @@ class UploadService {
         } on SpeedTestServerException {
           if (current()) rethrow;
         } on TimeoutException {
-          if (running && current()) await Future<void>.delayed(const Duration(milliseconds: 40));
+          if (running && current()) await Future<void>.delayed(const Duration(milliseconds: 80));
         } catch (_) {
           if (!running || !current()) break;
           await Future<void>.delayed(const Duration(milliseconds: 40));

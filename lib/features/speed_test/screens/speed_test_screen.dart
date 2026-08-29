@@ -77,6 +77,7 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
   String _deviceModel = '—';
   String? _testId;
   String? _serverStatus; // Online / Offline / latency
+  int _lastProgressUiMs = 0;
 
   StreamSubscription<List<ConnectivityResult>>? _connectivitySub;
   Timer? _startupServerTimer;
@@ -310,9 +311,11 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
     );
 
     // Longer duration for bigger swings → smoother, more fluid motion.
-    final ms = (260 + progressDelta * 700 + speedDelta * 1.5)
+    // Keep the visual response continuous without chasing every 200 ms
+    // measurement. Small changes settle quickly; large changes take longer.
+    final ms = (180 + progressDelta * 520 + speedDelta * 0.8)
         .round()
-        .clamp(220, 900);
+        .clamp(160, 520);
 
     _gaugeCtrl
       ..duration = Duration(milliseconds: ms)
@@ -470,29 +473,36 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
           // Skip completed phase here — final values applied after await.
           if (newPhase == SpeedTestPhase.completed) return;
 
-          double? gaugeTarget;
-          setState(() {
-            _lifecycle = SpeedTestLifecycle.testing;
-            phase = newPhase;
-            if (newPhase == SpeedTestPhase.ping) {
-              ping = value;
-              currentSpeed = 0;
-              gaugeTarget = 0;
-            } else if (newPhase == SpeedTestPhase.download) {
-              download = value;
-              currentSpeed = value;
-              gaugeTarget = value;
-            } else if (newPhase == SpeedTestPhase.upload) {
-              upload = value;
-              currentSpeed = value;
-              gaugeTarget = value;
-            }
-          });
-          // Animate outside setState to avoid rebuild/animation races.
-          final target = gaugeTarget;
-          if (target != null) {
-            _animateGaugeTo(target);
+          final nowMs = DateTime.now().millisecondsSinceEpoch;
+          // The gauge is animated independently at frame rate. Throttle the
+          // expensive full-screen setState path so high-speed upload/download
+          // callbacks cannot make the UI stutter. Phase transitions remain
+          // immediate.
+          final phaseChanged = phase != newPhase;
+          final shouldUpdateUi = phaseChanged ||
+              nowMs - _lastProgressUiMs >= ServerConfig.progressThrottleMs;
+          if (shouldUpdateUi) {
+            _lastProgressUiMs = nowMs;
+            setState(() {
+              _lifecycle = SpeedTestLifecycle.testing;
+              phase = newPhase;
+              if (newPhase == SpeedTestPhase.ping) {
+                ping = value;
+                currentSpeed = 0;
+              } else if (newPhase == SpeedTestPhase.download) {
+                download = value;
+                currentSpeed = value;
+              } else if (newPhase == SpeedTestPhase.upload) {
+                upload = value;
+                currentSpeed = value;
+              }
+            });
           }
+
+          // Always feed the visual gauge, but never rebuild the whole screen
+          // for every measurement tick.
+          final target = newPhase == SpeedTestPhase.ping ? 0.0 : value;
+          _animateGaugeTo(target);
         },
       );
 
