@@ -392,7 +392,9 @@ jobs:
 
           # Release artifacts must not be debug-signed. The APK must also be
           # structurally valid and have exactly one Android signing certificate.
-          SIGNER_COUNT="$($APKSIGNER verify --min-sdk-version 18 --print-certs "$APK" 2>/dev/null | grep -c '^Signer #' || true)"
+          SIGNER_COUNT="$($APKSIGNER verify --min-sdk-version 18 --print-certs "$APK" 2>/dev/null |
+            sed -nE 's/^Number of signers:[[:space:]]*([0-9]+).*$/\1/p' | head -n 1)"
+          test -n "$SIGNER_COUNT" || { echo '::error::Could not determine APK signer count'; exit 1; }
           test "$SIGNER_COUNT" -eq 1 || { echo "::error::Expected exactly one APK signer, found $SIGNER_COUNT"; exit 1; }
 
           echo 'Release artifacts:'
