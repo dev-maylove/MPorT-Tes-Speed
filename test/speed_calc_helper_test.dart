@@ -28,3 +28,4 @@ void main() {
     expect(measuredMbps(1000, -1), 0);
   });
 }
+

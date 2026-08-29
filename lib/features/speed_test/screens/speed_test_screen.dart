@@ -52,6 +52,7 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
   final AsnIspService _asnIsp = AsnIspService.instance;
 
   SpeedTestPhase phase = SpeedTestPhase.idle;
+  SpeedTestLifecycle _lifecycle = SpeedTestLifecycle.idle;
   double currentSpeed = 0;
   double? ping;
   double? jitter;
@@ -184,6 +185,29 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
   }
 
   Future<void> _onNetworkPathChanged() async {
+    // A speed result must never combine samples from two network paths.
+    // Abort the active run immediately; the service also monitors the path as
+    // a second line of defence.
+    if (running) {
+      ++_testGeneration;
+      _lifecycle = SpeedTestLifecycle.stopping;
+      _service.cancel(reason: const SpeedTestNetworkChangedException());
+      if (mounted) {
+        setState(() {
+          running = false;
+          phase = SpeedTestPhase.error;
+          currentSpeed = 0;
+          _lifecycle = SpeedTestLifecycle.failed;
+          _serverStatus = 'Network changed';
+        });
+        _animateGaugeTo(0);
+        unawaited(_realtime.connect());
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Network changed. Speed test stopped; please run again.')),
+        );
+      }
+    }
+
     await _asnIsp.clearCache();
     if (!mounted) return;
     await Future.wait([
@@ -350,6 +374,7 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
   @override
   void dispose() {
     _connectivitySub?.cancel();
+    _service.cancel();
     _startupServerTimer?.cancel();
     _serverService.removeListener(_onServerChanged);
     _realtime.removeListener(_onServerChanged);
@@ -360,10 +385,9 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
   }
 
   void _onServerChanged() {
-    if (mounted) {
-      setState(() {});
-      _fetchMeta();
-    }
+    if (!mounted) return;
+    setState(() {});
+    if (!running) unawaited(_fetchMeta());
   }
 
   Future<void> _autoSelectServer() async {
@@ -401,6 +425,7 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
     // valid and the metadata can be refreshed after the test.
     _startupServerTimer?.cancel();
     _startupServerTimer = null;
+    _serverService.cancelProbe();
 
     // Collapse sheet when starting
     try {
@@ -409,10 +434,12 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
     } catch (_) {}
 
     final gen = ++_testGeneration;
+    _lifecycle = SpeedTestLifecycle.preparing;
 
     setState(() {
       running = true;
       phase = SpeedTestPhase.ping;
+      _lifecycle = SpeedTestLifecycle.preparing;
       currentSpeed = 0;
       ping = null;
       jitter = null;
@@ -425,6 +452,9 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
       _serverStatus = 'Checking…';
     });
     _animateGaugeTo(0);
+    // WebSocket status pings are deliberately paused during the measurement
+    // window so they cannot add background traffic or wake the radio.
+    unawaited(_realtime.disconnect(reconnect: false));
     // Do not start a second network request here: ping/download/upload are the
     // critical path and competing with a status probe makes GO feel sluggish.
     try {
@@ -437,6 +467,7 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
 
           double? gaugeTarget;
           setState(() {
+            _lifecycle = SpeedTestLifecycle.testing;
             phase = newPhase;
             if (newPhase == SpeedTestPhase.ping) {
               ping = value;
@@ -474,6 +505,7 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
         currentSpeed = result.download;
         phase = SpeedTestPhase.completed;
         running = false;
+        _lifecycle = SpeedTestLifecycle.completed;
         // nextInt max must be <= 2^32; build a 10–13 digit Test ID safely
         _testId = _generateTestId();
       });
@@ -483,55 +515,88 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
       // ignore: unawaited_futures
       _refreshServerStatus();
 
-      await _historyService.addResult(
-        ping: result.ping,
-        jitter: result.jitter,
-        avgPing: result.avgPing,
-        maxPing: result.maxPing,
-        packetLossPercent: result.packetLossPercent,
-        download: result.download,
-        upload: result.upload,
-        server: result.server,
-        timestamp: result.timestamp,
-        isp: _ispName,
-        networkName: _deviceNetworkName,
-        connectionKind: _connectionKind,
-        deviceModel: _deviceModel,
-        testId: _testId,
-        serverLocation: _serverService.selected.location,
-      );
+      // Persistence/notification are post-processing. They must never turn a
+      // successfully measured network test into a failed test if local I/O
+      // or notification delivery happens to fail.
+      try {
+        await _historyService.addResult(
+          ping: result.ping,
+          jitter: result.jitter,
+          avgPing: result.avgPing,
+          maxPing: result.maxPing,
+          packetLossPercent: result.packetLossPercent,
+          download: result.download,
+          upload: result.upload,
+          server: result.server,
+          timestamp: result.timestamp,
+          isp: _ispName,
+          networkName: _deviceNetworkName,
+          connectionKind: _connectionKind,
+          deviceModel: _deviceModel,
+          testId: _testId,
+          serverLocation: _serverService.selected.location,
+        );
+      } catch (_) {}
 
-      // Local notification with results
-      // ignore: unawaited_futures
-      TestNotificationService.instance.showTestComplete(
-        downloadMbps: result.download,
-        uploadMbps: result.upload,
-        pingMs: result.ping,
-        jitterMs: result.jitter,
-      );
+      try {
+        unawaited(TestNotificationService.instance.showTestComplete(
+          downloadMbps: result.download,
+          uploadMbps: result.upload,
+          pingMs: result.ping,
+          jitterMs: result.jitter,
+        ));
+      } catch (_) {}
+      if (mounted && gen == _testGeneration) unawaited(_realtime.connect());
     } catch (e) {
       if (!mounted || gen != _testGeneration) return;
       setState(() {
         phase = SpeedTestPhase.error;
         running = false;
+        _lifecycle = SpeedTestLifecycle.failed;
       });
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Test failed: $e')),
+        SnackBar(content: Text(_friendlyTestError(e))),
       );
+      if (mounted) unawaited(_realtime.connect());
     }
   }
 
+  String _friendlyTestError(Object error) {
+    if (error is SpeedTestException) {
+      switch (error.kind) {
+        case SpeedTestErrorKind.cancelled:
+          return 'Test cancelled.';
+        case SpeedTestErrorKind.networkChanged:
+          return 'Network changed. Test stopped to prevent a false result.';
+        case SpeedTestErrorKind.timeout:
+          return 'Test timed out. Please check the connection or try another server.';
+        case SpeedTestErrorKind.noInternet:
+          return 'No internet connection.';
+        case SpeedTestErrorKind.server:
+          return 'Speed-test server unavailable. A fallback server was attempted.';
+        case SpeedTestErrorKind.tlsHttp:
+          return 'Network/HTTP security error. Please try again or another server.';
+        case SpeedTestErrorKind.unexpected:
+          return 'Unexpected speed-test error. Please try again.';
+      }
+    }
+    return 'Test failed: $error';
+  }
+
   void _cancelTest() {
-    // Bump generation so in-flight onProgress is ignored.
+    // Bump generation so in-flight callbacks/results are ignored.
     _testGeneration++;
-    // Stop download/upload workers immediately.
+    _lifecycle = SpeedTestLifecycle.stopping;
     _service.cancel();
+    if (!mounted) return;
     setState(() {
       running = false;
       phase = SpeedTestPhase.idle;
       currentSpeed = 0;
+      _lifecycle = SpeedTestLifecycle.idle;
     });
     _animateGaugeTo(0);
+    if (mounted) unawaited(_realtime.connect());
   }
 
   String _generateTestId() {

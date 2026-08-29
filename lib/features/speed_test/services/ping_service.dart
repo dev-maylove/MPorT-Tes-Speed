@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:math' as math;
 
 import '../../../core/constants/server_config.dart';
+import '../models/speed_test_state.dart';
 
 /// Network latency metrics from HTTP RTT samples.
 class PingResult {
@@ -34,12 +35,13 @@ class PingResult {
 }
 
 class PingService {
-  bool _cancelled = false;
   int _operationId = 0;
+  HttpClient? _activeClient;
 
   void cancel() {
-    _cancelled = true;
     _operationId++;
+    try { _activeClient?.close(force: true); } catch (_) {}
+    _activeClient = null;
   }
 
   /// Lightweight HTTP latency probe:
@@ -49,9 +51,9 @@ class PingService {
   Future<PingResult> test({
     int samples = ServerConfig.pingSamples,
   }) async {
-    _cancelled = false;
     final operationId = ++_operationId;
     final client = HttpClient();
+    _activeClient = client;
     client.connectionTimeout = const Duration(seconds: 3);
     client.idleTimeout = const Duration(seconds: 15);
     client.userAgent = 'MPorT-TesSpeed/1.0';
@@ -65,7 +67,7 @@ class PingService {
       final total = samples + ServerConfig.pingWarmup;
 
       for (var i = 0; i < total; i++) {
-        if (_cancelled || operationId != _operationId) {
+        if (operationId != _operationId) {
           throw const PingCancelledException();
         }
         final baseUri = Uri.parse(ServerConfig.pingUrl);
@@ -77,7 +79,7 @@ class PingService {
         );
 
         final ms = await _onePing(client, uri, operationId);
-        if (_cancelled || operationId != _operationId) {
+        if (operationId != _operationId) {
           throw const PingCancelledException();
         }
         // Count only post-warmup attempts toward loss stats
@@ -98,10 +100,11 @@ class PingService {
       }
     } finally {
       client.close(force: true);
+      if (identical(_activeClient, client)) _activeClient = null;
     }
 
     if (samplesMs.isEmpty) {
-      throw Exception('Ping failed — server did not respond');
+      throw const SpeedTestTimeoutException('Ping timed out — server did not respond');
     }
 
     final sorted = List<double>.from(samplesMs)..sort();
@@ -147,7 +150,7 @@ class PingService {
 
   Future<double?> _onePing(
     HttpClient client, Uri uri, int operationId) async {
-    if (_cancelled || operationId != _operationId) return null;
+    if (operationId != _operationId) return null;
     try {
       final sw = Stopwatch()..start();
       final req = await client.openUrl('HEAD', uri);
@@ -166,7 +169,7 @@ class PingService {
     } catch (_) {}
 
     try {
-      if (_cancelled || operationId != _operationId) return null;
+      if (operationId != _operationId) return null;
       final sw = Stopwatch()..start();
       final req = await client.getUrl(uri);
       req.followRedirects = false;
@@ -188,9 +191,6 @@ class PingService {
 }
 
 
-class PingCancelledException implements Exception {
+class PingCancelledException extends SpeedTestCancelledException {
   const PingCancelledException();
-
-  @override
-  String toString() => 'Ping test cancelled';
 }

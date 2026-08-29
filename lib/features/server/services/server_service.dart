@@ -162,8 +162,10 @@ class ServerService extends ChangeNotifier {
       _autoDone = false;
       return _selected;
     } finally {
-      _probing = false;
-      notifyListeners();
+      if (generation == _selectionGeneration) {
+        _probing = false;
+        notifyListeners();
+      }
     }
   }
 
@@ -172,6 +174,22 @@ class ServerService extends ChangeNotifier {
     _autoDone = true;
     _selected = server;
     _applySelected();
+    notifyListeners();
+  }
+
+  /// Select a server for an active speed test without triggering UI metadata
+  /// work. The normal [select] method remains user-facing and notifies.
+  void selectForTest(TestServer server) {
+    _selectionGeneration++;
+    _autoDone = true;
+    _selected = server;
+    _applySelected();
+  }
+
+  /// Abort an in-flight nearest-server probe before a speed test starts.
+  void cancelProbe() {
+    _selectionGeneration++;
+    _probing = false;
     notifyListeners();
   }
 
