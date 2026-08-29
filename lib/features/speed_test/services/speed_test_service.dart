@@ -240,7 +240,14 @@ class SpeedTestService {
       if (runId == _runId) {
         _uploadService.releaseCache();
         _active = false;
-        if (lifecycle != SpeedTestLifecycle.completed) lifecycle = SpeedTestLifecycle.failed;
+        if (lifecycle != SpeedTestLifecycle.completed) {
+          lifecycle = SpeedTestLifecycle.failed;
+        }
+      } else if (!_active && _runId == runId + 1 && lifecycle == SpeedTestLifecycle.stopping) {
+        // The run was invalidated by cancel/network-change. Finalize its
+        // public lifecycle only if no newer run has started. A newer run
+        // owns the lifecycle and must never be overwritten by stale cleanup.
+        lifecycle = SpeedTestLifecycle.failed;
       }
       await _stopConnectivityMonitor(runId: runId);
     }

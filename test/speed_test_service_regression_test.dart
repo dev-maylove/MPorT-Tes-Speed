@@ -144,6 +144,20 @@ void main() {
     expect(service.lifecycle, SpeedTestLifecycle.failed);
   });
 
+  test('stale cancelled cleanup cannot overwrite a newer run lifecycle', () async {
+    final ping = FakePingService(delay: const Duration(milliseconds: 40));
+    final service = makeService(ping: ping);
+    final first = service.start();
+    await Future<void>.delayed(const Duration(milliseconds: 3));
+    service.cancel();
+    final second = service.start();
+    await expectLater(first, throwsA(isA<SpeedTestCancelledException>()));
+    expect(service.lifecycle, SpeedTestLifecycle.testing);
+    final result = await second;
+    expect(result, isA<SpeedResult>());
+    expect(service.lifecycle, SpeedTestLifecycle.completed);
+  });
+
   test('server failure falls back to another server', () async {
     final ping = FakePingService()..failFirst = true;
     final service = makeService(ping: ping);
