@@ -215,7 +215,7 @@ jobs:
           keytool -list -v -keystore android/app/mport-release.jks \
             -alias "$KEY_ALIAS" -storepass "$KEYSTORE_PASSWORD" \
             > "$RUNNER_TEMP/release-cert.txt"
-          CERT_SHA256="$(awk -F': ' '/^[[:space:]]*SHA256:/{print $2; exit}' "$RUNNER_TEMP/release-cert.txt" | tr -d '[:space:]:')"
+          CERT_SHA256="$(awk -F': ' '/^[[:space:]]*SHA256:/{print $2; exit}' "$RUNNER_TEMP/release-cert.txt" | tr -d '[:space:]:' | tr '[:upper:]' '[:lower:]')"
           test -n "$CERT_SHA256" || { echo '::error::Could not determine release certificate SHA-256 fingerprint'; exit 1; }
           echo "Expected signing certificate SHA-256: $CERT_SHA256"
           echo "CERT_SHA256=$CERT_SHA256" >> "$GITHUB_ENV"
@@ -336,7 +336,7 @@ jobs:
           # failure.
           grep -F 'Verified using v3.1 scheme' "$RUNNER_TEMP/apksigner-v4.txt" || true
           grep -F 'Verified using v3.2 scheme' "$RUNNER_TEMP/apksigner-v4.txt" || true
-          tr -d '[:space:]:' < "$RUNNER_TEMP/apksigner.txt" | grep -Fq "$CERT_SHA256" || {
+          tr -d '[:space:]:' < "$RUNNER_TEMP/apksigner.txt" | tr '[:upper:]' '[:lower:]' | grep -Fq "$CERT_SHA256" || {
             echo '::error::APK certificate does not match the CI release keystore certificate.'
             exit 1
           }
@@ -344,7 +344,7 @@ jobs:
 
           echo 'Verifying AAB signature with jarsigner...'
           jarsigner -verify -verbose:certs "$AAB" >"$RUNNER_TEMP/jarsigner-aab.txt"
-          tr -d '[:space:]:' < "$RUNNER_TEMP/jarsigner-aab.txt" | grep -Fq "$CERT_SHA256" || {
+          tr -d '[:space:]:' < "$RUNNER_TEMP/jarsigner-aab.txt" | tr '[:upper:]' '[:lower:]' | grep -Fq "$CERT_SHA256" || {
             echo '::error::AAB signer certificate does not match the CI release keystore certificate.'
             exit 1
           }
