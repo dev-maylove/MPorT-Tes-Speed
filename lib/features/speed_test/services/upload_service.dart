@@ -152,7 +152,6 @@ class UploadService {
 
           var sentThisRequest = 0;
           var bytesSinceFlush = 0;
-          try {
             for (var offset = 0; offset < payload.length && running && current(); offset += _chunkBytes) {
               final end = math.min(offset + _chunkBytes, payload.length);
               final view = payload.buffer.asUint8List(
@@ -195,7 +194,6 @@ class UploadService {
                 successfulIntervals.add(<int>[activeStart, requestEnd]);
               }
             }
-          }
         } on SpeedTestCancelledException {
           if (current()) rethrow;
           break;
