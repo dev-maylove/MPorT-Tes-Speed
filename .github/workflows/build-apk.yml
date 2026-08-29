@@ -396,8 +396,14 @@ jobs:
           # Android build-tools versions. Capture both streams before parsing.
           SIGNER_OUTPUT="$($APKSIGNER verify --min-sdk-version 18 --print-certs "$APK" 2>&1)"
           printf '%s\n' "$SIGNER_OUTPUT" > "$RUNNER_TEMP/apksigner-certs.txt"
-          SIGNER_COUNT="$(printf '%s\n' "$SIGNER_OUTPUT" |
-            sed -nE 's/^[[:space:]]*Number of signers:[[:space:]]*([0-9]+)[[:space:]]*$/\1/p' | head -n 1)"
+          SIGNER_COUNT=""
+          while IFS= read -r SIGNER_LINE; do
+            SIGNER_LINE="${SIGNER_LINE//$'\r'/}"
+            if [[ "$SIGNER_LINE" =~ Number[[:space:]]+of[[:space:]]+signers:[[:space:]]*([0-9]+) ]]; then
+              SIGNER_COUNT="${BASH_REMATCH[1]}"
+              break
+            fi
+          done <<< "$SIGNER_OUTPUT"
           test -n "$SIGNER_COUNT" || {
             echo '::error::Could not determine APK signer count from apksigner output.'
             cat "$RUNNER_TEMP/apksigner-certs.txt"
