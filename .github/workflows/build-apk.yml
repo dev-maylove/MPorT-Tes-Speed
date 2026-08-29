@@ -392,18 +392,15 @@ jobs:
 
           # Release artifacts must not be debug-signed. The APK must also be
           # structurally valid and have exactly one Android signing certificate.
-          # apksigner may emit --print-certs diagnostics on stderr on some
-          # Android build-tools versions. Capture both streams before parsing.
-          SIGNER_OUTPUT="$($APKSIGNER verify --min-sdk-version 18 --print-certs "$APK" 2>&1)"
-          printf '%s\n' "$SIGNER_OUTPUT" > "$RUNNER_TEMP/apksigner-certs.txt"
-          SIGNER_COUNT=""
-          while IFS= read -r SIGNER_LINE; do
-            SIGNER_LINE="${SIGNER_LINE//$'\r'/}"
-            if [[ "$SIGNER_LINE" =~ Number[[:space:]]+of[[:space:]]+signers:[[:space:]]*([0-9]+) ]]; then
-              SIGNER_COUNT="${BASH_REMATCH[1]}"
-              break
-            fi
-          done <<< "$SIGNER_OUTPUT"
+          # The verification output captured above is authoritative here: some
+          # build-tools versions print "Number of signers" for --verbose but
+          # omit it from the --print-certs-only style output.
+          test -s "$RUNNER_TEMP/apksigner.txt" || {
+            echo '::error::Missing apksigner verification output.'
+            exit 1
+          }
+          SIGNER_COUNT="$(sed -nE 's/^[[:space:]]*Number[[:space:]]+of[[:space:]]+signers:[[:space:]]*([0-9]+).*$/\1/p' "$RUNNER_TEMP/apksigner.txt" | head -n 1 | tr -d '[:space:]')"
+          printf '%s\n' "$(cat "$RUNNER_TEMP/apksigner.txt")" > "$RUNNER_TEMP/apksigner-certs.txt"
           test -n "$SIGNER_COUNT" || {
             echo '::error::Could not determine APK signer count from apksigner output.'
             cat "$RUNNER_TEMP/apksigner-certs.txt"
