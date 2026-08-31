@@ -47,7 +47,7 @@ class DownloadService {
     var lastTickBytes = 0;
     final intervalSamples = <double>[];
     var lastUiMs = 0;
-    var httpFailures = 0;
+    SpeedTestException? terminalError;
 
     bool current() => operationId == _operationId;
     bool cancelled() => !current();
@@ -91,6 +91,8 @@ class DownloadService {
     });
 
     Future<void> worker() async {
+      // Per-worker failure budget: one bad stream must not abort healthy parallel downloads.
+      var workerFailures = 0;
       while (running && current()) {
         if (stopwatch.elapsed >= deadline) { running = false; break; }
         try {
@@ -98,30 +100,39 @@ class DownloadService {
           request.headers.addAll(ServerConfig.defaultHeaders);
           final response = await client.send(request).timeout(const Duration(seconds: ServerConfig.connectTimeoutSeconds));
           if (response.statusCode != 200) {
-            httpFailures++;
+            workerFailures++;
             await response.stream.drain<void>().catchError((_) {});
-            if (httpFailures >= 2) {
-              throw SpeedTestServerException('Download HTTP ${response.statusCode}');
+            if (workerFailures >= 3) {
+              terminalError ??= SpeedTestServerException('Download HTTP ${response.statusCode}');
+              break;
             }
             continue;
           }
-          httpFailures = 0;
+          workerFailures = 0;
           await for (final chunk in response.stream.timeout(const Duration(seconds: ServerConfig.receiveTimeoutSeconds))) {
             if (!running || cancelled()) break;
             if (stopwatch.elapsed >= deadline) { running = false; break; }
             totalBytes += chunk.length;
           }
-        } on SpeedTestServerException {
-          if (current()) rethrow;
+        } on SpeedTestServerException catch (e) {
+          terminalError ??= e;
+          break;
         } on SocketException {
           if (!running || cancelled()) break;
+          workerFailures++;
+          if (workerFailures >= 4) break;
           if (current()) {
             await Future<void>.delayed(const Duration(milliseconds: 40));
           }
         } on TimeoutException {
+          if (!running || cancelled()) break;
+          workerFailures++;
+          if (workerFailures >= 4) break;
           if (running && current()) await Future<void>.delayed(const Duration(milliseconds: 40));
         } catch (_) {
           if (!running || cancelled()) break;
+          workerFailures++;
+          if (workerFailures >= 4) break;
           await Future<void>.delayed(const Duration(milliseconds: 40));
         }
       }
@@ -144,6 +155,7 @@ class DownloadService {
     final measuredBytes = math.max(0, totalBytes - graceBytes);
     final seconds = activeMicros / 1e6;
     if (measuredBytes <= 0 || seconds <= 0) {
+      if (terminalError != null) throw terminalError!;
       throw const SpeedTestTimeoutException('Download timed out or no data was received');
     }
     final mbps = measuredMbps(measuredBytes, seconds, overhead: ServerConfig.overheadAdjustment);

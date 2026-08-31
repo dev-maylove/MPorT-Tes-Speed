@@ -96,7 +96,6 @@ class UploadService {
     var previousWireBytes = 0;
     var lastUiMs = 0;
     final intervals = <double>[];
-    var consecutiveFailures = 0;
     SpeedTestException? terminalError;
 
     bool current() => operationId == _operationId;
@@ -131,6 +130,9 @@ class UploadService {
     });
 
     Future<void> worker() async {
+      // Per-worker failure budget so one flaky connection cannot abort healthy
+      // parallel streams and produce a false-negative upload result.
+      var workerFailures = 0;
       while (running && current() && stopwatch.elapsed < deadline) {
         HttpClient? client;
         try {
@@ -152,83 +154,89 @@ class UploadService {
 
           var sentThisRequest = 0;
           var bytesSinceFlush = 0;
-            for (var offset = 0; offset < payload.length && running && current(); offset += _chunkBytes) {
-              final end = math.min(offset + _chunkBytes, payload.length);
-              final view = payload.buffer.asUint8List(
-                payload.offsetInBytes + offset,
-                end - offset,
-              );
-              request.add(view);
-              final chunkBytes = end - offset;
-              sentThisRequest += chunkBytes;
-              bytesSinceFlush += chunkBytes;
-              if (bytesSinceFlush >= _flushEveryBytes || end == payload.length) {
-                await request.flush().timeout(_requestInactivityTimeout);
-                wireBytes += sentThisRequest;
-                sentThisRequest = 0;
-                bytesSinceFlush = 0;
-                transferStartMicros = transferStartMicros == 0
-                    ? stopwatch.elapsedMicroseconds
-                    : transferStartMicros;
-              }
+          for (var offset = 0; offset < payload.length && running && current(); offset += _chunkBytes) {
+            final end = math.min(offset + _chunkBytes, payload.length);
+            final view = payload.buffer.asUint8List(
+              payload.offsetInBytes + offset,
+              end - offset,
+            );
+            if (transferStartMicros == 0) {
+              transferStartMicros = stopwatch.elapsedMicroseconds;
             }
-            if (!running || !current()) throw const SpeedTestCancelledException();
-            final response = await request.close().timeout(_requestInactivityTimeout);
-            await response.drain<void>().timeout(_requestInactivityTimeout);
-            if (response.statusCode < 200 || response.statusCode >= 300) {
-              consecutiveFailures++;
-              if (consecutiveFailures >= 2) {
-                throw SpeedTestServerException('Upload HTTP ${response.statusCode}');
-              }
-              continue;
+            request.add(view);
+            final chunkBytes = end - offset;
+            sentThisRequest += chunkBytes;
+            bytesSinceFlush += chunkBytes;
+            if (bytesSinceFlush >= _flushEveryBytes || end == payload.length) {
+              await request.flush().timeout(_requestInactivityTimeout);
+              wireBytes += sentThisRequest;
+              sentThisRequest = 0;
+              bytesSinceFlush = 0;
             }
-            consecutiveFailures = 0;
-            if (current() && stopwatch.elapsed <= deadline) {
-              // A successful response is the commit point for final scoring.
-              acceptedBytes += payload.length;
-              final requestEnd = stopwatch.elapsedMicroseconds;
-              final activeStart = transferStartMicros > grace.inMicroseconds
-                  ? transferStartMicros
-                  : grace.inMicroseconds;
-              if (requestEnd > activeStart) {
-                successfulIntervals.add(<int>[activeStart, requestEnd]);
-              }
+          }
+          if (!running || !current()) throw const SpeedTestCancelledException();
+          final response = await request.close().timeout(_requestInactivityTimeout);
+          await response.drain<void>().timeout(_requestInactivityTimeout);
+          if (response.statusCode < 200 || response.statusCode >= 300) {
+            workerFailures++;
+            if (workerFailures >= 3) {
+              // This stream is hopeless; stop this worker only.
+              break;
             }
+            continue;
+          }
+          workerFailures = 0;
+          if (current() && stopwatch.elapsed <= deadline) {
+            // A successful response is the commit point for final scoring.
+            acceptedBytes += payload.length;
+            final requestEnd = stopwatch.elapsedMicroseconds;
+            final activeStart = transferStartMicros > grace.inMicroseconds
+                ? transferStartMicros
+                : grace.inMicroseconds;
+            if (requestEnd > activeStart) {
+              successfulIntervals.add(<int>[activeStart, requestEnd]);
+            }
+          }
         } on SpeedTestCancelledException {
           if (current()) rethrow;
           break;
         } on SocketException catch (e) {
           if (!running || !current()) break;
-          consecutiveFailures++;
-          if (consecutiveFailures >= 3) {
-            terminalError = SpeedTestTlsHttpException('Network/TLS error: ${e.message}', cause: e);
-            running = false;
-            _closeActiveClients();
+          workerFailures++;
+          if (workerFailures >= 4) {
+            // Persist a terminal error only when this worker is clearly dead;
+            // other workers may still succeed. Prefer final acceptedBytes check.
+            terminalError ??= SpeedTestTlsHttpException(
+              'Network/TLS error: ${e.message}',
+              cause: e,
+            );
             break;
           }
           await Future<void>.delayed(_retryDelay);
         } on TimeoutException catch (e) {
           if (!running || !current()) break;
-          consecutiveFailures++;
-          if (consecutiveFailures >= 3) {
-            terminalError = SpeedTestTimeoutException('Upload timed out: $e');
-            running = false;
-            _closeActiveClients();
+          workerFailures++;
+          if (workerFailures >= 4) {
+            terminalError ??= SpeedTestTimeoutException('Upload timed out: $e');
             break;
           }
           await Future<void>.delayed(_retryDelay);
         } on SpeedTestServerException catch (e) {
-          terminalError = e;
-          running = false;
-          _closeActiveClients();
-          break;
+          // Hard server rejection — keep for final classification if nothing
+          // was accepted by any worker.
+          terminalError ??= e;
+          workerFailures++;
+          if (workerFailures >= 3) break;
+          await Future<void>.delayed(_retryDelay);
         } catch (e) {
           if (!running || !current()) break;
-          consecutiveFailures++;
-          if (consecutiveFailures >= 3) {
-            terminalError = SpeedTestException(SpeedTestErrorKind.unexpected, 'Upload failed: $e', cause: e);
-            running = false;
-            _closeActiveClients();
+          workerFailures++;
+          if (workerFailures >= 4) {
+            terminalError ??= SpeedTestException(
+              SpeedTestErrorKind.unexpected,
+              'Upload failed: $e',
+              cause: e,
+            );
             break;
           }
           await Future<void>.delayed(_retryDelay);
@@ -269,9 +277,13 @@ class UploadService {
     }
 
     if (!current()) throw const SpeedTestCancelledException();
-    if (terminalError != null) throw terminalError!;
 
     final bytes = math.max(0, acceptedBytes);
+    // Prefer a successful measurement when any worker delivered accepted
+    // bytes. Only surface a terminal network/server error when nothing useful
+    // was measured (otherwise a single flaky stream would discard valid data).
+    if (bytes <= 0 && terminalError != null) throw terminalError!;
+
     successfulIntervals.sort((a, b) => a[0].compareTo(b[0]));
     var activeMicros = 0;
     var mergedStart = 0;
