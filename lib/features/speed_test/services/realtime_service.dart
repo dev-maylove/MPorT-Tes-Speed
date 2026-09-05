@@ -50,14 +50,24 @@ class RealtimeService extends ChangeNotifier {
 
     try {
       final uri = Uri.parse(wsUrl);
-      _channel = WebSocketChannel.connect(uri);
-      await _channel!.ready.timeout(const Duration(seconds: 6));
+      final channel = WebSocketChannel.connect(uri);
+      _channel = channel;
+      await channel.ready.timeout(const Duration(seconds: 6));
+
+      // Another connect/disconnect may have replaced the channel while we
+      // were awaiting ready. Only proceed if we still own this connection.
+      if (!identical(_channel, channel) || _disposed || _manualClose) {
+        try {
+          await channel.sink.close();
+        } catch (_) {}
+        return;
+      }
 
       _status = RealtimeStatus.connected;
       _backoffSec = 2;
       notifyListeners();
 
-      _sub = _channel!.stream.listen(
+      _sub = channel.stream.listen(
         _onMessage,
         onError: (Object e) {
           _lastError = e.toString();
@@ -105,10 +115,11 @@ class RealtimeService extends ChangeNotifier {
   void _startPingLoop() {
     _pingTimer?.cancel();
     _pingTimer = Timer.periodic(const Duration(seconds: 3), (_) {
-      if (_channel == null || _status != RealtimeStatus.connected) return;
+      final channel = _channel;
+      if (channel == null || _status != RealtimeStatus.connected) return;
       try {
         final t = DateTime.now().millisecondsSinceEpoch;
-        _channel!.sink.add(jsonEncode({'type': 'ping', 't': t}));
+        channel.sink.add(jsonEncode({'type': 'ping', 't': t}));
       } catch (_) {}
     });
   }

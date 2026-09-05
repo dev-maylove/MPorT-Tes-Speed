@@ -138,16 +138,31 @@ class DownloadService {
       }
     }
 
+    final workers = List.generate(threadCount, (_) => worker());
     try {
-      final workers = List.generate(threadCount, (_) => worker());
-      await Future.any([Future.wait(workers), Future<void>.delayed(deadline + const Duration(milliseconds: 600))]);
+      await Future.any([
+        Future.wait(workers),
+        Future<void>.delayed(deadline + const Duration(milliseconds: 600)),
+      ]);
     } finally {
       running = false;
+      // Close the shared client so any in-flight streams terminate promptly.
+      try {
+        client.close();
+      } catch (_) {}
+      if (identical(_client, client)) _client = null;
+
+      // Drain remaining workers so late chunks are not lost and sampleTick
+      // sees a consistent final totalBytes / activeMicros snapshot.
+      try {
+        await Future.wait(workers).timeout(const Duration(milliseconds: 450));
+      } catch (_) {
+        // Timeout or cancellation is fine; we only need a bounded drain.
+      }
+
       timer.cancel();
       sampleTick(force: true);
       stopwatch.stop();
-      try { client.close(); } catch (_) {}
-      if (identical(_client, client)) _client = null;
     }
 
     if (cancelled()) throw const SpeedTestCancelledException();
