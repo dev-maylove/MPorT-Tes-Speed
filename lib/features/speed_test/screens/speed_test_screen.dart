@@ -1340,17 +1340,6 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
                                       ],
                                     ),
                                   ),
-                                // Brand watermark behind the arc (matches GO artwork)
-                                Opacity(
-                                  opacity: _isDark ? 0.14 : 0.10,
-                                  child: Image.asset(
-                                    'assets/images/mport_logo_noborder.png',
-                                    width: 168,
-                                    height: 168,
-                                    fit: BoxFit.contain,
-                                    filterQuality: FilterQuality.high,
-                                  ),
-                                ),
                                 CustomPaint(
                                   size: const Size(280, 280),
                                   painter: _ArcGaugePainter(
@@ -1362,6 +1351,7 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
                                     isDark: _isDark,
                                   ),
                                 ),
+                                // Speed value on top; logo brand below needle hub
                                 _gaugeCenterValue(speedOverride: speed),
                               ],
                             );
@@ -1436,143 +1426,14 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
           ],
         ),
 
-        // Push branding below the needle hub so the pointer never covers it
-        const SizedBox(height: 32),
-
-        // MPorT GO — match logo art (gradient, glow, motion streaks)
-        _mportGoLogoBrand(),
-      ],
-    );
-  }
-
-
-
-  /// Logo-faithful "MPorT / GO »» / TEST SPEED" wordmark (matches brand art).
-  Widget _mportGoLogoBrand() {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        // MPorT with cyan→white metallic gradient + left motion streaks
-        SizedBox(
-          height: 28,
-          child: Stack(
-            alignment: Alignment.center,
-            clipBehavior: Clip.none,
-            children: [
-              Positioned(
-                left: -36,
-                child: CustomPaint(
-                  size: const Size(40, 22),
-                  painter: _MotionStreakPainter(
-                    color: const Color(0xFF4DA3FF).withValues(alpha: 0.55),
-                  ),
-                ),
-              ),
-              ShaderMask(
-                blendMode: BlendMode.srcIn,
-                shaderCallback: (bounds) => const LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    Color(0xFFFFFFFF),
-                    Color(0xFFB8F3FF),
-                    Color(0xFF5CE1FF),
-                    Color(0xFF2BB8FF),
-                  ],
-                  stops: [0.0, 0.35, 0.7, 1.0],
-                ).createShader(bounds),
-                child: Text(
-                  'MPorT',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 24,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 1.8,
-                    height: 1,
-                    shadows: [
-                      Shadow(
-                        color: const Color(0xFF00E5FF).withValues(alpha: 0.75),
-                        blurRadius: 16,
-                      ),
-                      Shadow(
-                        color: const Color(0xFF2BB8FF).withValues(alpha: 0.45),
-                        blurRadius: 8,
-                        offset: const Offset(-2, 0),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 2),
-        // GO »» blue neon
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            ShaderMask(
-              blendMode: BlendMode.srcIn,
-              shaderCallback: (bounds) => const LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  Color(0xFF9BD4FF),
-                  Color(0xFF3B9EFF),
-                  Color(0xFF1A6FE0),
-                ],
-              ).createShader(bounds),
-              child: const Text(
-                'GO',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 20,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: 3.2,
-                  height: 1,
-                ),
-              ),
-            ),
-            const SizedBox(width: 4),
-            ShaderMask(
-              blendMode: BlendMode.srcIn,
-              shaderCallback: (bounds) => const LinearGradient(
-                colors: [Color(0xFF6EC8FF), Color(0xFF3B9EFF)],
-              ).createShader(bounds),
-              child: const Text(
-                '»»',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -2,
-                  height: 1,
-                ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 10),
-        // ECG cyan · TEST SPEED · ECG purple
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _ecgDecor(const Color(0xFF5CE1FF).withValues(alpha: 0.7)),
-            const SizedBox(width: 6),
-            Text(
-              'TEST SPEED',
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.55),
-                fontSize: 9,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 2.6,
-              ),
-            ),
-            const SizedBox(width: 6),
-            _ecgDecor(const Color(0xFFB07BFF).withValues(alpha: 0.7)),
-          ],
+        // Push brand below the needle hub (same slot as old MPorT GO wordmark)
+        const SizedBox(height: 20),
+        Image.asset(
+          'assets/images/mport_logo_noborder.png',
+          width: 96,
+          height: 96,
+          fit: BoxFit.contain,
+          filterQuality: FilterQuality.high,
         ),
       ],
     );
