@@ -1439,14 +1439,6 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
     );
   }
 
-  Widget _ecgDecor(Color color) {
-    return SizedBox(
-      width: 28,
-      height: 10,
-      child: CustomPaint(painter: _EcgLinePainter(color: color)),
-    );
-  }
-
   Widget _testingIspServerRow() {
     final loc = _serverService.selected.location.isNotEmpty
         ? _serverService.selected.location
@@ -2131,61 +2123,4 @@ class _ArcGaugePainter extends CustomPainter {
       old.gold != gold;
 }
 
-/// Tiny ECG / pulse decoration beside "TEST SPEED".
-class _EcgLinePainter extends CustomPainter {
-  final Color color;
-  _EcgLinePainter({required this.color});
 
-  @override
-  void paint(Canvas canvas, Size size) {
-    final path = Path()
-      ..moveTo(0, size.height * 0.55)
-      ..lineTo(size.width * 0.22, size.height * 0.55)
-      ..lineTo(size.width * 0.32, size.height * 0.15)
-      ..lineTo(size.width * 0.42, size.height * 0.9)
-      ..lineTo(size.width * 0.52, size.height * 0.35)
-      ..lineTo(size.width * 0.62, size.height * 0.55)
-      ..lineTo(size.width, size.height * 0.55);
-    canvas.drawPath(
-      path,
-      Paint()
-        ..color = color
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.4
-        ..strokeJoin = StrokeJoin.round
-        ..strokeCap = StrokeCap.round,
-    );
-  }
-
-  @override
-  bool shouldRepaint(covariant _EcgLinePainter old) => old.color != color;
-}
-
-/// Horizontal speed lines behind "MPorT" (logo motion effect).
-class _MotionStreakPainter extends CustomPainter {
-  final Color color;
-  _MotionStreakPainter({required this.color});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color
-      ..strokeWidth = 1.6
-      ..strokeCap = StrokeCap.round
-      ..style = PaintingStyle.stroke;
-    final ys = [size.height * 0.25, size.height * 0.5, size.height * 0.75];
-    final lens = [size.width * 0.55, size.width * 0.95, size.width * 0.7];
-    for (var i = 0; i < ys.length; i++) {
-      final y = ys[i];
-      final len = lens[i];
-      canvas.drawLine(
-        Offset(size.width - len, y),
-        Offset(size.width, y),
-        paint..color = color.withValues(alpha: 0.25 + i * 0.2),
-      );
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _MotionStreakPainter old) => old.color != color;
-}
