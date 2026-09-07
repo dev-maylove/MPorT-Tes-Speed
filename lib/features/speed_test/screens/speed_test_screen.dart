@@ -1218,11 +1218,12 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
                         ),
                       ],
                     ),
-                    child: ClipOval(
+                    child: Padding(
+                      padding: const EdgeInsets.all(10),
                       child: Image.asset(
                         'assets/images/mport_logo_noborder.png',
-                        width: 210,
-                        height: 210,
+                        width: 200,
+                        height: 200,
                         fit: BoxFit.contain,
                         filterQuality: FilterQuality.high,
                       ),
@@ -1339,6 +1340,17 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
                                       ],
                                     ),
                                   ),
+                                // Brand watermark behind the arc (matches GO artwork)
+                                Opacity(
+                                  opacity: _isDark ? 0.14 : 0.10,
+                                  child: Image.asset(
+                                    'assets/images/mport_logo_noborder.png',
+                                    width: 168,
+                                    height: 168,
+                                    fit: BoxFit.contain,
+                                    filterQuality: FilterQuality.high,
+                                  ),
+                                ),
                                 CustomPaint(
                                   size: const Size(280, 280),
                                   painter: _ArcGaugePainter(

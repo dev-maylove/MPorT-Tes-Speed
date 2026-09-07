@@ -22,7 +22,8 @@ class AppLogo extends StatelessWidget {
             'assets/images/mport_logo.png',
             width: size,
             height: size,
-            fit: BoxFit.cover,
+            fit: BoxFit.contain,
+            filterQuality: FilterQuality.high,
           ),
         ),
         if (showText) ...[
