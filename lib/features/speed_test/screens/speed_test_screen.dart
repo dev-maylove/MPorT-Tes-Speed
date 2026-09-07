@@ -1164,8 +1164,8 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
   bool _goPressed = false;
 
   Widget _goButton() {
-    // Premium GO button: logo + multi-layer circular border + soft outer glow.
-    // Border gives a polished, professional frame without fighting the artwork.
+    // GO button: premium circular frame with soft neon border + outer glow.
+    // Border gives a polished, professional look while keeping the logo clean.
     return GestureDetector(
       onTapDown: (_) => setState(() => _goPressed = true),
       onTapUp: (_) => setState(() => _goPressed = false),
@@ -1176,7 +1176,7 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
         builder: (context, _) {
           final pulse = 1.0 + (_pulseCtrl.value * 0.025);
           final pressScale = _goPressed ? 0.94 : 1.0;
-          final glowBoost = 0.28 + (_pulseCtrl.value * 0.14);
+          final glowBoost = 0.24 + (_pulseCtrl.value * 0.12);
           final borderAlpha = 0.55 + (_pulseCtrl.value * 0.25);
 
           return AnimatedScale(
@@ -1195,59 +1195,36 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      // Soft outer ambient glow
+                      border: Border.all(
+                        color: gold.withValues(alpha: borderAlpha),
+                        width: 2.5,
+                      ),
                       boxShadow: [
                         BoxShadow(
                           color: gold.withValues(alpha: glowBoost),
-                          blurRadius: 42 + (_pulseCtrl.value * 16),
+                          blurRadius: 40 + (_pulseCtrl.value * 14),
                           spreadRadius: 2,
                         ),
                         BoxShadow(
                           color: goldLight.withValues(alpha: 0.10),
-                          blurRadius: 72,
-                          spreadRadius: 8,
+                          blurRadius: 70,
+                          spreadRadius: 6,
+                        ),
+                        // Soft inner highlight for depth (premium feel)
+                        BoxShadow(
+                          color: goldLight.withValues(alpha: 0.12),
+                          blurRadius: 12,
+                          spreadRadius: -2,
                         ),
                       ],
                     ),
-                    child: Container(
-                      width: 236,
-                      height: 236,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        // Outer premium ring
-                        border: Border.all(
-                          color: gold.withValues(alpha: borderAlpha),
-                          width: 2.2,
-                        ),
-                        gradient: RadialGradient(
-                          colors: [
-                            gold.withValues(alpha: 0.06),
-                            Colors.transparent,
-                          ],
-                          stops: const [0.72, 1.0],
-                        ),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(5),
-                        child: Container(
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            // Inner subtle ring for depth / premium feel
-                            border: Border.all(
-                              color: goldLight.withValues(alpha: 0.35 + (_pulseCtrl.value * 0.15)),
-                              width: 1.1,
-                            ),
-                          ),
-                          child: Center(
-                            child: Image.asset(
-                              'assets/images/mport_logo_noborder.png',
-                              width: 208,
-                              height: 208,
-                              fit: BoxFit.contain,
-                              filterQuality: FilterQuality.high,
-                            ),
-                          ),
-                        ),
+                    child: ClipOval(
+                      child: Image.asset(
+                        'assets/images/mport_logo_noborder.png',
+                        width: 210,
+                        height: 210,
+                        fit: BoxFit.contain,
+                        filterQuality: FilterQuality.high,
                       ),
                     ),
                   ),
