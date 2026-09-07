@@ -1164,8 +1164,8 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
   bool _goPressed = false;
 
   Widget _goButton() {
-    // GO button: clean logo without the rounded-square frame. The glow is
-    // outside the artwork so there is no double border around the logo.
+    // Premium GO button: logo + multi-layer circular border + soft outer glow.
+    // Border gives a polished, professional frame without fighting the artwork.
     return GestureDetector(
       onTapDown: (_) => setState(() => _goPressed = true),
       onTapUp: (_) => setState(() => _goPressed = false),
@@ -1176,7 +1176,8 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
         builder: (context, _) {
           final pulse = 1.0 + (_pulseCtrl.value * 0.025);
           final pressScale = _goPressed ? 0.94 : 1.0;
-          final glowBoost = 0.24 + (_pulseCtrl.value * 0.12);
+          final glowBoost = 0.28 + (_pulseCtrl.value * 0.14);
+          final borderAlpha = 0.55 + (_pulseCtrl.value * 0.25);
 
           return AnimatedScale(
             scale: pressScale,
@@ -1189,30 +1190,65 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
                 height: 280,
                 child: Center(
                   child: Container(
-                    width: 230,
-                    height: 230,
+                    width: 236,
+                    height: 236,
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
+                      // Soft outer ambient glow
                       boxShadow: [
                         BoxShadow(
                           color: gold.withValues(alpha: glowBoost),
-                          blurRadius: 40 + (_pulseCtrl.value * 14),
+                          blurRadius: 42 + (_pulseCtrl.value * 16),
                           spreadRadius: 2,
                         ),
                         BoxShadow(
-                          color: goldLight.withValues(alpha: 0.08),
-                          blurRadius: 70,
-                          spreadRadius: 6,
+                          color: goldLight.withValues(alpha: 0.10),
+                          blurRadius: 72,
+                          spreadRadius: 8,
                         ),
                       ],
                     ),
-                    child: Image.asset(
-                      'assets/images/mport_logo_noborder.png',
-                      width: 218,
-                      height: 218,
-                      fit: BoxFit.contain,
-                      filterQuality: FilterQuality.high,
+                    child: Container(
+                      width: 236,
+                      height: 236,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        // Outer premium ring
+                        border: Border.all(
+                          color: gold.withValues(alpha: borderAlpha),
+                          width: 2.2,
+                        ),
+                        gradient: RadialGradient(
+                          colors: [
+                            gold.withValues(alpha: 0.06),
+                            Colors.transparent,
+                          ],
+                          stops: const [0.72, 1.0],
+                        ),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(5),
+                        child: Container(
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            // Inner subtle ring for depth / premium feel
+                            border: Border.all(
+                              color: goldLight.withValues(alpha: 0.35 + (_pulseCtrl.value * 0.15)),
+                              width: 1.1,
+                            ),
+                          ),
+                          child: Center(
+                            child: Image.asset(
+                              'assets/images/mport_logo_noborder.png',
+                              width: 208,
+                              height: 208,
+                              fit: BoxFit.contain,
+                              filterQuality: FilterQuality.high,
+                            ),
+                          ),
+                        ),
+                      ),
                     ),
                   ),
                 ),

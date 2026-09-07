@@ -14,6 +14,7 @@ class SplashScreen extends StatefulWidget {
 
 class _SplashScreenState extends State<SplashScreen> {
   VideoPlayerController? _controller;
+  Timer? _watchdogTimer;
   bool _initialized = false;
   bool _navigated = false;
   bool _hasError = false;
@@ -53,14 +54,20 @@ class _SplashScreenState extends State<SplashScreen> {
       await controller.play();
 
       // Watchdog only: never navigate before the complete video duration.
-      Timer(controller.value.duration + const Duration(seconds: 2), () {
-        if (mounted && !_navigated) _goToHome();
-      });
+      // Store the timer so dispose can cancel it and avoid a late callback.
+      _watchdogTimer?.cancel();
+      _watchdogTimer = Timer(
+        controller.value.duration + const Duration(seconds: 2),
+        () {
+          if (mounted && !_navigated) _goToHome();
+        },
+      );
     } catch (e) {
       // If video fails to load, continue to home immediately
       if (mounted) {
         setState(() => _hasError = true);
-        Timer(const Duration(milliseconds: 800), _goToHome);
+        _watchdogTimer?.cancel();
+        _watchdogTimer = Timer(const Duration(milliseconds: 800), _goToHome);
       }
     }
   }
@@ -82,6 +89,8 @@ class _SplashScreenState extends State<SplashScreen> {
   void _goToHome() {
     if (_navigated || !mounted) return;
     _navigated = true;
+    _watchdogTimer?.cancel();
+    _watchdogTimer = null;
 
     // Restore normal app system bars before entering the main screen.
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
@@ -112,6 +121,8 @@ class _SplashScreenState extends State<SplashScreen> {
   void dispose() {
     // Do not leave immersive mode active when the splash is interrupted.
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    _watchdogTimer?.cancel();
+    _watchdogTimer = null;
     _controller?.removeListener(_onVideoUpdate);
     _controller?.dispose();
     super.dispose();
