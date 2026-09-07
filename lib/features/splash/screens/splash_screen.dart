@@ -45,7 +45,7 @@ class _SplashScreenState extends State<SplashScreen> {
       await controller.initialize();
       if (!mounted) return;
 
-      // Square 1080x1080 video, play once
+      // Play the splash video once and cover the entire Android screen.
       await controller.setLooping(false);
       await controller.setVolume(0); // mute audio
 
@@ -54,8 +54,11 @@ class _SplashScreenState extends State<SplashScreen> {
       setState(() => _initialized = true);
       await controller.play();
 
-      // Fallback: if video does not fire completion (edge case)
-      Timer(const Duration(milliseconds: 5500), _goToHome);
+      // Fallback: if video completion is not reported by the platform.
+      Timer(
+        controller.value.duration + const Duration(milliseconds: 500),
+        _goToHome,
+      );
     } catch (e) {
       // If video fails to load, continue to home immediately
       if (mounted) {
@@ -114,13 +117,25 @@ class _SplashScreenState extends State<SplashScreen> {
       body: Stack(
         fit: StackFit.expand,
         children: [
-          // Video centered (aspect ratio 1:1)
+          // Full-screen video. BoxFit.cover fills the entire display while
+          // preserving the video's aspect ratio.
           if (_initialized && _controller != null && !_hasError)
-            Center(
-              child: AspectRatio(
-                aspectRatio: _controller!.value.aspectRatio,
-                child: VideoPlayer(_controller!),
-              ),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final size = _controller!.value.size;
+                return ClipRect(
+                  child: SizedBox.expand(
+                    child: FittedBox(
+                      fit: BoxFit.cover,
+                      child: SizedBox(
+                        width: size.width,
+                        height: size.height,
+                        child: VideoPlayer(_controller!),
+                      ),
+                    ),
+                  ),
+                );
+              },
             )
           else if (!_hasError)
             // Loading sementara video initialize
@@ -162,24 +177,6 @@ class _SplashScreenState extends State<SplashScreen> {
                     ),
                   ),
                 ],
-              ),
-            ),
-
-          // Soft vignette so video edges blend better into black
-          if (_initialized && !_hasError)
-            IgnorePointer(
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: RadialGradient(
-                    center: Alignment.center,
-                    radius: 0.95,
-                    colors: [
-                      Colors.transparent,
-                      Colors.black.withValues(alpha: 0.35),
-                    ],
-                    stops: const [0.55, 1.0],
-                  ),
-                ),
               ),
             ),
         ],
