@@ -1319,10 +1319,12 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
                             final speed = _gaugeCtrl.isAnimating
                                 ? _speedTween.value
                                 : _animSpeed;
+                            // Layer order (back → front):
+                            // glow → logo watermark → arc+needle → speed readout
+                            // Needle must paint above the logo.
                             return Stack(
                               alignment: Alignment.center,
                               children: [
-                                // Soft glow — cheaper when not testing
                                 if (running)
                                   Container(
                                     width: 250,
@@ -1340,6 +1342,19 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
                                       ],
                                     ),
                                   ),
+                                // Brand logo behind the needle
+                                const Padding(
+                                  padding: EdgeInsets.only(top: 36),
+                                  child: Image(
+                                    image: AssetImage(
+                                      'assets/images/mport_logo_noborder.png',
+                                    ),
+                                    width: 96,
+                                    height: 96,
+                                    fit: BoxFit.contain,
+                                    filterQuality: FilterQuality.high,
+                                  ),
+                                ),
                                 CustomPaint(
                                   size: const Size(280, 280),
                                   painter: _ArcGaugePainter(
@@ -1351,8 +1366,11 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
                                     isDark: _isDark,
                                   ),
                                 ),
-                                // Speed value on top; logo brand below needle hub
-                                _gaugeCenterValue(speedOverride: speed),
+                                // Speed readout sits in the upper half of the dial
+                                Align(
+                                  alignment: const Alignment(0, -0.28),
+                                  child: _gaugeCenterValue(speedOverride: speed),
+                                ),
                               ],
                             );
                           },
@@ -1424,16 +1442,6 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
               ),
             ),
           ],
-        ),
-
-        // Push brand below the needle hub (same slot as old MPorT GO wordmark)
-        const SizedBox(height: 20),
-        Image.asset(
-          'assets/images/mport_logo_noborder.png',
-          width: 96,
-          height: 96,
-          fit: BoxFit.contain,
-          filterQuality: FilterQuality.high,
         ),
       ],
     );
