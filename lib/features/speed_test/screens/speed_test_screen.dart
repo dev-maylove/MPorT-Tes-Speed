@@ -1164,7 +1164,8 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
   bool _goPressed = false;
 
   Widget _goButton() {
-    // Tombol GO: logo original full + ring kaca + animasi pulse & press
+    // GO button: clean logo without the rounded-square frame. The glow is
+    // outside the artwork so there is no double border around the logo.
     return GestureDetector(
       onTapDown: (_) => setState(() => _goPressed = true),
       onTapUp: (_) => setState(() => _goPressed = false),
@@ -1173,9 +1174,9 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
       child: AnimatedBuilder(
         animation: _pulseCtrl,
         builder: (context, _) {
-          final pulse = 1.0 + (_pulseCtrl.value * 0.035);
+          final pulse = 1.0 + (_pulseCtrl.value * 0.025);
           final pressScale = _goPressed ? 0.94 : 1.0;
-          final glowBoost = 0.30 + (_pulseCtrl.value * 0.12);
+          final glowBoost = 0.24 + (_pulseCtrl.value * 0.12);
 
           return AnimatedScale(
             scale: pressScale,
@@ -1186,76 +1187,34 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
               child: SizedBox(
                 width: 280,
                 height: 280,
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    // Glow luar (cyan lembut, ikut pulse)
-                    Container(
-                      width: 200,
-                      height: 200,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: gold.withValues(alpha: glowBoost),
-                            blurRadius: 36 + (_pulseCtrl.value * 12),
-                            spreadRadius: 2 + (_pulseCtrl.value * 3),
-                          ),
-                          BoxShadow(
-                            color: goldLight.withValues(alpha: 0.10 + _pulseCtrl.value * 0.06),
-                            blurRadius: 64,
-                            spreadRadius: 8,
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    // Logo ORIGINAL — full, terang
-                    ClipOval(
-                      child: Image.asset(
-                        'assets/images/mport_logo.png',
-                        width: 180,
-                        height: 180,
-                        fit: BoxFit.cover,
-                        filterQuality: FilterQuality.high,
-                      ),
-                    ),
-
-                    // Ring kaca transparan
-                    IgnorePointer(
-                      child: Container(
-                        width: 180,
-                        height: 180,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: Colors.transparent,
-                          border: Border.all(
-                            color: Colors.white.withValues(alpha: 0.28),
-                            width: 1.5,
-                          ),
+                child: Center(
+                  child: Container(
+                    width: 230,
+                    height: 230,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: gold.withValues(alpha: glowBoost),
+                          blurRadius: 40 + (_pulseCtrl.value * 14),
+                          spreadRadius: 2,
                         ),
-                      ),
-                    ),
-
-                    // Ring aksen hijau transparan (opacity ikut pulse)
-                    IgnorePointer(
-                      child: Container(
-                        width: 188,
-                        height: 188,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: Colors.transparent,
-                          border: Border.all(
-                            color: gold.withValues(
-                              alpha: 0.35 + (_pulseCtrl.value * 0.25),
-                            ),
-                            width: 1.5,
-                          ),
+                        BoxShadow(
+                          color: goldLight.withValues(alpha: 0.08),
+                          blurRadius: 70,
+                          spreadRadius: 6,
                         ),
-                      ),
+                      ],
                     ),
-
-                  ],
+                    child: Image.asset(
+                      'assets/images/mport_logo_noborder.png',
+                      width: 218,
+                      height: 218,
+                      fit: BoxFit.contain,
+                      filterQuality: FilterQuality.high,
+                    ),
+                  ),
                 ),
               ),
             ),

@@ -22,15 +22,12 @@ class _SplashScreenState extends State<SplashScreen> {
   void initState() {
     super.initState();
 
-    SystemChrome.setSystemUIOverlayStyle(
-      const SystemUiOverlayStyle(
-        statusBarColor: Colors.transparent,
-        statusBarIconBrightness: Brightness.light,
-        // nav color set by MaterialApp theme
-
-        systemNavigationBarIconBrightness: Brightness.light,
-      ),
-    );
+    // Splash video must occupy the real Android screen, including the system-bar area.
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+    SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      systemNavigationBarColor: Colors.transparent,
+    ));
 
     _initVideo();
   }
@@ -52,13 +49,13 @@ class _SplashScreenState extends State<SplashScreen> {
       controller.addListener(_onVideoUpdate);
 
       setState(() => _initialized = true);
+      // Start only after the first frame has been initialized.
       await controller.play();
 
-      // Fallback: if video completion is not reported by the platform.
-      Timer(
-        controller.value.duration + const Duration(milliseconds: 500),
-        _goToHome,
-      );
+      // Watchdog only: never navigate before the complete video duration.
+      Timer(controller.value.duration + const Duration(seconds: 2), () {
+        if (mounted && !_navigated) _goToHome();
+      });
     } catch (e) {
       // If video fails to load, continue to home immediately
       if (mounted) {
@@ -75,9 +72,9 @@ class _SplashScreenState extends State<SplashScreen> {
     final pos = c.value.position;
     final dur = c.value.duration;
 
-    // Navigate when video is almost finished
+    // Android does not always emit a separate completion callback.
     if (dur.inMilliseconds > 0 &&
-        pos.inMilliseconds >= dur.inMilliseconds - 80) {
+        (c.value.isCompleted || pos >= dur)) {
       _goToHome();
     }
   }
@@ -85,6 +82,14 @@ class _SplashScreenState extends State<SplashScreen> {
   void _goToHome() {
     if (_navigated || !mounted) return;
     _navigated = true;
+
+    // Restore normal app system bars before entering the main screen.
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: Brightness.light,
+      systemNavigationBarIconBrightness: Brightness.light,
+    ));
 
     Navigator.of(context).pushReplacement(
       PageRouteBuilder<void>(
@@ -105,6 +110,8 @@ class _SplashScreenState extends State<SplashScreen> {
 
   @override
   void dispose() {
+    // Do not leave immersive mode active when the splash is interrupted.
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     _controller?.removeListener(_onVideoUpdate);
     _controller?.dispose();
     super.dispose();

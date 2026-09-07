@@ -33,4 +33,5 @@ flutter:
   uses-material-design: true
   assets:
     - assets/images/mport_logo.png
+    - assets/images/mport_logo_noborder.png
     - assets/videos/mport_splash.mp4
