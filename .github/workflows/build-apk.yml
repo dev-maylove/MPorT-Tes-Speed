@@ -423,11 +423,15 @@ jobs:
           cp "$APK_IDS" artifacts/MPorT-Tes-Speed-release.apk.idsig
           cp build/app/outputs/bundle/release/app-release.aab artifacts/MPorT-Tes-Speed-release.aab
 
-          if [ -d build/debug-info ]; then
+          # Keep artifact payload small to stay within Actions storage quota.
+          # Debug symbols are useful but large — only attach when explicitly requested.
+          if [ "${UPLOAD_DEBUG_INFO:-0}" = "1" ] && [ -d build/debug-info ]; then
             tar -C build -czf artifacts/MPorT-Tes-Speed-debug-info.tar.gz debug-info
           fi
 
           sha256sum artifacts/*.apk artifacts/*.aab artifacts/*.idsig > artifacts/SHA256SUMS.txt
+          echo 'Artifact payload:'
+          du -sh artifacts/* || true
 
       - name: Upload signed APK + AAB
         uses: actions/upload-artifact@v7
@@ -435,7 +439,10 @@ jobs:
           name: MPorT-Tes-Speed-Android-Release
           path: artifacts/
           if-no-files-found: error
-          retention-days: 14
+          # Short retention + overwrite reduces Actions artifact storage pressure.
+          retention-days: 3
+          overwrite: true
+          compression-level: 9
 
       - name: Remove signing material
         if: always()
