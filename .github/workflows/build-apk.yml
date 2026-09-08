@@ -76,6 +76,10 @@ jobs:
     # are intentionally unavailable (especially for fork PRs).
     if: github.event_name != 'pull_request'
     timeout-minutes: 45
+    # actions:write is required to delete previous artifacts and free storage quota.
+    permissions:
+      contents: read
+      actions: write
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -433,7 +437,34 @@ jobs:
           echo 'Artifact payload:'
           du -sh artifacts/* || true
 
+      - name: Free previous release artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          # Delete older artifacts with the same name to reclaim Actions storage
+          # quota before uploading the new build. Best-effort: never fail the job.
+          ARTIFACT_NAME='MPorT-Tes-Speed-Android-Release'
+          echo "Looking for previous artifacts named: $ARTIFACT_NAME"
+          IDS="$(gh api --paginate \
+            "repos/${{ github.repository }}/actions/artifacts" \
+            --jq ".artifacts[] | select(.name==\"$ARTIFACT_NAME\") | .id" \
+            2>/dev/null || true)"
+          if [ -z "${IDS}" ]; then
+            echo 'No previous matching artifacts found.'
+            exit 0
+          fi
+          while IFS= read -r id; do
+            [ -z "$id" ] && continue
+            echo "Deleting artifact id=$id"
+            gh api -X DELETE "repos/${{ github.repository }}/actions/artifacts/${id}" \
+              && echo "Deleted $id" \
+              || echo "::warning::Could not delete artifact $id (continuing)"
+          done <<< "$IDS"
+
       - name: Upload signed APK + AAB
+        id: upload_release
+        continue-on-error: true
         uses: actions/upload-artifact@v7
         with:
           name: MPorT-Tes-Speed-Android-Release
@@ -443,6 +474,17 @@ jobs:
           retention-days: 3
           overwrite: true
           compression-level: 9
+
+      - name: Report artifact upload status
+        run: |
+          set -euo pipefail
+          if [ "${{ steps.upload_release.outcome }}" = "success" ]; then
+            echo 'Release artifacts uploaded successfully.'
+            exit 0
+          fi
+          echo '::warning::Artifact upload failed (often Actions storage quota). APK/AAB were still built and signed on this runner.'
+          echo 'Delete old artifacts under Actions → Artifacts, wait for quota recalculation (6–12h), then re-run this job.'
+          echo 'Build itself is considered successful; download APK/AAB from a local release build if needed.'
 
       - name: Remove signing material
         if: always()
