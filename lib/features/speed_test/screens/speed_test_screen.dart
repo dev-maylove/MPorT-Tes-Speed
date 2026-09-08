@@ -1320,8 +1320,7 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
                                 ? _speedTween.value
                                 : _animSpeed;
                             // Layer order (back → front):
-                            // glow → logo watermark → arc+needle → speed readout
-                            // Needle must paint above the logo.
+                            // glow → dial face → logo → needle → speed readout
                             return Stack(
                               alignment: Alignment.center,
                               children: [
@@ -1342,31 +1341,50 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
                                       ],
                                     ),
                                   ),
-                                // Brand logo behind the needle
+                                // Face + ticks + rim (cached picture; rarely repaints)
+                                CustomPaint(
+                                  size: const Size(280, 280),
+                                  isComplex: true,
+                                  willChange: false,
+                                  painter: _ArcGaugePainter(
+                                    progress: progress,
+                                    gold: gold,
+                                    goldLight: goldLight,
+                                    pulse: running ? pulse : 0.2,
+                                    showNeedle: false,
+                                    paintFace: true,
+                                    isDark: _isDark,
+                                  ),
+                                ),
+                                // Brand logo above the face, below the needle
                                 const Padding(
-                                  padding: EdgeInsets.only(top: 36),
+                                  padding: EdgeInsets.only(top: 28),
                                   child: Image(
                                     image: AssetImage(
                                       'assets/images/mport_logo_noborder.png',
                                     ),
-                                    width: 96,
-                                    height: 96,
+                                    width: 100,
+                                    height: 100,
                                     fit: BoxFit.contain,
                                     filterQuality: FilterQuality.high,
                                   ),
                                 ),
+                                // Needle only — willChange: true for 60fps updates
                                 CustomPaint(
                                   size: const Size(280, 280),
+                                  isComplex: false,
+                                  willChange: true,
                                   painter: _ArcGaugePainter(
                                     progress: progress,
                                     gold: gold,
                                     goldLight: goldLight,
                                     pulse: running ? pulse : 0.2,
                                     showNeedle: true,
+                                    paintFace: false,
                                     isDark: _isDark,
                                   ),
                                 ),
-                                // Speed readout sits in the upper half of the dial
+                                // Speed readout in the upper half of the dial
                                 Align(
                                   alignment: const Alignment(0, -0.28),
                                   child: _gaugeCenterValue(speedOverride: speed),
@@ -1924,15 +1942,51 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
 
 
 
-/// Full dial gauge — matches product screenshot exactly:
-/// full cyan rim, major/minor ticks (cyan→purple), needle from hub, dark face.
+/// Full dial gauge — face is cached as a [Picture]; only the needle repaints
+/// at animation frame rate.
 class _ArcGaugePainter extends CustomPainter {
   final double progress;
   final Color gold;
   final Color goldLight;
   final double pulse;
   final bool showNeedle;
+  final bool paintFace;
   final bool isDark;
+
+  // Reused paint objects — avoid allocating per frame.
+  static final Paint _faceFill = Paint();
+  static final Paint _ringStroke = Paint()
+    ..style = PaintingStyle.stroke
+    ..strokeWidth = 1;
+  static final Paint _tickPaint = Paint()..strokeCap = StrokeCap.round;
+  static final Paint _rimGlow = Paint()..style = PaintingStyle.stroke;
+  static final Paint _rimSolid = Paint()
+    ..style = PaintingStyle.stroke
+    ..strokeWidth = 3.6;
+  static final Paint _needleGlow = Paint()
+    ..strokeWidth = 7
+    ..strokeCap = StrokeCap.round
+    ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5);
+  static final Paint _needleBody = Paint()
+    ..strokeWidth = 2.8
+    ..strokeCap = StrokeCap.round;
+  static final Paint _tipGlow = Paint()
+    ..color = Colors.white
+    ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2);
+  static final Paint _tipCore = Paint();
+  static final Paint _hubFill = Paint()..color = const Color(0xFF0A1422);
+  static final Paint _hubRing = Paint()
+    ..style = PaintingStyle.stroke
+    ..strokeWidth = 2.4;
+  static final Paint _hubDot = Paint();
+
+  // Static face picture cache (keyed by size + theme + brand colors).
+  static Picture? _facePicture;
+  static Size? _faceSize;
+  static bool? _faceDark;
+  static Color? _faceGold;
+  static Color? _faceGoldLight;
+  static double? _facePulse;
 
   _ArcGaugePainter({
     required this.progress,
@@ -1940,6 +1994,7 @@ class _ArcGaugePainter extends CustomPainter {
     required this.goldLight,
     this.pulse = 0,
     this.showNeedle = true,
+    this.paintFace = true,
     this.isDark = true,
   });
 
@@ -1948,7 +2003,46 @@ class _ArcGaugePainter extends CustomPainter {
     final center = Offset(size.width / 2, size.height / 2);
     final outerR = size.width / 2 - 4;
 
-    // ── Dial face ───────────────────────────────────────────────
+    if (!paintFace) {
+      if (showNeedle) _paintNeedle(canvas, center, outerR);
+      return;
+    }
+
+    _drawCachedFace(canvas, size, center, outerR);
+    if (showNeedle) _paintNeedle(canvas, center, outerR);
+  }
+
+  void _drawCachedFace(Canvas canvas, Size size, Offset center, double outerR) {
+    final pulseKey = pulse > 0.4 ? 1.0 : 0.0; // only two blur tiers
+    final cacheHit = _facePicture != null &&
+        _faceSize == size &&
+        _faceDark == isDark &&
+        _faceGold == gold &&
+        _faceGoldLight == goldLight &&
+        _facePulse == pulseKey;
+
+    if (!cacheHit) {
+      _facePicture?.dispose();
+      final recorder = PictureRecorder();
+      final c = Canvas(recorder);
+      _paintFaceLayer(c, center, outerR, pulseKey);
+      _facePicture = recorder.endRecording();
+      _faceSize = size;
+      _faceDark = isDark;
+      _faceGold = gold;
+      _faceGoldLight = goldLight;
+      _facePulse = pulseKey;
+    }
+
+    canvas.drawPicture(_facePicture!);
+  }
+
+  void _paintFaceLayer(
+    Canvas canvas,
+    Offset center,
+    double outerR,
+    double pulseKey,
+  ) {
     final faceColors = isDark
         ? const [
             Color(0xFF0E1828),
@@ -1960,175 +2054,119 @@ class _ArcGaugePainter extends CustomPainter {
             Color(0xFFF0F4F8),
             Color(0xFFE2E8F0),
           ];
-    canvas.drawCircle(
-      center,
-      outerR - 1,
-      Paint()
-        ..shader = RadialGradient(
-          colors: faceColors,
-          stops: const [0.0, 0.55, 1.0],
-        ).createShader(Rect.fromCircle(center: center, radius: outerR)),
-    );
 
-    // Soft concentric rings (screenshot grid)
-    for (final f in [0.28, 0.48, 0.68, 0.86]) {
-      canvas.drawCircle(
-        center,
-        outerR * f,
-        Paint()
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 1
-          ..color = Colors.white.withValues(alpha: 0.04),
-      );
+    _faceFill.shader = RadialGradient(
+      colors: faceColors,
+      stops: const [0.0, 0.55, 1.0],
+    ).createShader(Rect.fromCircle(center: center, radius: outerR));
+    canvas.drawCircle(center, outerR - 1, _faceFill);
+
+    _ringStroke.color = Colors.white.withValues(alpha: 0.04);
+    for (final f in const [0.28, 0.48, 0.68, 0.86]) {
+      canvas.drawCircle(center, outerR * f, _ringStroke);
     }
 
-    // ── Tick marks around full circle ───────────────────────────
-    // Major every 30° (12 marks), minor every 6°
-    const majorCount = 12;
-    const minorPerMajor = 5;
-    const totalTicks = majorCount * minorPerMajor;
+    const totalTicks = 60; // 12 major × 5
     for (var i = 0; i < totalTicks; i++) {
       final t = i / totalTicks;
-      // Start from top (-pi/2) going clockwise visually via Flutter CW angles
       final angle = -math.pi / 2 + t * math.pi * 2;
-      final isMajor = i % minorPerMajor == 0;
-
-      // Left/top cyan, right side shifts purple (as in screenshot)
+      final isMajor = i % 5 == 0;
       final purple = (t > 0.45 && t < 0.9)
           ? ((t - 0.45) / 0.45).clamp(0.0, 1.0)
           : 0.0;
-      final tickColor = Color.lerp(
-        gold,
-        const Color(0xFF9B7BFF),
-        purple * 0.9,
-      )!
-          .withValues(alpha: isMajor ? 1.0 : 0.55);
-
+      _tickPaint
+        ..color = Color.lerp(gold, const Color(0xFF9B7BFF), purple * 0.9)!
+            .withValues(alpha: isMajor ? 1.0 : 0.55)
+        ..strokeWidth = isMajor ? 3.0 : 1.4;
       final outer = outerR - 10;
       final inner = outerR - (isMajor ? 28.0 : 18.0);
-      final p1 = Offset(
-        center.dx + math.cos(angle) * inner,
-        center.dy + math.sin(angle) * inner,
-      );
-      final p2 = Offset(
-        center.dx + math.cos(angle) * outer,
-        center.dy + math.sin(angle) * outer,
-      );
       canvas.drawLine(
-        p1,
-        p2,
-        Paint()
-          ..color = tickColor
-          ..strokeWidth = isMajor ? 3.0 : 1.4
-          ..strokeCap = StrokeCap.round,
+        Offset(
+          center.dx + math.cos(angle) * inner,
+          center.dy + math.sin(angle) * inner,
+        ),
+        Offset(
+          center.dx + math.cos(angle) * outer,
+          center.dy + math.sin(angle) * outer,
+        ),
+        _tickPaint,
       );
     }
 
-    // ── Outer neon rim ──────────────────────────────────────────
-    // Glow — lighter blur when pulse is low (cheaper during idle / start)
-    final glowBlur = pulse > 0.4 ? 12.0 : 6.0;
-    canvas.drawCircle(
-      center,
-      outerR,
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 8 + pulse * 3
-        ..color = gold.withValues(alpha: 0.22 + pulse * 0.12)
-        ..maskFilter = MaskFilter.blur(BlurStyle.normal, glowBlur),
-    );
-    // Solid gradient ring (cyan → purple → cyan)
-    canvas.drawCircle(
-      center,
-      outerR,
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 3.6
-        ..shader = SweepGradient(
-          startAngle: -math.pi / 2,
-          endAngle: math.pi * 1.5,
-          colors: [
-            gold,
-            goldLight,
-            const Color(0xFF6EC8FF),
-            const Color(0xFF8B6CFF),
-            gold,
-          ],
-          stops: const [0.0, 0.2, 0.45, 0.7, 1.0],
-        ).createShader(Rect.fromCircle(center: center, radius: outerR)),
-    );
+    // Rim glow — cheaper blur; only two tiers via pulseKey
+    final glowBlur = pulseKey > 0 ? 10.0 : 5.0;
+    _rimGlow
+      ..strokeWidth = 8 + pulseKey * 3
+      ..color = gold.withValues(alpha: 0.22 + pulseKey * 0.12)
+      ..maskFilter = MaskFilter.blur(BlurStyle.normal, glowBlur);
+    canvas.drawCircle(center, outerR, _rimGlow);
 
-    // ── Needle (classic meter: 0 at bottom-left ~ 225° style) ───
-    // Map progress 0..1 onto arc from ~210° to ~-30° (270° sweep)
-    // Flutter angles: 0 = east, positive = clockwise
-    // Screenshot rest position ≈ lower-left (about 7–8 o'clock)
-    const arcStart = math.pi * 0.75; // SW
-    const arcSweep = math.pi * 1.5; // 270° CW toward SE via N
-    final p = progress.clamp(0.0, 1.0);
-    final needleAngle = arcStart + arcSweep * p;
+    _rimSolid.shader = SweepGradient(
+      startAngle: -math.pi / 2,
+      endAngle: math.pi * 1.5,
+      colors: [
+        gold,
+        goldLight,
+        const Color(0xFF6EC8FF),
+        const Color(0xFF8B6CFF),
+        gold,
+      ],
+      stops: const [0.0, 0.2, 0.45, 0.7, 1.0],
+    ).createShader(Rect.fromCircle(center: center, radius: outerR));
+    canvas.drawCircle(center, outerR, _rimSolid);
+  }
+
+  void _paintNeedle(Canvas canvas, Offset center, double outerR) {
+    const arcStart = math.pi * 0.75;
+    const arcSweep = math.pi * 1.5;
+    final needleAngle = arcStart + arcSweep * progress.clamp(0.0, 1.0);
     final needleLen = outerR - 36;
+    final cosA = math.cos(needleAngle);
+    final sinA = math.sin(needleAngle);
 
-    if (showNeedle) {
-      final tip = Offset(
-        center.dx + math.cos(needleAngle) * needleLen,
-        center.dy + math.sin(needleAngle) * needleLen,
-      );
-      final tail = Offset(
-        center.dx - math.cos(needleAngle) * 20,
-        center.dy - math.sin(needleAngle) * 20,
-      );
+    final tip = Offset(center.dx + cosA * needleLen, center.dy + sinA * needleLen);
+    final tail = Offset(center.dx - cosA * 20, center.dy - sinA * 20);
 
-      // Glow
-      canvas.drawLine(
-        tail,
-        tip,
-        Paint()
-          ..color = gold.withValues(alpha: 0.45)
-          ..strokeWidth = 7
-          ..strokeCap = StrokeCap.round
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6),
-      );
-      // Body
-      canvas.drawLine(
-        tail,
-        tip,
-        Paint()
-          ..shader = LinearGradient(
-            colors: [goldLight, Colors.white, gold],
-          ).createShader(Rect.fromPoints(tail, tip))
-          ..strokeWidth = 2.8
-          ..strokeCap = StrokeCap.round,
-      );
-      // Bright tip
-      canvas.drawCircle(
-        tip,
-        3.2,
-        Paint()
-          ..color = Colors.white
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2),
-      );
-      canvas.drawCircle(tip, 2.2, Paint()..color = goldLight);
+    _needleGlow.color = gold.withValues(alpha: 0.45);
+    canvas.drawLine(tail, tip, _needleGlow);
 
-      // Hub
-      canvas.drawCircle(center, 11, Paint()..color = const Color(0xFF0A1422));
-      canvas.drawCircle(
-        center,
-        11,
-        Paint()
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 2.4
-          ..color = gold,
-      );
-      canvas.drawCircle(center, 4.0, Paint()..color = goldLight);
-    }
+    _needleBody.shader = LinearGradient(
+      colors: [goldLight, Colors.white, gold],
+    ).createShader(Rect.fromPoints(tail, tip));
+    canvas.drawLine(tail, tip, _needleBody);
+
+    canvas.drawCircle(tip, 3.2, _tipGlow);
+    _tipCore.color = goldLight;
+    canvas.drawCircle(tip, 2.2, _tipCore);
+
+    canvas.drawCircle(center, 11, _hubFill);
+    _hubRing.color = gold;
+    canvas.drawCircle(center, 11, _hubRing);
+    _hubDot.color = goldLight;
+    canvas.drawCircle(center, 4.0, _hubDot);
   }
 
   @override
-  bool shouldRepaint(_ArcGaugePainter old) =>
-      old.progress != progress ||
-      old.pulse != pulse ||
-      old.showNeedle != showNeedle ||
-      old.isDark != isDark ||
-      old.gold != gold;
+  bool shouldRepaint(_ArcGaugePainter old) {
+    if (paintFace != old.paintFace ||
+        showNeedle != old.showNeedle ||
+        isDark != old.isDark ||
+        gold != old.gold ||
+        goldLight != old.goldLight) {
+      return true;
+    }
+    // Face layer ignores progress (cached picture).
+    if (paintFace && !showNeedle) {
+      final oldTier = old.pulse > 0.4 ? 1.0 : 0.0;
+      final newTier = pulse > 0.4 ? 1.0 : 0.0;
+      return oldTier != newTier;
+    }
+    // Needle layer only cares about progress.
+    if (!paintFace && showNeedle) {
+      return old.progress != progress;
+    }
+    return old.progress != progress || old.pulse != pulse;
+  }
 }
 
 
