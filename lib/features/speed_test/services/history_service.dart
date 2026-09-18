@@ -18,11 +18,13 @@ class HistoryService {
   static const String _legacyKeyV1 = 'speed_test_history';
   static const int maxItems = 50;
 
+  /// flutter_secure_storage ≥11: encryptedSharedPreferences removed.
+  /// Default ciphers are RSA-OAEP + AES-GCM with migrateOnAlgorithmChange.
   static const FlutterSecureStorage _secure = FlutterSecureStorage(
     aOptions: AndroidOptions(
-      encryptedSharedPreferences: true,
-      // Prefer modern keystore-backed storage
       resetOnError: true,
+      migrateOnAlgorithmChange: true,
+      storageNamespace: 'mport_history',
     ),
     iOptions: IOSOptions(
       accessibility: KeychainAccessibility.first_unlock_this_device,

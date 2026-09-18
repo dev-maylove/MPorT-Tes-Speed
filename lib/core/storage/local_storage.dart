@@ -8,8 +8,13 @@ import 'package:shared_preferences/shared_preferences.dart';
 class LocalStorage {
   SharedPreferences? _prefs;
 
+  /// flutter_secure_storage ≥11 API (no encryptedSharedPreferences).
   static const FlutterSecureStorage _secure = FlutterSecureStorage(
-    aOptions: AndroidOptions(encryptedSharedPreferences: true),
+    aOptions: AndroidOptions(
+      resetOnError: true,
+      migrateOnAlgorithmChange: true,
+      storageNamespace: 'mport_prefs',
+    ),
     iOptions: IOSOptions(
       accessibility: KeychainAccessibility.first_unlock_this_device,
     ),
