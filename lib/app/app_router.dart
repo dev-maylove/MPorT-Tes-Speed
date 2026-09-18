@@ -13,15 +13,15 @@ class AppRouter {
   static const String settings = '/settings';
   static const String about = '/about';
 
-  static Route<dynamic> generateRoute(RouteSettings settings) {
-    switch (settings.name) {
+  static Route<dynamic> generateRoute(RouteSettings routeSettings) {
+    switch (routeSettings.name) {
       case home:
         return MaterialPageRoute<void>(builder: (_) => const MainScreen());
       case history:
         return MaterialPageRoute<void>(builder: (_) => const HistoryScreen());
       case server:
         return MaterialPageRoute<void>(builder: (_) => const ServerScreen());
-      case AppRouter.settings:
+      case settings:
         return MaterialPageRoute<void>(builder: (_) => const SettingsScreen());
       case about:
         return MaterialPageRoute<void>(builder: (_) => const AboutScreen());
@@ -29,7 +29,7 @@ class AppRouter {
         return MaterialPageRoute<void>(
           builder: (_) => Scaffold(
             body: Center(
-              child: Text('Route not found: ${settings.name}'),
+              child: Text('Route not found: ${routeSettings.name}'),
             ),
           ),
         );

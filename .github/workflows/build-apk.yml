@@ -247,9 +247,17 @@ jobs:
           test -n "$ANDROID_SDK_ROOT"
           "$ANDROID_SDK_ROOT/ndk/28.2.13676358/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip" --version
 
-      - name: Build signed release APK (universal)
+      - name: Build signed release APKs (split-per-abi for smaller size + universal)
         run: |
           set -euo pipefail
+          # Split-per-abi produces much smaller APKs (arm64-v8a is the primary
+          # download for modern devices). Universal remains available for
+          # sideload convenience and older multi-arch devices.
+          flutter build apk --release \
+            --split-per-abi \
+            --obfuscate \
+            --split-debug-info=build/debug-info \
+            --tree-shake-icons
           flutter build apk --release \
             --obfuscate \
             --split-debug-info=build/debug-info \
@@ -420,7 +428,14 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p artifacts
+          # Universal APK (largest, multi-ABI)
           cp build/app/outputs/flutter-apk/app-release.apk artifacts/MPorT-Tes-Speed-release.apk
+          # Split APKs (much smaller; prefer arm64-v8a for modern devices)
+          for f in build/app/outputs/flutter-apk/app-*-release.apk; do
+            [ -f "$f" ] || continue
+            base=$(basename "$f")
+            cp "$f" "artifacts/MPorT-Tes-Speed-${base}"
+          done
           APK_IDS=$(find build -type f -name 'app-release.apk.idsig' -print -quit || true)
           if [ -z "$APK_IDS" ]; then APK_IDS=$(find build -type f -name '*.idsig' -print -quit || true); fi
           test -n "$APK_IDS" || { echo '::error::V4 idsig artifact missing'; exit 1; }
