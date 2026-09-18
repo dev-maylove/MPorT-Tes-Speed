@@ -34,10 +34,21 @@
 -dontwarn com.google.android.play.core.splitinstall.**
 -dontwarn com.google.android.play.core.tasks.**
 
-# Connectivity / network_info / device_info plugins — keep generated registrants
+# Connectivity / network_info / device_info plugins
 -keep class io.flutter.plugins.** { *; }
 -keep class dev.fluttercommunity.** { *; }
 -keep class com.baseflow.** { *; }
+
+# permission_handler
+-keep class com.baseflow.permissionhandler.** { *; }
+
+# flutter_local_notifications
+-keep class com.dexterous.** { *; }
+
+# flutter_secure_storage (Android Keystore / EncryptedSharedPreferences)
+-keep class com.it_nomads.fluttersecurestorage.** { *; }
+-keepclassmembers class com.it_nomads.fluttersecurestorage.** { *; }
+-dontwarn com.it_nomads.fluttersecurestorage.**
 
 # Aggressive optimization (safe with Flutter when minify is on)
 -optimizations !code/simplification/arithmetic,!code/simplification/cast,!field/*,!class/merging/*
@@ -45,8 +56,9 @@
 -allowaccessmodification
 -repackageclasses ''
 
-# permission_handler
--keep class com.baseflow.permissionhandler.** { *; }
-
-# flutter_local_notifications
--keep class com.dexterous.** { *; }
+# Strip verbose logging in release (defensive)
+-assumenosideeffects class android.util.Log {
+    public static *** d(...);
+    public static *** v(...);
+    public static *** i(...);
+}

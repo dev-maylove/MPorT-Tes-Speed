@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:webview_flutter/webview_flutter.dart';
 
+import '../../../core/security/security_config.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_footer.dart';
 
@@ -272,6 +273,13 @@ class _DowndetectorScreenState extends State<DowndetectorScreen> {
       ..setBackgroundColor(AppColors.background)
       ..setNavigationDelegate(
         NavigationDelegate(
+          onNavigationRequest: (request) {
+            if (SecurityConfig.isWebViewUrlAllowed(request.url)) {
+              return NavigationDecision.navigate;
+            }
+            SecurityConfig.log('Downdetector WebView blocked: ${request.url}');
+            return NavigationDecision.prevent;
+          },
           onPageFinished: (_) {
             if (mounted) setState(() => _loadingWeb = false);
           },

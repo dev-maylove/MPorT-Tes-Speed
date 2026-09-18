@@ -38,6 +38,12 @@ class TestServer {
   });
 
   /// Default: HaanSirO Network (Ookla server Pati)
+  /// True when this server uses HTTPS transport.
+  bool get isSecure => scheme.toLowerCase() == 'https';
+
+  /// Human-readable protocol badge for UI (HTTPS / HTTP).
+  String get protocolLabel => isSecure ? 'HTTPS' : 'HTTP';
+
   factory TestServer.haansiro() => const TestServer(
         id: '75224',
         name: 'HaanSirO Network',

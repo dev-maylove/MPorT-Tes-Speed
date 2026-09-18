@@ -1,18 +1,37 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// Persists speed-test results locally (max 50 entries).
+/// Persists speed-test results in encrypted storage (max 50 entries).
+///
+/// Uses [FlutterSecureStorage] (Android Keystore / iOS Keychain backed).
+/// On first run after upgrade, migrates any legacy SharedPreferences history
+/// into secure storage and deletes the plaintext copy.
 ///
 /// Writes are serialized so concurrent add/remove/clear cannot interleave
 /// read-modify-write sequences and drop entries.
 class HistoryService {
-  static const String _key = 'speed_test_history_v2';
+  static const String _key = 'speed_test_history_v3_secure';
+  static const String _legacyKeyV2 = 'speed_test_history_v2';
+  static const String _legacyKeyV1 = 'speed_test_history';
   static const int maxItems = 50;
+
+  static const FlutterSecureStorage _secure = FlutterSecureStorage(
+    aOptions: AndroidOptions(
+      encryptedSharedPreferences: true,
+      // Prefer modern keystore-backed storage
+      resetOnError: true,
+    ),
+    iOptions: IOSOptions(
+      accessibility: KeychainAccessibility.first_unlock_this_device,
+    ),
+  );
 
   /// Simple chain lock: each mutating call waits for the previous one.
   Future<void> _writeChain = Future<void>.value();
+  bool _migrated = false;
 
   Future<T> _serialized<T>(Future<T> Function() action) {
     final completer = Completer<T>();
@@ -26,24 +45,48 @@ class HistoryService {
     return completer.future;
   }
 
+  Future<void> _ensureMigrated() async {
+    if (_migrated) return;
+    _migrated = true;
+    try {
+      final existing = await _secure.read(key: _key);
+      if (existing != null && existing.isNotEmpty) return;
+
+      final prefs = await SharedPreferences.getInstance();
+      var data = prefs.getStringList(_legacyKeyV2);
+      if (data == null || data.isEmpty) {
+        data = prefs.getStringList(_legacyKeyV1) ?? [];
+      }
+      if (data.isEmpty) return;
+
+      // Migrate plaintext history → encrypted storage
+      await _secure.write(key: _key, value: jsonEncode(data));
+      await prefs.remove(_legacyKeyV2);
+      await prefs.remove(_legacyKeyV1);
+    } catch (_) {
+      // Soft-fail: keep going with empty history if migration fails
+    }
+  }
+
   Future<List<Map<String, dynamic>>> getHistory() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      // Prefer v2; fall back to legacy key once.
-      var data = prefs.getStringList(_key);
-      if (data == null || data.isEmpty) {
-        data = prefs.getStringList('speed_test_history') ?? [];
-        if (data.isNotEmpty) {
-          await prefs.setStringList(_key, data);
-        }
-      }
+      await _ensureMigrated();
+      final raw = await _secure.read(key: _key);
+      if (raw == null || raw.isEmpty) return [];
+
+      final decoded = jsonDecode(raw);
+      if (decoded is! List) return [];
 
       final result = <Map<String, dynamic>>[];
-      for (final item in data) {
+      for (final item in decoded) {
         try {
-          final map = jsonDecode(item);
-          if (map is Map) {
-            result.add(Map<String, dynamic>.from(map));
+          if (item is String) {
+            final map = jsonDecode(item);
+            if (map is Map) {
+              result.add(Map<String, dynamic>.from(map));
+            }
+          } else if (item is Map) {
+            result.add(Map<String, dynamic>.from(item));
           }
         } catch (_) {
           // skip corrupt entry
@@ -73,7 +116,7 @@ class HistoryService {
     String? serverLocation,
   }) {
     return _serialized(() async {
-      final prefs = await SharedPreferences.getInstance();
+      await _ensureMigrated();
       final history = await getHistory();
 
       history.insert(0, {
@@ -96,46 +139,39 @@ class HistoryService {
       });
 
       final limited = history.take(maxItems).toList();
-
-      await prefs.setStringList(
-        _key,
-        limited.map(jsonEncode).toList(),
-      );
+      await _secure.write(key: _key, value: jsonEncode(limited));
     });
   }
 
   Future<void> removeAt(int index) {
     return _serialized(() async {
-      final prefs = await SharedPreferences.getInstance();
+      await _ensureMigrated();
       final history = await getHistory();
       if (index < 0 || index >= history.length) return;
       history.removeAt(index);
-      await prefs.setStringList(
-        _key,
-        history.map(jsonEncode).toList(),
-      );
+      await _secure.write(key: _key, value: jsonEncode(history));
     });
   }
 
   Future<void> removeById(String id) {
     return _serialized(() async {
-      final prefs = await SharedPreferences.getInstance();
+      await _ensureMigrated();
       final history = await getHistory();
       history.removeWhere(
         (e) => (e['id']?.toString() ?? e['testId']?.toString() ?? '') == id,
       );
-      await prefs.setStringList(
-        _key,
-        history.map(jsonEncode).toList(),
-      );
+      await _secure.write(key: _key, value: jsonEncode(history));
     });
   }
 
   Future<void> clearHistory() {
     return _serialized(() async {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.remove(_key);
-      await prefs.remove('speed_test_history');
+      await _secure.delete(key: _key);
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.remove(_legacyKeyV2);
+        await prefs.remove(_legacyKeyV1);
+      } catch (_) {}
     });
   }
 }

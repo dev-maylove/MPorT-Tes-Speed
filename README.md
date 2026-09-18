@@ -125,6 +125,14 @@ See [`.github/workflows/build-apk.yml`](.github/workflows/build-apk.yml).
 
 Please report vulnerabilities privately. See **[SECURITY.md](SECURITY.md)** for supported versions, scope, and reporting process.
 
+Highlights in current builds:
+
+- Network Security Config — cleartext HTTP only for known speed-test hosts
+- Speed-test history encrypted with `flutter_secure_storage`
+- WebView navigation restricted by host allow-list
+- Feature-scoped runtime permissions
+- Release: R8 minify, obfuscate, tree-shake icons
+
 Do not commit keystores, API keys, tokens, or internal server credentials.
 
 ---

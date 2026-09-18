@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Network Security Config for MPorT Go
+  - Cleartext (HTTP) is ONLY allowed for known speed-test hosts that still
+    serve on plain HTTP (common for Ookla-style :8080 endpoints).
+  - All other domains must use HTTPS (system default).
+  - Debug builds may be more permissive; release stays strict.
+-->
+<network-security-config>
+    <!-- Production baseline: cleartext disabled by default -->
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+
+    <!-- Allow cleartext only for explicit speed-test hosts that require HTTP -->
+    <domain-config cleartextTrafficPermitted="true">
+        <!-- Primary / legacy HaanSirO endpoints -->
+        <domain includeSubdomains="true">ookla.haansiro.net</domain>
+        <domain includeSubdomains="true">haansiro.net</domain>
+        <domain includeSubdomains="true">haansiro.id</domain>
+        <!-- Common Indonesian Ookla-style test hosts (port 8080 HTTP) -->
+        <domain includeSubdomains="true">menaracloud.com</domain>
+        <domain includeSubdomains="true">adinetwork.info</domain>
+        <domain includeSubdomains="true">merdeka.net.id</domain>
+        <domain includeSubdomains="true">ldp.net.id</domain>
+        <domain includeSubdomains="true">linkbit.net.id</domain>
+        <domain includeSubdomains="true">reconet.co.id</domain>
+        <domain includeSubdomains="true">hscnet.id</domain>
+        <!-- Generic speedtest subdomains often used by ISPs -->
+        <domain includeSubdomains="true">speedtest.id</domain>
+        <domain includeSubdomains="true">speedtest.net.id</domain>
+    </domain-config>
+
+    <!-- Debug builds: slightly more permissive for local testing only -->
+    <debug-overrides>
+        <trust-anchors>
+            <certificates src="system" />
+            <certificates src="user" />
+        </trust-anchors>
+    </debug-overrides>
+</network-security-config>

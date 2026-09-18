@@ -48,10 +48,13 @@ Out of scope:
 ## Security practices (project)
 
 - **Secrets** — Release keystores, API keys, and signing passwords are never committed. CI injects them at build time and removes them after the job.
-- **Dependencies** — Flutter/Dart packages are resolved from the public pub.dev registry; lockfile changes should be reviewed in PRs.
+- **Dependencies** — Flutter/Dart packages are resolved from the public pub.dev registry; lockfile changes should be reviewed in PRs. Run `flutter pub outdated` periodically.
 - **Least privilege CI** — Workflows use minimal `permissions`. Signed release builds do not run on pull requests.
-- **Transport** — Network tests use HTTPS where the server supports it; cleartext is only used when a test endpoint requires it and is constrained by the app network config.
-- **Local data** — History and preferences use on-device storage (`SharedPreferences`). No account system ships in the current version; treat the device as the trust boundary.
+- **Transport** — Cleartext HTTP is disabled by default. A [Network Security Config](android/app/src/main/res/xml/network_security_config.xml) allow-lists only known speed-test hosts that still require HTTP (typical Ookla-style :8080 endpoints). Prefer HTTPS when the server supports it.
+- **Local data** — Speed-test history is stored with `flutter_secure_storage` (Android Keystore / iOS Keychain). Non-sensitive preferences remain in `SharedPreferences`. No account system ships in the current version.
+- **WebView** — In-app WebViews use host allow-lists; navigation to unexpected domains is blocked.
+- **Permissions** — Location / Nearby Wi-Fi and notification permissions are requested only when the related feature needs them (lazy / feature-scoped).
+- **Build hardening** — Release builds enable R8 full mode, resource shrinking, Dart obfuscation (`--obfuscate`), and tree-shaken icons. ProGuard strips debug log calls.
 - **Disclosure** — Internal server hostnames, credentials, and infrastructure details are omitted from public documentation.
 
 ## Safe Harbor

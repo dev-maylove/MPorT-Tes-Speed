@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
+import '../../../core/security/security_config.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_drawer.dart';
 import '../../server/services/server_service.dart';
@@ -47,10 +48,18 @@ class _MapsScreenState extends State<MapsScreen>
     final lon = _focus?.longitude ?? 111.0379;
 
     final controller = WebViewController()
-      ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      ..setJavaScriptMode(JavaScriptMode.unrestricted) // required for Leaflet map
       ..setBackgroundColor(AppColors.background)
       ..setNavigationDelegate(
         NavigationDelegate(
+          onNavigationRequest: (request) {
+            // Block navigation to unexpected external hosts
+            if (SecurityConfig.isWebViewUrlAllowed(request.url)) {
+              return NavigationDecision.navigate;
+            }
+            SecurityConfig.log('WebView blocked navigation: ${request.url}');
+            return NavigationDecision.prevent;
+          },
           onPageFinished: (_) {
             if (mounted) {
               setState(() {

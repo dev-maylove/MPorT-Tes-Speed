@@ -4,10 +4,38 @@ import 'package:flutter/foundation.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 /// Runtime permissions needed by MPorT Go.
+///
+/// Prefer feature-scoped requests ([requestLocationForSsid],
+/// [requestNotification]) over [requestAll] so the user is not asked for
+/// everything at first launch.
 class AppPermissions {
   AppPermissions._();
 
-  /// Request every permission the speed-test flow needs.
+  /// Request only what is needed to display Wi-Fi SSID.
+  static Future<bool> requestLocationForSsid() async {
+    if (kIsWeb) return false;
+    if (Platform.isIOS) {
+      final s = await Permission.locationWhenInUse.request();
+      return s.isGranted || s.isLimited;
+    }
+    if (Platform.isAndroid) {
+      // Android 13+ prefers NEARBY_WIFI_DEVICES; older versions need location.
+      final nearby = await Permission.nearbyWifiDevices.request();
+      if (nearby.isGranted) return true;
+      final loc = await Permission.locationWhenInUse.request();
+      return loc.isGranted || loc.isLimited;
+    }
+    return false;
+  }
+
+  /// Request notification permission only (for test-complete alerts).
+  static Future<bool> requestNotification() async {
+    if (kIsWeb) return true;
+    final s = await Permission.notification.request();
+    return s.isGranted || s.isLimited;
+  }
+
+  /// Legacy bulk request — prefer the feature-scoped methods above.
   /// Safe to call multiple times; already-granted permissions are skipped.
   static Future<AppPermissionResult> requestAll() async {
     if (kIsWeb) {
@@ -20,6 +48,8 @@ class AppPermissions {
 
     final results = <Permission, PermissionStatus>{};
 
+    // Only request location when the caller explicitly needs SSID context.
+    // Callers that only need notifications should use [requestNotification].
     if (Platform.isAndroid || Platform.isIOS) {
       results[Permission.locationWhenInUse] =
           await Permission.locationWhenInUse.request();
@@ -78,11 +108,9 @@ class AppPermissions {
         if (next.isGranted || next.isLimited) return;
       }
       if (status.isGranted || status.isLimited) {
-        // Already granted — still open settings so user can toggle system location.
         await openAppSettings();
         return;
       }
-      // Permanently denied / restricted → app settings
       await openAppSettings();
     } catch (_) {
       await openAppSettings();
@@ -98,7 +126,6 @@ class AppPermissions {
         final next = await Permission.notification.request();
         if (next.isGranted || next.isLimited) return;
       }
-      // Open app settings (Android shows notification toggle there)
       await openAppSettings();
     } catch (_) {
       await openAppSettings();
