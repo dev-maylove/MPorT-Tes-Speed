@@ -120,7 +120,7 @@ class AboutScreen extends StatelessWidget {
                     ),
                     _InfoRow(
                       title: 'Platform',
-                      value: 'Flutter',
+                      value: 'Android',
                       on: on,
                       muted: muted,
                     ),
