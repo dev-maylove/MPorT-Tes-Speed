@@ -168,7 +168,12 @@ class DownloadService {
     if (cancelled()) throw const SpeedTestCancelledException();
     endGraceIfNeeded();
     final measuredBytes = math.max(0, totalBytes - graceBytes);
-    final seconds = activeMicros / 1e6;
+    // Use wall-clock time of the measurement window (post-grace) so the
+    // final score reflects sustained throughput rather than only intervals
+    // that happened to carry bytes. Active-interval accumulation remains
+    // available for the live gauge via sampleTick.
+    final wallMicros = stopwatch.elapsedMicroseconds - grace.inMicroseconds;
+    final seconds = math.max(0.0, wallMicros / 1e6);
     if (measuredBytes <= 0 || seconds <= 0) {
       if (terminalError != null) throw terminalError!;
       throw const SpeedTestTimeoutException('Download timed out or no data was received');
