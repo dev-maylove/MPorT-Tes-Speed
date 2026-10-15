@@ -104,10 +104,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          # GitHub-hosted runners expose the Android SDK, but sdkmanager is
-          # not guaranteed to be on PATH. Resolve it explicitly from the
-          # installed command-line tools instead of assuming `sdkmanager`
-          # is globally available.
+          # Resolve Android SDK root and sdkmanager (not always on PATH).
           export ANDROID_SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-}}"
           test -n "$ANDROID_SDK_ROOT" || { echo '::error::ANDROID_SDK_ROOT/ANDROID_HOME is not set'; exit 1; }
 
@@ -129,42 +126,65 @@ jobs:
           "$SDKMANAGER" --version
           yes | "$SDKMANAGER" --licenses >/dev/null || true
 
-          # Prefer a recent NDK, but do not hard-fail the whole job on a
-          # transient "Error on ZipFile unknown archive" from Google's CDN.
-          # Try a short candidate list with retries, then fall back to any
-          # already-installed side-by-side NDK that provides llvm-strip.
-          install_ndk() {
-            local pkg="$1"
-            local attempt
-            for attempt in 1 2 3; do
-              echo "Installing $pkg (attempt $attempt)..."
-              if "$SDKMANAGER" --install "$pkg"; then
-                return 0
-              fi
-              echo "Warning: failed to install $pkg on attempt $attempt"
-              sleep $((attempt * 3))
-            done
-            return 1
+          # Locate any existing llvm-strip under side-by-side NDKs.
+          # Prefer a broad name search: host prebuilt path can differ across
+          # NDK major versions and runner images.
+          find_strip() {
+            local roots=()
+            [ -d "$ANDROID_SDK_ROOT/ndk" ] && roots+=("$ANDROID_SDK_ROOT/ndk")
+            [ -d "$ANDROID_SDK_ROOT/ndk-bundle" ] && roots+=("$ANDROID_SDK_ROOT/ndk-bundle")
+            if [ ${#roots[@]} -eq 0 ]; then
+              return 0
+            fi
+            # Broad name search — host prebuilt layout varies by NDK version.
+            find "${roots[@]}" -type f -name 'llvm-strip' 2>/dev/null               | while read -r p; do
+                  [ -x "$p" ] && printf '%s\n' "$p"
+                done               | sort -V               | tail -n 1 || true
           }
 
-          # Candidates ordered from newest common release to slightly older.
-          # 28.2 has been flaky on some runners; keep it but allow fallbacks.
-          install_ndk "ndk;28.2.13676358" \
-            || install_ndk "ndk;27.2.12479018" \
-            || install_ndk "ndk;26.3.11579264" \
-            || echo "Warning: could not install a preferred NDK package; will use any existing install."
+          STRIP="$(find_strip)"
+          if [ -n "$STRIP" ] && [ -x "$STRIP" ]; then
+            echo "Found existing llvm-strip: $STRIP"
+          else
+            echo "No usable llvm-strip yet; attempting NDK install..."
+            # Install with retries. Accept any of several common packages.
+            # Do not fail the job if CDN returns a bad zip — fall through.
+            install_ndk() {
+              local pkg="$1"
+              local attempt
+              for attempt in 1 2 3; do
+                echo "Installing $pkg (attempt $attempt)..."
+                if "$SDKMANAGER" --install "$pkg"; then
+                  return 0
+                fi
+                echo "Warning: failed to install $pkg on attempt $attempt"
+                sleep $((attempt * 3))
+              done
+              return 1
+            }
 
-          # Resolve llvm-strip from any installed NDK (newest first).
-          STRIP="$(find "$ANDROID_SDK_ROOT/ndk" -type f -path '*/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip' 2>/dev/null | sort -V | tail -n 1 || true)"
-          if [ -z "$STRIP" ] || [ ! -x "$STRIP" ]; then
-            echo '::error::No usable llvm-strip found under $ANDROID_SDK_ROOT/ndk'
-            ls -la "$ANDROID_SDK_ROOT/ndk" 2>/dev/null || true
-            exit 1
+            install_ndk "ndk;28.2.13676358" \
+              || install_ndk "ndk;27.3.13750724" \
+              || install_ndk "ndk;27.2.12479018" \
+              || install_ndk "ndk;26.3.11579264" \
+              || echo "Warning: preferred NDK packages could not be installed."
+
+            STRIP="$(find_strip)"
           fi
 
-          echo "Using llvm-strip: $STRIP"
-          "$STRIP" --version
-          echo "NDK_STRIP=$STRIP" >> "$GITHUB_ENV"
+          if [ -z "$STRIP" ] || [ ! -x "$STRIP" ]; then
+            echo "::warning::No llvm-strip found under NDK. Listing ndk tree for diagnostics:"
+            ls -la "$ANDROID_SDK_ROOT/ndk" 2>/dev/null || true
+            find "$ANDROID_SDK_ROOT/ndk" -name 'llvm-strip' 2>/dev/null || true
+            # Non-fatal: Flutter/Gradle can still install/use an NDK during the
+            # build. Symbol stripping may be skipped or handled later.
+            echo "NDK_STRIP=" >> "$GITHUB_ENV"
+            echo "Proceeding without a pre-resolved llvm-strip."
+          else
+            echo "Using llvm-strip: $STRIP"
+            "$STRIP" --version || true
+            echo "NDK_STRIP=$STRIP" >> "$GITHUB_ENV"
+          fi
 
       - name: Pub get
         env:
@@ -276,15 +296,23 @@ jobs:
           flutter doctor -v
           export ANDROID_SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-}}"
           test -n "$ANDROID_SDK_ROOT"
-          # Prefer the strip tool resolved in the Prepare step; fall back to a
-          # dynamic search so a different side-by-side NDK still works.
           STRIP="${NDK_STRIP:-}"
           if [ -z "$STRIP" ] || [ ! -x "$STRIP" ]; then
-            STRIP="$(find "$ANDROID_SDK_ROOT/ndk" -type f -path '*/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip' 2>/dev/null | sort -V | tail -n 1 || true)"
+            STRIP=""
+            for root in "$ANDROID_SDK_ROOT/ndk" "$ANDROID_SDK_ROOT/ndk-bundle"; do
+              [ -d "$root" ] || continue
+              candidate="$(find "$root" -type f -name 'llvm-strip' 2>/dev/null | while read -r p; do [ -x "$p" ] && echo "$p"; done | sort -V | tail -n 1 || true)"
+              if [ -n "$candidate" ] && [ -x "$candidate" ]; then
+                STRIP="$candidate"
+              fi
+            done
           fi
-          test -n "$STRIP" && test -x "$STRIP"
-          echo "Verifying llvm-strip: $STRIP"
-          "$STRIP" --version
+          if [ -n "$STRIP" ] && [ -x "$STRIP" ]; then
+            echo "Verifying llvm-strip: $STRIP"
+            "$STRIP" --version
+          else
+            echo "::warning::llvm-strip not pre-resolved; Flutter/Gradle will use the NDK selected during the build."
+          fi
 
       - name: Build signed release APKs (split-per-abi for smaller size + universal)
         run: |
