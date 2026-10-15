@@ -128,12 +128,43 @@ jobs:
           echo "Using sdkmanager: $SDKMANAGER"
           "$SDKMANAGER" --version
           yes | "$SDKMANAGER" --licenses >/dev/null || true
-          "$SDKMANAGER" --install "ndk;28.2.13676358"
 
-          NDK_ROOT="$ANDROID_SDK_ROOT/ndk/28.2.13676358"
-          STRIP="$NDK_ROOT/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip"
-          test -x "$STRIP"
-          echo "NDK 28.2.13676358 and llvm-strip are available."
+          # Prefer a recent NDK, but do not hard-fail the whole job on a
+          # transient "Error on ZipFile unknown archive" from Google's CDN.
+          # Try a short candidate list with retries, then fall back to any
+          # already-installed side-by-side NDK that provides llvm-strip.
+          install_ndk() {
+            local pkg="$1"
+            local attempt
+            for attempt in 1 2 3; do
+              echo "Installing $pkg (attempt $attempt)..."
+              if "$SDKMANAGER" --install "$pkg"; then
+                return 0
+              fi
+              echo "Warning: failed to install $pkg on attempt $attempt"
+              sleep $((attempt * 3))
+            done
+            return 1
+          }
+
+          # Candidates ordered from newest common release to slightly older.
+          # 28.2 has been flaky on some runners; keep it but allow fallbacks.
+          install_ndk "ndk;28.2.13676358" \
+            || install_ndk "ndk;27.2.12479018" \
+            || install_ndk "ndk;26.3.11579264" \
+            || echo "Warning: could not install a preferred NDK package; will use any existing install."
+
+          # Resolve llvm-strip from any installed NDK (newest first).
+          STRIP="$(find "$ANDROID_SDK_ROOT/ndk" -type f -path '*/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip' 2>/dev/null | sort -V | tail -n 1 || true)"
+          if [ -z "$STRIP" ] || [ ! -x "$STRIP" ]; then
+            echo '::error::No usable llvm-strip found under $ANDROID_SDK_ROOT/ndk'
+            ls -la "$ANDROID_SDK_ROOT/ndk" 2>/dev/null || true
+            exit 1
+          fi
+
+          echo "Using llvm-strip: $STRIP"
+          "$STRIP" --version
+          echo "NDK_STRIP=$STRIP" >> "$GITHUB_ENV"
 
       - name: Pub get
         env:
@@ -245,7 +276,15 @@ jobs:
           flutter doctor -v
           export ANDROID_SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-}}"
           test -n "$ANDROID_SDK_ROOT"
-          "$ANDROID_SDK_ROOT/ndk/28.2.13676358/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip" --version
+          # Prefer the strip tool resolved in the Prepare step; fall back to a
+          # dynamic search so a different side-by-side NDK still works.
+          STRIP="${NDK_STRIP:-}"
+          if [ -z "$STRIP" ] || [ ! -x "$STRIP" ]; then
+            STRIP="$(find "$ANDROID_SDK_ROOT/ndk" -type f -path '*/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip' 2>/dev/null | sort -V | tail -n 1 || true)"
+          fi
+          test -n "$STRIP" && test -x "$STRIP"
+          echo "Verifying llvm-strip: $STRIP"
+          "$STRIP" --version
 
       - name: Build signed release APKs (split-per-abi for smaller size + universal)
         run: |
