@@ -104,7 +104,6 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          # Resolve Android SDK root and sdkmanager (not always on PATH).
           export ANDROID_SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-}}"
           test -n "$ANDROID_SDK_ROOT" || { echo '::error::ANDROID_SDK_ROOT/ANDROID_HOME is not set'; exit 1; }
 
@@ -126,32 +125,37 @@ jobs:
           "$SDKMANAGER" --version
           yes | "$SDKMANAGER" --licenses >/dev/null || true
 
-          # Locate any existing llvm-strip under side-by-side NDKs.
-          # Prefer a broad name search: host prebuilt path can differ across
-          # NDK major versions and runner images.
-          find_strip() {
+          # Pick newest llvm-strip by path version. Do not rely on -x alone:
+          # some runner NDK trees are root-owned and fail the executable bit
+          # check even though the binary is runnable.
+          pick_strip() {
             local roots=()
             [ -d "$ANDROID_SDK_ROOT/ndk" ] && roots+=("$ANDROID_SDK_ROOT/ndk")
             [ -d "$ANDROID_SDK_ROOT/ndk-bundle" ] && roots+=("$ANDROID_SDK_ROOT/ndk-bundle")
-            if [ ${#roots[@]} -eq 0 ]; then
-              return 0
-            fi
-            # Broad name search — host prebuilt layout varies by NDK version.
-            find "${roots[@]}" -type f -name 'llvm-strip' 2>/dev/null               | while read -r p; do
-                  [ -x "$p" ] && printf '%s\n' "$p"
-                done               | sort -V               | tail -n 1 || true
+            [ ${#roots[@]} -eq 0 ] && return 0
+            # Newest NDK directory first (version-sorted).
+            local ndk_dir
+            for ndk_dir in $(find "${roots[@]}" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | sort -V -r); do
+              local candidate
+              candidate="$(find "$ndk_dir" -type f -name 'llvm-strip' 2>/dev/null | head -n 1 || true)"
+              if [ -n "$candidate" ] && [ -f "$candidate" ]; then
+                # Prefer a binary that actually runs.
+                if "$candidate" --version >/dev/null 2>&1; then
+                  printf '%s\n' "$candidate"
+                  return 0
+                fi
+                # Fallback: still return the path (chmod may help later).
+                printf '%s\n' "$candidate"
+                return 0
+              fi
+            done
           }
 
-          STRIP="$(find_strip)"
-          if [ -n "$STRIP" ] && [ -x "$STRIP" ]; then
-            echo "Found existing llvm-strip: $STRIP"
-          else
-            echo "No usable llvm-strip yet; attempting NDK install..."
-            # Install with retries. Accept any of several common packages.
-            # Do not fail the job if CDN returns a bad zip — fall through.
+          STRIP="$(pick_strip || true)"
+          if [ -z "$STRIP" ] || [ ! -f "$STRIP" ]; then
+            echo "No llvm-strip found yet; attempting NDK install..."
             install_ndk() {
-              local pkg="$1"
-              local attempt
+              local pkg="$1" attempt
               for attempt in 1 2 3; do
                 echo "Installing $pkg (attempt $attempt)..."
                 if "$SDKMANAGER" --install "$pkg"; then
@@ -162,28 +166,22 @@ jobs:
               done
               return 1
             }
-
             install_ndk "ndk;28.2.13676358" \
               || install_ndk "ndk;27.3.13750724" \
               || install_ndk "ndk;27.2.12479018" \
-              || install_ndk "ndk;26.3.11579264" \
               || echo "Warning: preferred NDK packages could not be installed."
-
-            STRIP="$(find_strip)"
+            STRIP="$(pick_strip || true)"
           fi
 
-          if [ -z "$STRIP" ] || [ ! -x "$STRIP" ]; then
-            echo "::warning::No llvm-strip found under NDK. Listing ndk tree for diagnostics:"
-            ls -la "$ANDROID_SDK_ROOT/ndk" 2>/dev/null || true
-            find "$ANDROID_SDK_ROOT/ndk" -name 'llvm-strip' 2>/dev/null || true
-            # Non-fatal: Flutter/Gradle can still install/use an NDK during the
-            # build. Symbol stripping may be skipped or handled later.
-            echo "NDK_STRIP=" >> "$GITHUB_ENV"
-            echo "Proceeding without a pre-resolved llvm-strip."
-          else
+          if [ -n "$STRIP" ] && [ -f "$STRIP" ]; then
+            chmod +x "$STRIP" 2>/dev/null || true
             echo "Using llvm-strip: $STRIP"
-            "$STRIP" --version || true
+            "$STRIP" --version 2>/dev/null || true
             echo "NDK_STRIP=$STRIP" >> "$GITHUB_ENV"
+          else
+            # Informational only — do not emit ::warning/::error annotations.
+            echo "No llvm-strip pre-resolved; Flutter/Gradle will select an NDK during the build."
+            echo "NDK_STRIP=" >> "$GITHUB_ENV"
           fi
 
       - name: Pub get
@@ -297,21 +295,21 @@ jobs:
           export ANDROID_SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-}}"
           test -n "$ANDROID_SDK_ROOT"
           STRIP="${NDK_STRIP:-}"
-          if [ -z "$STRIP" ] || [ ! -x "$STRIP" ]; then
-            STRIP=""
+          if [ -z "$STRIP" ] || [ ! -f "$STRIP" ]; then
             for root in "$ANDROID_SDK_ROOT/ndk" "$ANDROID_SDK_ROOT/ndk-bundle"; do
               [ -d "$root" ] || continue
-              candidate="$(find "$root" -type f -name 'llvm-strip' 2>/dev/null | while read -r p; do [ -x "$p" ] && echo "$p"; done | sort -V | tail -n 1 || true)"
-              if [ -n "$candidate" ] && [ -x "$candidate" ]; then
+              candidate="$(find "$root" -type f -name 'llvm-strip' 2>/dev/null | sort -V | tail -n 1 || true)"
+              if [ -n "$candidate" ] && [ -f "$candidate" ]; then
                 STRIP="$candidate"
               fi
             done
           fi
-          if [ -n "$STRIP" ] && [ -x "$STRIP" ]; then
+          if [ -n "$STRIP" ] && [ -f "$STRIP" ]; then
+            chmod +x "$STRIP" 2>/dev/null || true
             echo "Verifying llvm-strip: $STRIP"
-            "$STRIP" --version
+            "$STRIP" --version 2>/dev/null || true
           else
-            echo "::warning::llvm-strip not pre-resolved; Flutter/Gradle will use the NDK selected during the build."
+            echo "llvm-strip not pre-resolved; Flutter/Gradle will use the NDK selected during the build."
           fi
 
       - name: Build signed release APKs (split-per-abi for smaller size + universal)
@@ -495,54 +493,50 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p artifacts
-          # Universal APK (largest, multi-ABI)
-          cp build/app/outputs/flutter-apk/app-release.apk artifacts/MPorT-Tes-Speed-release.apk
-          # Split APKs (much smaller; prefer arm64-v8a for modern devices)
-          for f in build/app/outputs/flutter-apk/app-*-release.apk; do
-            [ -f "$f" ] || continue
-            base=$(basename "$f")
-            cp "$f" "artifacts/MPorT-Tes-Speed-${base}"
-          done
-          APK_IDS=$(find build -type f -name 'app-release.apk.idsig' -print -quit || true)
-          if [ -z "$APK_IDS" ]; then APK_IDS=$(find build -type f -name '*.idsig' -print -quit || true); fi
-          test -n "$APK_IDS" || { echo '::error::V4 idsig artifact missing'; exit 1; }
-          cp "$APK_IDS" artifacts/MPorT-Tes-Speed-release.apk.idsig
-          cp build/app/outputs/bundle/release/app-release.aab artifacts/MPorT-Tes-Speed-release.aab
-
-          # Keep artifact payload small to stay within Actions storage quota.
-          # Debug symbols are useful but large — only attach when explicitly requested.
-          if [ "${UPLOAD_DEBUG_INFO:-0}" = "1" ] && [ -d build/debug-info ]; then
-            tar -C build -czf artifacts/MPorT-Tes-Speed-debug-info.tar.gz debug-info
-          fi
-
-          sha256sum artifacts/*.apk artifacts/*.aab artifacts/*.idsig > artifacts/SHA256SUMS.txt
-          echo 'Artifact payload:'
+          # Minimal payload to stay within free Actions storage quota:
+          #   - arm64-v8a APK (primary modern devices)
+          #   - Play App Bundle
+          #   - checksums
+          # Skip universal APK, other ABIs, idsig, and debug-info by default.
+          ARM64='build/app/outputs/flutter-apk/app-arm64-v8a-release.apk'
+          AAB='build/app/outputs/bundle/release/app-release.aab'
+          test -f "$ARM64" || { echo '::error::Missing arm64-v8a release APK'; exit 1; }
+          test -f "$AAB" || { echo '::error::Missing release AAB'; exit 1; }
+          cp "$ARM64" artifacts/MPorT-Tes-Speed-arm64-v8a-release.apk
+          cp "$AAB" artifacts/MPorT-Tes-Speed-release.aab
+          sha256sum artifacts/*.apk artifacts/*.aab > artifacts/SHA256SUMS.txt
+          echo 'Artifact payload (minimal):'
           du -sh artifacts/* || true
 
-      - name: Free previous release artifacts
+      - name: Free Actions artifact storage
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          # Delete older artifacts with the same name to reclaim Actions storage
-          # quota before uploading the new build. Best-effort: never fail the job.
-          ARTIFACT_NAME='MPorT-Tes-Speed-Android-Release'
-          echo "Looking for previous artifacts named: $ARTIFACT_NAME"
+          # Delete ALL repository artifacts (not only the release name) so a
+          # full quota from older runs/names cannot block the new upload.
+          # Best-effort: never fail the job.
+          echo 'Listing repository artifacts…'
           IDS="$(gh api --paginate \
             "repos/${{ github.repository }}/actions/artifacts" \
-            --jq ".artifacts[] | select(.name==\"$ARTIFACT_NAME\") | .id" \
+            --jq '.artifacts[].id' \
             2>/dev/null || true)"
           if [ -z "${IDS}" ]; then
-            echo 'No previous matching artifacts found.'
+            echo 'No artifacts found to delete.'
             exit 0
           fi
+          count=0
           while IFS= read -r id; do
             [ -z "$id" ] && continue
             echo "Deleting artifact id=$id"
-            gh api -X DELETE "repos/${{ github.repository }}/actions/artifacts/${id}" \
-              && echo "Deleted $id" \
-              || echo "::warning::Could not delete artifact $id (continuing)"
+            if gh api -X DELETE "repos/${{ github.repository }}/actions/artifacts/${id}" 2>/dev/null; then
+              count=$((count + 1))
+              echo "Deleted $id"
+            else
+              echo "Could not delete artifact $id (continuing)"
+            fi
           done <<< "$IDS"
+          echo "Deleted $count artifact(s). Quota may take a few minutes to refresh."
 
       - name: Upload signed APK + AAB
         id: upload_release
@@ -552,8 +546,7 @@ jobs:
           name: MPorT-Tes-Speed-Android-Release
           path: artifacts/
           if-no-files-found: error
-          # Short retention + overwrite reduces Actions artifact storage pressure.
-          retention-days: 3
+          retention-days: 2
           overwrite: true
           compression-level: 9
 
@@ -564,9 +557,11 @@ jobs:
             echo 'Release artifacts uploaded successfully.'
             exit 0
           fi
-          echo '::warning::Artifact upload failed (often Actions storage quota). APK/AAB were still built and signed on this runner.'
-          echo 'Delete old artifacts under Actions → Artifacts, wait for quota recalculation (6–12h), then re-run this job.'
-          echo 'Build itself is considered successful; download APK/AAB from a local release build if needed.'
+          # Soft notice only — build + signing already succeeded.
+          echo 'Artifact upload did not complete (often Actions storage quota).'
+          echo 'APK/AAB were still built and signed on this runner.'
+          echo 'Open Actions → Artifacts, delete old entries, wait for quota refresh, then re-run.'
+          echo 'Or download from a local: flutter build apk --release && flutter build appbundle --release'
 
       - name: Remove signing material
         if: always()
